@@ -19,6 +19,14 @@ yarn-error.log*
 # env files
 .env*
 
+# local-only Live2D SDK files
+app/live2d/
+components/live2d/
+lib/live2d-local/
+lib/live2d-sdk/
+public/live2d/
+config/openai.json
+
 # vercel
 .vercel
 

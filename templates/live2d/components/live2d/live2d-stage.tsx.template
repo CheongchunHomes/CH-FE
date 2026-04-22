@@ -1,0 +1,212 @@
+"use client"
+
+import { useEffect, useMemo, useRef, useState } from "react"
+
+import { Card, CardContent } from "@/components/ui/card"
+
+type ChatRole = "user" | "assistant"
+
+type ChatMessage = {
+  role: ChatRole
+  content: string
+}
+
+declare global {
+  interface Window {
+    live2dChat?: {
+      setMouthOpen(value: number): void
+      clearMouth(): void
+    }
+  }
+}
+
+const quickPrompts = [
+  "오늘 청약 추천해줘",
+  "대출 계산 어떻게 해?",
+  "계약 준비 체크리스트 알려줘",
+  "집 찾는 기준 추천해줘",
+]
+
+const initialMessages: ChatMessage[] = [
+  {
+    role: "assistant",
+    content: "안녕하세요. 궁금한 내용을 보내주시면 바로 도와드릴게요.",
+  },
+]
+
+export function Live2DStage() {
+  const mountRef = useRef<HTMLDivElement | null>(null)
+  const messagesRef = useRef<ChatMessage[]>(initialMessages)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const [status, setStatus] = useState("로컬 Live2D 파일을 불러오는 중입니다.")
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [input, setInput] = useState("")
+  const [isSending, setIsSending] = useState(false)
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+    let cancelled = false
+
+    async function boot() {
+      try {
+        const { startLive2D } = await import("@/lib/live2d-local/bootstrap")
+
+        if (cancelled) {
+          return
+        }
+
+        cleanup = await startLive2D(mountRef.current)
+        setStatus("Live2D 캐릭터가 준비되었습니다.")
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "알 수 없는 오류"
+        setStatus(`Live2D 연결 실패: ${message}`)
+      }
+    }
+
+    void boot()
+
+    return () => {
+      cancelled = true
+      cleanup?.()
+    }
+  }, [])
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
+  }, [messages, isSending])
+
+  const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending])
+
+  async function sendMessage(rawText: string) {
+    const text = rawText.trim()
+
+    if (!text || isSending) {
+      return
+    }
+
+    const nextMessages = [...messagesRef.current, { role: "user" as const, content: text }]
+    setMessages(nextMessages)
+    messagesRef.current = nextMessages
+    setInput("")
+    setIsSending(true)
+    window.live2dChat?.setMouthOpen(0.45)
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: nextMessages }),
+      })
+
+      const payload = (await response.json()) as { reply?: string; error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "GPT 연결에 실패했습니다.")
+      }
+
+      const assistantMessage = {
+        role: "assistant" as const,
+        content: payload.reply ?? "응답이 비어 있습니다.",
+      }
+
+      const updatedMessages = [...nextMessages, assistantMessage]
+      setMessages(updatedMessages)
+      messagesRef.current = updatedMessages
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "알 수 없는 오류"
+      const updatedMessages = [
+        ...nextMessages,
+        { role: "assistant" as const, content: `GPT 연결에 실패했어요: ${message}` },
+      ]
+      setMessages(updatedMessages)
+      messagesRef.current = updatedMessages
+    } finally {
+      setIsSending(false)
+      window.live2dChat?.clearMouth()
+    }
+  }
+
+  return (
+    <section className="grid flex-1 gap-4 lg:grid-cols-[280px_1fr_360px]">
+      <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-base font-semibold">빠른 질문</h2>
+        <div className="mt-4 grid gap-3">
+          {quickPrompts.map((item) => (
+            <button
+              key={item}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-700"
+              type="button"
+              onClick={() => void sendMessage(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className="relative min-h-[620px] overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-sm">
+        <div ref={mountRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-sky-700 shadow-sm">
+          {status}
+        </div>
+      </div>
+
+      <Card className="border-slate-200 bg-slate-950 text-white shadow-sm">
+        <CardContent className="flex h-full min-h-[620px] flex-col p-5">
+          <h2 className="text-lg font-semibold">AI 채팅</h2>
+
+          <div ref={scrollRef} className="mt-5 flex-1 space-y-3 overflow-y-auto pr-1">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}-${message.content.slice(0, 12)}`}
+                className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                  message.role === "user"
+                    ? "ml-auto bg-sky-500 text-white"
+                    : "bg-white text-slate-800"
+                }`}
+              >
+                {message.content}
+              </div>
+            ))}
+
+            {isSending ? (
+              <div className="max-w-[88%] rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-slate-500">
+                답변을 기다리는 중...
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <input
+              className="h-11 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-white/45"
+              placeholder="질문을 입력하세요"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  void sendMessage(input)
+                }
+              }}
+              disabled={isSending}
+            />
+            <button
+              className="h-11 rounded-xl bg-sky-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => void sendMessage(input)}
+              disabled={!canSend}
+            >
+              전송
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  )
+}

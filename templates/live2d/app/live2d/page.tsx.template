@@ -1,0 +1,29 @@
+import Link from "next/link"
+import { ArrowLeft, Sparkles } from "lucide-react"
+
+import { Live2DStage } from "@/components/live2d/live2d-stage"
+import { Button } from "@/components/ui/button"
+
+export default function Live2DPage() {
+  return (
+    <main className="min-h-screen bg-[#eef4ff] text-slate-950">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">
+        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <Button asChild variant="ghost" className="rounded-full text-slate-600">
+            <Link href="/main">
+              <ArrowLeft className="mr-2" size={16} />
+              메인으로 돌아가기
+            </Link>
+          </Button>
+
+          <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
+            <Sparkles size={14} />
+            로컬 Live2D 스테이지
+          </div>
+        </header>
+
+        <Live2DStage />
+      </div>
+    </main>
+  )
+}
