@@ -1,5 +1,7 @@
-import Link from "next/link"
+"use client"
 
+import Link from "next/link"
+import { useEffect, useState } from "react"
 import {
   ArrowRight,
   Bell,
@@ -16,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react"
 
+import { getStoredNickname } from "@/lib/auth-session"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -36,6 +39,12 @@ const homeTips = [
 ]
 
 export default function MainPage() {
+  const [nickname, setNickname] = useState<string | null>(null)
+
+  useEffect(() => {
+    setNickname(getStoredNickname())
+  }, [])
+
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
@@ -67,12 +76,20 @@ export default function MainPage() {
                 <Bell size={18} />
                 <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
               </button>
-              <Button asChild variant="ghost" className="hidden rounded-full text-slate-600 md:inline-flex">
-                <Link href="/login">로그인</Link>
-              </Button>
-              <Button asChild className="rounded-full bg-sky-600 text-white hover:bg-sky-700">
-                <Link href="/signup">회원가입</Link>
-              </Button>
+              {nickname ? (
+                <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+                  {nickname}님 환영합니다
+                </div>
+              ) : (
+                <>
+                  <Button asChild variant="ghost" className="hidden rounded-full text-slate-600 md:inline-flex">
+                    <Link href="/login">로그인</Link>
+                  </Button>
+                  <Button asChild className="rounded-full bg-sky-600 text-white hover:bg-sky-700">
+                    <Link href="/signup">회원가입</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </header>

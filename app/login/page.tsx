@@ -1,11 +1,22 @@
+"use client"
+
 import Link from "next/link"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronRight, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react"
 
+import { post } from "@/lib/api"
+import { setStoredNickname } from "@/lib/auth-session"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+
+type LoginRequest = {
+  email: string
+  password: string
+}
 
 function GoogleBrandMark() {
   return (
@@ -20,6 +31,39 @@ function GoogleBrandMark() {
 }
 
 export default function LoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!email.trim() || !password.trim()) {
+      setErrorMessage("이메일과 비밀번호를 입력해 주세요.")
+      return
+    }
+
+    setIsSubmitting(true)
+    setErrorMessage("")
+
+    try {
+      const nickname = await post<string, LoginRequest>("/api/login", {
+        email: email.trim(),
+        password,
+      })
+
+      setStoredNickname(nickname)
+      router.push("/main")
+      router.refresh()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "로그인에 실패했습니다.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe_0%,_#f8fbff_38%,_#eef4ff_100%)] text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 md:px-6">
@@ -77,6 +121,7 @@ export default function LoginPage() {
 
               <CardContent className="space-y-5 px-0 pb-0">
                 <Button
+                  type="button"
                   className="h-12 w-full justify-start rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50"
                   variant="outline"
                 >
@@ -92,12 +137,19 @@ export default function LoginPage() {
                   <Separator className="flex-1" />
                 </div>
 
-                <div className="space-y-4">
+                <form className="space-y-4" onSubmit={handleSubmit}>
                   <div className="space-y-2">
-                    <Label htmlFor="login-id">아이디</Label>
+                    <Label htmlFor="login-email">이메일</Label>
                     <div className="relative">
                       <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input id="login-id" placeholder="아이디를 입력하세요" className="h-12 rounded-2xl pl-10" />
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="이메일을 입력해 주세요"
+                        className="h-12 rounded-2xl pl-10"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
                     </div>
                   </div>
 
@@ -105,25 +157,38 @@ export default function LoginPage() {
                     <Label htmlFor="login-password">비밀번호</Label>
                     <div className="relative">
                       <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input id="login-password" type="password" placeholder="비밀번호를 입력하세요" className="h-12 rounded-2xl pl-10" />
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="비밀번호를 입력해 주세요"
+                        className="h-12 rounded-2xl pl-10"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                      />
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 text-slate-600">
-                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
-                    로그인 상태 유지
-                  </label>
-                  <button type="button" className="font-medium text-sky-600 hover:text-sky-700">
+                  {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
+
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex items-center gap-2 text-slate-600">
+                      <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+                      로그인 상태 유지
+                    </label>
+                    <Link href="/signup" className="font-medium text-sky-600 hover:text-sky-700">
                     비밀번호 찾기
-                  </button>
-                </div>
+                  </Link>
+                  </div>
 
-                <Button className="h-12 w-full rounded-2xl bg-sky-600 text-white hover:bg-sky-700">
-                  로그인
-                  <ChevronRight className="ml-2" size={16} />
-                </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="h-12 w-full rounded-2xl bg-sky-600 text-white hover:bg-sky-700"
+                  >
+                    {isSubmitting ? "로그인 중..." : "로그인"}
+                    <ChevronRight className="ml-2" size={16} />
+                  </Button>
+                </form>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">아직 계정이 없나요?</p>

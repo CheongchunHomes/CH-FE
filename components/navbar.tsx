@@ -37,11 +37,11 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center space-x-4">
-          <Button variant="outline" className="border-slate-300">
-            Log in
+          <Button asChild variant="outline" className="border-slate-300">
+            <Link href="/login">Log in</Link>
           </Button>
-          <Button className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
-            Get Started
+          <Button asChild className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
+            <Link href="/signup">Get Started</Link>
           </Button>
         </div>
 
@@ -84,11 +84,11 @@ export default function Navbar() {
               Testimonials
             </Link>
             <div className="flex flex-col space-y-2 pt-2 border-t border-slate-200">
-              <Button variant="outline" className="w-full border-slate-300">
-                Log in
+              <Button asChild variant="outline" className="w-full border-slate-300">
+                <Link href="/login">Log in</Link>
               </Button>
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
-                Get Started
+              <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
+                <Link href="/signup">Get Started</Link>
               </Button>
             </div>
           </div>
