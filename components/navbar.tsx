@@ -1,99 +1,95 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { getStoredNickname } from "@/lib/auth-session"
+import { logoutAndRedirect } from "@/lib/logout-client"
+import { Bell, GraduationCap } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
-import { Menu, X } from "lucide-react"
 
 export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const router = useRouter()
+  const [nickname, setNickname] = useState<string | null>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [logoutErrorMessage, setLogoutErrorMessage] = useState("")
+
+  useEffect(() => {
+    setNickname(getStoredNickname())
+  }, [])
+
+  async function handleLogout() {
+    setIsLoggingOut(true)
+    setLogoutErrorMessage("")
+
+    try {
+      await logoutAndRedirect(router)
+      setNickname(null)
+    } catch (error) {
+      setLogoutErrorMessage(error instanceof Error ? error.message : "로그아웃에 실패했습니다.")
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-violet-600 rounded-md flex items-center justify-center">
-            <span className="text-white font-bold">A</span>
+    <header className="mb-4 rounded-3xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
+            <GraduationCap size={20} />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-            AgentAI
-          </span>
-        </Link>
-
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-8">
-          <Link href="#features" className="text-slate-700 hover:text-blue-600 transition-colors">
-            Features
-          </Link>
-          <Link href="#use-cases" className="text-slate-700 hover:text-blue-600 transition-colors">
-            Use Cases
-          </Link>
-          <Link href="#pricing" className="text-slate-700 hover:text-blue-600 transition-colors">
-            Pricing
-          </Link>
-          <Link href="#testimonials" className="text-slate-700 hover:text-blue-600 transition-colors">
-            Testimonials
-          </Link>
+          <div>
+            <p className="text-sm font-semibold tracking-tight">청년주거ON</p>
+            <p className="text-xs text-slate-500">청년 주거 준비를 한 번에</p>
+          </div>
         </div>
 
-        <div className="hidden md:flex items-center space-x-4">
-          <Button asChild variant="outline" className="border-slate-300">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button asChild className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
-            <Link href="/signup">Get Started</Link>
-          </Button>
-        </div>
+        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+          {["청약", "대출", "집찾기", "계약", "가이드"].map((item) => (
+            <a key={item} href="#" className="transition hover:text-slate-950">
+              {item}
+            </a>
+          ))}
+        </nav>
 
-        {/* Mobile Menu Button */}
-        <button className="md:hidden text-slate-700" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="relative rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="notifications"
+          >
+            <Bell size={18} />
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
+          </button>
+          {nickname ? (
+            <>
+              <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+                {nickname}님 환영합니다
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isLoggingOut}
+                onClick={handleLogout}
+                className="border-slate-300"
+              >
+                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" className="hidden rounded-full text-slate-600 md:inline-flex">
+                <Link href="/login">로그인</Link>
+              </Button>
+              <Button asChild className="rounded-full bg-sky-600 text-white hover:bg-sky-700">
+                <Link href="/signup">회원가입</Link>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
-
-      {/* Mobile Navigation */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-slate-200 py-4">
-          <div className="container mx-auto px-4 flex flex-col space-y-4">
-            <Link
-              href="#features"
-              className="text-slate-700 hover:text-blue-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Features
-            </Link>
-            <Link
-              href="#use-cases"
-              className="text-slate-700 hover:text-blue-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Use Cases
-            </Link>
-            <Link
-              href="#pricing"
-              className="text-slate-700 hover:text-blue-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Pricing
-            </Link>
-            <Link
-              href="#testimonials"
-              className="text-slate-700 hover:text-blue-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Testimonials
-            </Link>
-            <div className="flex flex-col space-y-2 pt-2 border-t border-slate-200">
-              <Button asChild variant="outline" className="w-full border-slate-300">
-                <Link href="/login">Log in</Link>
-              </Button>
-              <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white">
-                <Link href="/signup">Get Started</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </nav>
+      {logoutErrorMessage ? <p className="mt-3 text-sm font-medium text-rose-600">{logoutErrorMessage}</p> : null}
+    </header>
   )
 }

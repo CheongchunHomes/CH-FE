@@ -56,7 +56,7 @@ export default function SignupPage() {
       })
 
       setStoredNickname(nickname)
-      router.push("/main")
+      router.push("/site")
       router.refresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "회원가입에 실패했습니다.")

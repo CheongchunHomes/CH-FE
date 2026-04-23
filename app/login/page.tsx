@@ -55,7 +55,7 @@ export default function LoginPage() {
       })
 
       setStoredNickname(nickname)
-      router.push("/main")
+      router.push("/site")
       router.refresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "로그인에 실패했습니다.")
@@ -71,7 +71,7 @@ export default function LoginPage() {
           <section className="flex flex-col justify-between rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur md:p-10">
             <div className="space-y-6">
               <Button asChild variant="ghost" className="-ml-3 w-fit rounded-full px-3 text-slate-600 hover:bg-slate-100">
-                <Link href="/main">
+                <Link href="/site">
                   <ArrowLeft className="mr-2" size={16} />
                   메인으로 돌아가기
                 </Link>
