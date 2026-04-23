@@ -22,7 +22,6 @@ const quickMenus = [
   { icon: Coins, label: "대출 계산" },
   { icon: MapPin, label: "집·공고 확인" },
   { icon: Building2, label: "계약 준비" },
-  { icon: Wallet, label: "입주 관리" },
 ]
 
 const homeTips = [
@@ -36,7 +35,7 @@ export default function SitePage() {
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
-        <section className="grid gap-4 lg:grid-cols-[1.45fr_0.95fr]">
+        <section className="grid gap-4">
           <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">
             <CardContent className="p-6 md:p-8">
               <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
@@ -122,13 +121,38 @@ export default function SitePage() {
               </div>
             </CardContent>
           </Card>
+        </section>
 
+        <section className="mt-4">
+          <Card className="border-slate-200/80 bg-sky-600 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-white">청년 주거 원스텝</CardTitle>
+                <span className="text-sm text-sky-600">더보기</span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {quickMenus.map(({ icon: Icon, label }) => (
+                  <div key={label} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-sky-600">
+                      <Icon size={18} />
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="mt-4">
           <Card className="border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-slate-900">오늘의 청약</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 px-6 pb-6">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-3xl bg-sky-600 p-5 text-white shadow-sm">
                   <p className="text-sm/none font-medium">청약 진행 중 공고</p>
                   <p className="mt-4 text-4xl font-bold">7</p>
@@ -138,34 +162,6 @@ export default function SitePage() {
                   <p className="text-sm font-medium text-slate-500">당첨자 발표</p>
                   <p className="mt-4 text-4xl font-bold text-slate-900">4</p>
                   <p className="mt-3 text-sm text-slate-500">오늘 발표를 확인하세요</p>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <BookOpen size={16} />
-                    청약 캘린더 보기
-                  </div>
-                  <ArrowRight size={16} className="text-slate-400" />
-                </div>
-                <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-500">아직 이번 주 일정이 없어요.</div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-base font-semibold">청년 주거 원스텝</h3>
-                  <span className="text-sm text-sky-600">더보기</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {quickMenus.map(({ icon: Icon, label }) => (
-                    <div key={label} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-                      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-sky-600">
-                        <Icon size={18} />
-                      </div>
-                      <p className="text-sm font-medium text-slate-800">{label}</p>
-                    </div>
-                  ))}
                 </div>
               </div>
             </CardContent>
