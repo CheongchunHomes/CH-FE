@@ -79,7 +79,7 @@ export default function LoginPage() {
 
               <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
                 <Sparkles size={14} />
-                청년주거ON 로그인
+                청년홈즈 로그인
               </div>
 
               <div className="space-y-4">

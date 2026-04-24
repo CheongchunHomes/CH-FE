@@ -15,20 +15,21 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getPageSampleHref } from "@/lib/page-samples"
 
 const quickMenus = [
-  { icon: House, label: "내 조건 진단" },
-  { icon: Ticket, label: "정책 추천" },
-  { icon: Coins, label: "대출 계산" },
-  { icon: MapPin, label: "집·공고 확인" },
-  { icon: Building2, label: "계약 준비" },
+  { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
+  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("guide-center") },
+  { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
+  { icon: MapPin, label: "집·공고 확인", href: getPageSampleHref("rent") },
+  { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
 ]
 
 const homeTips = [
-  { title: "청약 자격 진단", desc: "내 조건에 맞는 청약을 한 번에 확인" },
-  { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산" },
-  { title: "청년 주거지원 찾기", desc: "행정구역과 공공임대 정보를 지도처럼 탐색" },
-  { title: "전자계약 시작", desc: "서류 확인부터 계약까지 간편하게" },
+  { title: "청약 자격 진단", desc: "내 조건에 맞는 청약을 한 번에 확인", href: getPageSampleHref("subscription") },
+  { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산", href: getPageSampleHref("loan") },
+  { title: "시뮬레이션", desc: "가상의 조건으로 계산해 보기", href: getPageSampleHref("simulator") },
+  { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
 ]
 
 export default function SitePage() {
@@ -55,16 +56,18 @@ export default function SitePage() {
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <Button className="rounded-full bg-sky-600 px-6 text-white hover:bg-sky-700">내 조건 진단</Button>
-                    <Button variant="outline" className="rounded-full border-slate-300 px-6">
-                      오늘 공고 보기
+                    <Button asChild className="rounded-full bg-sky-600 px-6 text-white hover:bg-sky-700">
+                      <Link href={getPageSampleHref("condition-check")}>내 조건 진단</Link>
+                    </Button>
+                    <Button asChild variant="outline" className="rounded-full border-slate-300 px-6">
+                      <Link href={getPageSampleHref("notice")}>오늘 공고 보기</Link>
                     </Button>
                     <Button
                       asChild
                       variant="outline"
                       className="rounded-full border-sky-200 bg-sky-50 px-6 text-sky-700 hover:bg-sky-100"
                     >
-                      <Link href="/live2d">
+                      <Link href={getPageSampleHref("ai")}>
                         AI에게 물어보기
                         <MessageCircleQuestion className="ml-2" size={16} />
                       </Link>
@@ -132,14 +135,14 @@ export default function SitePage() {
               </div>
             </CardHeader>
             <CardContent className="px-6 pb-6">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                {quickMenus.map(({ icon: Icon, label }) => (
-                  <div key={label} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {quickMenus.map(({ icon: Icon, label, href }) => (
+                  <Link key={label} href={href} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
                     <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-sky-600">
                       <Icon size={18} />
                     </div>
                     <p className="text-sm font-medium text-slate-800">{label}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </CardContent>
@@ -147,38 +150,42 @@ export default function SitePage() {
         </section>
 
         <section className="mt-4">
-          <Card className="border-slate-200/80 bg-white shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-slate-900">오늘의 청약</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 px-6 pb-6">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-3xl bg-sky-600 p-5 text-white shadow-sm">
-                  <p className="text-sm/none font-medium">청약 진행 중 공고</p>
-                  <p className="mt-4 text-4xl font-bold">7</p>
-                  <p className="mt-3 text-sm text-sky-100">신청 시간 09:00-17:30</p>
+          <Link href={getPageSampleHref("subscription")} className="block">
+            <Card className="border-slate-200/80 bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-slate-900">오늘의 청약</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 px-6 pb-6">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-3xl bg-sky-600 p-5 text-white shadow-sm">
+                    <p className="text-sm/none font-medium">청약 진행 중 공고</p>
+                    <p className="mt-4 text-4xl font-bold">7</p>
+                    <p className="mt-3 text-sm text-sky-100">신청 시간 09:00-17:30</p>
+                  </div>
+                  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-medium text-slate-500">당첨자 발표</p>
+                    <p className="mt-4 text-4xl font-bold text-slate-900">4</p>
+                    <p className="mt-3 text-sm text-slate-500">오늘 발표를 확인하세요</p>
+                  </div>
                 </div>
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-medium text-slate-500">당첨자 발표</p>
-                  <p className="mt-4 text-4xl font-bold text-slate-900">4</p>
-                  <p className="mt-3 text-sm text-slate-500">오늘 발표를 확인하세요</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </section>
 
         <section className="mt-4 grid gap-4 md:grid-cols-2">
           {homeTips.map((item) => (
-            <Card key={item.title} className="border-slate-200/80 bg-white shadow-sm">
-              <CardContent className="flex items-center justify-between gap-4 p-5">
-                <div>
-                  <p className="font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-500">{item.desc}</p>
-                </div>
-                <ArrowRight className="shrink-0 text-slate-300" size={18} />
-              </CardContent>
-            </Card>
+            <Link key={item.title} href={item.href} className="block">
+              <Card className="border-slate-200/80 bg-white shadow-sm">
+                <CardContent className="flex items-center justify-between gap-4 p-5">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.title}</p>
+                    <p className="mt-1 text-sm text-slate-500">{item.desc}</p>
+                  </div>
+                  <ArrowRight className="shrink-0 text-slate-300" size={18} />
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </section>
       </div>

@@ -14,7 +14,7 @@ type OpenAIConfig = {
 
 const DEFAULT_MODEL = "gpt-4.1-mini"
 const DEFAULT_SYSTEM_PROMPT =
-  "너는 청년주거ON 서비스의 친절한 AI 상담 도우미다. 한국어로 짧고 명확하게 답하고, 필요한 정보가 부족하면 먼저 짧게 되물어봐."
+  "너는 청년홈즈 서비스의 친절한 AI 상담 도우미다. 한국어로 짧고 명확하게 답하고, 필요한 정보가 부족하면 먼저 짧게 되물어봐."
 
 function stripBom(text: string) {
   return text.replace(/^\uFEFF/, "")

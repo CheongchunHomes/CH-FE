@@ -8,6 +8,13 @@ import { logoutAndRedirect } from "@/lib/logout-client"
 import { Bell, GraduationCap } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { getPageSampleHref } from "@/lib/page-samples"
+
+const navItems = [
+  { label: "가이드", href: getPageSampleHref("guide-center") },
+  { label: "대출", href: getPageSampleHref("loan") },
+  { label: "지도", href: getPageSampleHref("rent") },
+]
 
 export default function Navbar() {
   const router = useRouter()
@@ -36,22 +43,27 @@ export default function Navbar() {
   return (
     <header className="mb-4 rounded-3xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <Link href="/site" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
             <GraduationCap size={20} />
           </div>
           <div>
-            <p className="text-sm font-semibold tracking-tight">청년주거ON</p>
+            <p className="text-sm font-semibold tracking-tight">청년홈즈</p>
             <p className="text-xs text-slate-500">청년 주거 준비를 한 번에</p>
           </div>
-        </div>
+        </Link>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          {["청약", "대출", "집찾기", "계약", "가이드"].map((item) => (
-            <a key={item} href="#" className="transition hover:text-slate-950">
-              {item}
-            </a>
+        <nav className="hidden flex-1 items-center justify-end gap-6 text-sm font-medium text-slate-600 md:flex">
+          {navItems.map((item) => (
+            <Link key={item.label} href={item.href} className="transition hover:text-slate-950">
+              {item.label}
+            </Link>
           ))}
+          {nickname ? (
+            <Link href={getPageSampleHref("my-page")} className="transition hover:text-slate-950">
+              마이페이지
+            </Link>
+          ) : null}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -64,9 +76,12 @@ export default function Navbar() {
           </button>
           {nickname ? (
             <>
-              <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+              <Link
+                href={getPageSampleHref("my-page")}
+                className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700"
+              >
                 {nickname}님 환영합니다
-              </div>
+              </Link>
               <Button
                 type="button"
                 variant="outline"
@@ -79,11 +94,11 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" className="hidden rounded-full text-slate-600 md:inline-flex">
-                <Link href="/login">로그인</Link>
-              </Button>
-              <Button asChild className="rounded-full bg-sky-600 text-white hover:bg-sky-700">
+              <Button asChild variant="ghost" className="rounded-full text-slate-600">
                 <Link href="/signup">회원가입</Link>
+              </Button>
+              <Button asChild className="hidden rounded-full bg-sky-600 text-white hover:bg-sky-700 md:inline-flex">
+                <Link href="/login">로그인</Link>
               </Button>
             </>
           )}
