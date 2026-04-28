@@ -1,6 +1,10 @@
 declare global {
   interface Window {
     Live2DCubismCore?: unknown
+    live2dChat?: {
+      setMouthOpen(value: number): void
+      clearMouth(): void
+    }
   }
 }
 
@@ -82,10 +86,20 @@ export async function startLive2D(mountNode?: HTMLElement | null): Promise<() =>
       delegate.onResize()
     }
 
+    window.live2dChat = {
+      setMouthOpen(value: number): void {
+        delegate.getLive2DManager()?.setChatMouthOpen(value)
+      },
+      clearMouth(): void {
+        delegate.getLive2DManager()?.clearChatMouthOpen()
+      },
+    }
+
     delegate.run()
     isStarted = true
 
     return () => {
+      window.live2dChat = undefined
       LAppDelegate.releaseInstance()
       isStarted = false
     }

@@ -21,11 +21,27 @@ type LoginRequest = {
 function GoogleBrandMark() {
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true" className="h-5 w-5">
-      <path fill="#4285F4" d="M44.5 24.5c0-1.5-.1-2.6-.4-3.8H24v7.1h11.7c-.2 1.8-1.4 4.6-4 6.4l-.1.2 5.7 4.4.4.1c3.3-3 5.2-7.4 5.2-12.4z" />
-      <path fill="#34A853" d="M24 45c5 0 9.2-1.6 12.3-4.4l-5.9-4.6c-1.6 1.1-3.8 1.8-6.4 1.8-4.9 0-9-3.2-10.5-7.6l-.2.1-5.9 4.6-.1.2C10.2 41 16.6 45 24 45z" />
-      <path fill="#FBBC05" d="M13.5 30.2c-.4-1.2-.7-2.4-.7-3.7s.3-2.5.7-3.7v-.2l-6-4.7-.2.1C5.6 20.7 5 22.7 5 26.5S5.6 32.3 7.3 34.8l6.2-4.6z" />
-      <path fill="#EA4335" d="M24 15.2c3 0 5.1 1.3 6.3 2.4l4.6-4.5C33.2 10.2 29 8.5 24 8.5 16.6 8.5 10.2 12.5 7.1 18.5l6.3 4.7c1.5-4.4 5.6-8 10.6-8z" />
-      <path fill="white" d="M24 18.9c1.7 0 3.1.5 4.1 1.4l4.8-4.7C30.5 13.6 27.7 12.5 24 12.5c-5 0-9.1 3.1-10.6 7.5l4.9 3.8c.9-3.1 3.8-4.9 5.7-4.9z" opacity=".92" />
+      <path
+        fill="#4285F4"
+        d="M44.5 24.5c0-1.5-.1-2.6-.4-3.8H24v7.1h11.7c-.2 1.8-1.4 4.6-4 6.4l-.1.2 5.7 4.4.4.1c3.3-3 5.2-7.4 5.2-12.4z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 45c5 0 9.2-1.6 12.3-4.4l-5.9-4.6c-1.6 1.1-3.8 1.8-6.4 1.8-4.9 0-9-3.2-10.5-7.6l-.2.1-5.9 4.6-.1.2C10.2 41 16.6 45 24 45z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M13.5 30.2c-.4-1.2-.7-2.4-.7-3.7s.3-2.5.7-3.7v-.2l-6-4.7-.2.1C5.6 20.7 5 22.7 5 26.5S5.6 32.3 7.3 34.8l6.2-4.6z"
+      />
+      <path
+        fill="#EA4335"
+        d="M24 15.2c3 0 5.1 1.3 6.3 2.4l4.6-4.5C33.2 10.2 29 8.5 24 8.5 16.6 8.5 10.2 12.5 7.1 18.5l6.3 4.7c1.5-4.4 5.6-8 10.6-8z"
+      />
+      <path
+        fill="#fff"
+        opacity=".92"
+        d="M24 18.9c1.7 0 3.1.5 4.1 1.4l4.8-4.7C30.5 13.6 27.7 12.5 24 12.5c-5 0-9.1 3.1-10.6 7.5l4.9 3.8c.9-3.1 3.8-4.9 5.7-4.9z"
+      />
     </svg>
   )
 }
@@ -88,15 +104,15 @@ export default function LoginPage() {
                   <span className="block text-sky-600">청약과 대출을 바로 확인</span>
                 </h1>
                 <p className="max-w-lg text-base leading-7 text-slate-600 md:text-lg">
-                  공공 청약 정보와 맞춤 대출 정보에 더 빠르게 접근할 수 있는 로그인 화면입니다.
+                  공공 청약 정보와 맞춤 대출 정보를 더 빠르게 확인할 수 있는 로그인 화면입니다.
                 </p>
               </div>
             </div>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-3">
               {[
-                { title: "빠른 진입", desc: "한 번의 로그인으로 진입" },
-                { title: "보안 강화", desc: "로그인 상태만 저장" },
+                { title: "빠른 진입", desc: "한 번의 로그인으로 시작" },
+                { title: "보안 강화", desc: "로그인 상태만 안전하게 유지" },
                 { title: "회원가입 연결", desc: "아래에서 바로 이동" },
               ].map((item) => (
                 <div key={item.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -191,9 +207,9 @@ export default function LoginPage() {
                 </form>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">아직 계정이 없나요?</p>
+                  <p className="text-sm font-semibold text-slate-900">아직 계정이 없으신가요?</p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    회원가입을 먼저 하면 청약 알림과 AI 질문 기능을 바로 사용할 수 있어요.
+                    회원가입을 마치면 청약 알림과 AI 질문 기능을 바로 사용할 수 있어요.
                   </p>
                   <Button
                     asChild

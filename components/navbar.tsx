@@ -12,7 +12,7 @@ import { getPageSampleHref } from "@/lib/page-samples"
 
 const navItems = [
   { label: "가이드", href: getPageSampleHref("guide-center") },
-  { label: "대출", href: getPageSampleHref("loan") },
+  { label: "대출", href: "/loan" },
   { label: "지도", href: getPageSampleHref("rent") },
 ]
 

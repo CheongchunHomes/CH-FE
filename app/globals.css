@@ -74,3 +74,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .chat-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 189, 248, 0.9) rgba(15, 23, 42, 0.25);
+    scrollbar-gutter: stable;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.25);
+    border-radius: 9999px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(56, 189, 248, 0.95), rgba(14, 165, 233, 0.8));
+    border-radius: 9999px;
+    border: 2px solid rgba(15, 23, 42, 0.2);
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(56, 189, 248, 1), rgba(2, 132, 199, 0.95));
+  }
+}

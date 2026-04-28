@@ -94,7 +94,7 @@ export async function createChatReply(messages: ChatMessage[]): Promise<string> 
       ?.trim()
 
   if (!reply) {
-    throw new Error("OpenAI 응답에서 텍스트를 찾지 못했습니다.")
+    throw new Error("OpenAI 응답에서 텍스트를 찾지 못했어요.")
   }
 
   return reply

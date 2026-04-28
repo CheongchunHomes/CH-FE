@@ -89,18 +89,13 @@ export default function SignupPage() {
                   <span className="block text-sky-600">청약과 대출을 바로 시작</span>
                 </h1>
                 <p className="max-w-lg text-base leading-7 text-slate-600 md:text-lg">
-                  아이디와 비밀번호만 있으면 청약 알림과 맞춤 정보를 더 편하게 받을 수 있게 구성했어요.
+                  아이디와 비밀번호만 있으면 청약 알림과 맞춤 정보를 더 편하게 받아볼 수 있어요.
                 </p>
               </div>
             </div>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-2">
-              {[
-                "맞춤 청약 알림",
-                "대출 가능 금액 확인",
-                "계약 준비 체크리스트",
-                "AI 질문 기록 저장",
-              ].map((text) => (
+              {["맞춤 청약 알림", "대출 가능 금액 확인", "계약 준비 체크리스트", "AI 질문 기록 저장"].map((text) => (
                 <div key={text} className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                   <ShieldCheck className="text-sky-600" size={18} />
                   <span className="text-sm font-medium text-slate-800">{text}</span>
@@ -114,7 +109,7 @@ export default function SignupPage() {
               <CardHeader className="px-0">
                 <CardTitle className="text-2xl tracking-tight text-slate-950">회원가입</CardTitle>
                 <CardDescription className="text-slate-500">
-                  아이디와 비밀번호만 입력해서 간단하게 계정을 만들어보세요.
+                  아이디와 비밀번호만 입력해서 간단하게 계정을 만들어요.
                 </CardDescription>
               </CardHeader>
 
@@ -158,13 +153,13 @@ export default function SignupPage() {
                       <Input
                         id="signup-password-confirm"
                         type="password"
-                        placeholder="비밀번호를 한 번 더 입력"
+                        placeholder="비밀번호를 다시 입력하세요"
                         className="h-12 rounded-2xl pl-10"
                         value={passwordConfirm}
                         onChange={(event) => setPasswordConfirm(event.target.value)}
                       />
                     </div>
-                    {passwordMismatch ? <p className="text-sm font-medium text-rose-600">비밀번호가 일치하지 않습니다.</p> : null}
+                    {passwordMismatch ? <p className="text-sm font-medium text-rose-600">비밀번호가 다릅니다</p> : null}
                   </div>
 
                   <label className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">

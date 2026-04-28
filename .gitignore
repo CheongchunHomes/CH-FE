@@ -26,6 +26,7 @@ lib/live2d-local/
 lib/live2d-sdk/
 public/live2d/
 config/openai.json
+config/typecast.json
 
 # vercel
 .vercel

@@ -22,6 +22,9 @@ Create the file locally with:
 
 You can also let `scripts/setup-live2d-local.ps1` create the file for you during Live2D setup, then edit the key locally.
 
+Typecast TTS reads its API key and voice settings from `config/typecast.json`, which is also ignored by Git.
+Use the provided voice ID or replace it locally if needed.
+
 1. Clone Repository
 ```
 git clone https://github.com/themewagon/agent-ai.git

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const reply = await createChatReply(messages)
     return NextResponse.json({ reply })
   } catch (error) {
-    const messageText = error instanceof Error ? error.message : "알 수 없는 오류"
+    const messageText = error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요."
     return NextResponse.json({ error: messageText }, { status: 500 })
   }
 }

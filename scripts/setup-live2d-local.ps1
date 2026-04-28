@@ -122,6 +122,24 @@ function Patch-LAppView {
   Set-Content -LiteralPath $Path -Value $content -Encoding UTF8
 }
 
+function Patch-LAppSubdelegate {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+
+  if (-not (Test-Path -LiteralPath $Path)) {
+    throw "Missing lappsubdelegate.ts: $Path"
+  }
+
+  $content = Get-Content -LiteralPath $Path -Raw
+  $content = $content -replace "const localX: number = pageX - this\._canvas\.offsetLeft;", "const rect = this._canvas.getBoundingClientRect();`r`n    const localX: number = pageX - rect.left;"
+  $content = $content -replace "const localY: number = pageY - this\._canvas\.offsetTop;", "const localY: number = pageY - rect.top;"
+  $content = $content -replace "gl\.clearColor\(0\.0, 0\.0, 0\.0, 1\.0\);", "gl.clearColor(0.88, 0.95, 1.0, 1.0);"
+
+  Set-Content -LiteralPath $Path -Value $content -Encoding UTF8
+}
+
 function Patch-LAppModel {
   param(
     [Parameter(Mandatory = $true)]
@@ -133,9 +151,9 @@ function Patch-LAppModel {
   }
 
   $content = Get-Content -LiteralPath $Path -Raw
-  $content = $content -replace "this\._modelMatrix\.setupFromLayout\(layout\);", "this._modelMatrix.setupFromLayout(layout);`r`n      this._modelMatrix.setWidth(0.72);"
-  $content = $content -replace "this\._modelMatrix\.translateRelative\(0\.3, 0\.0\);", "this._modelMatrix.translateRelative(0.0, 0.0);"
-  $content = $content -replace "this\._modelMatrix\.translateRelative\(0\.0, 0\.0\);", "this._modelMatrix.translateRelative(0.0, 0.0);"
+  $content = $content -replace "this\._modelMatrix\.setupFromLayout\(layout\);", "this._modelMatrix.setupFromLayout(layout);`r`n      this._modelMatrix.setWidth(1.8);"
+  $content = $content -replace "this\._modelMatrix\.translateRelative\(0\.3, 0\.0\);", "this._modelMatrix.translateRelative(0.05, 0.0);"
+  $content = $content -replace "this\._modelMatrix\.translateRelative\(0\.0, 0\.0\);", "this._modelMatrix.translateRelative(0.05, 0.0);"
 
   Set-Content -LiteralPath $Path -Value $content -Encoding UTF8
 }
@@ -157,6 +175,34 @@ function Ensure-OpenAIConfig {
   "apiKey": ""
 }
 '@ | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Ensure-TypecastConfig {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$VoiceId
+  )
+
+  if (Test-Path -LiteralPath $Path) {
+    return
+  }
+
+  $parent = Split-Path -Parent $Path
+  New-Item -ItemType Directory -Path $parent -Force | Out-Null
+  @"
+{
+  "apiKey": "",
+  "voiceId": "$VoiceId",
+  "model": "ssfm-v21",
+  "language": "KOR",
+  "volume": 100,
+  "audioPitch": 0,
+  "audioTempo": 1,
+  "audioFormat": "wav"
+}
+"@ | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
 $frameworkSource = Join-Path $SdkRoot "Framework"
@@ -181,8 +227,10 @@ Copy-Tree -Source $shaderSource -Destination (Join-Path $ProjectRoot "public/liv
 Copy-TemplateTree -Source $templateSource -Destination $ProjectRoot
 Patch-LAppDefine -Path (Join-Path $ProjectRoot "lib/live2d-sdk/Demo/src/lappdefine.ts") -ModelName $ModelName
 Patch-LAppView -Path (Join-Path $ProjectRoot "lib/live2d-sdk/Demo/src/lappview.ts")
+Patch-LAppSubdelegate -Path (Join-Path $ProjectRoot "lib/live2d-sdk/Demo/src/lappsubdelegate.ts")
 Patch-LAppModel -Path (Join-Path $ProjectRoot "lib/live2d-sdk/Demo/src/lappmodel.ts")
 Ensure-OpenAIConfig -Path (Join-Path $ProjectRoot "config/openai.json")
+Ensure-TypecastConfig -Path (Join-Path $ProjectRoot "config/typecast.json") -VoiceId "tc_61659c5818732016a95fe763"
 
 if ($null -eq $modelSource) {
   throw "Could not find model '$ModelName' under the SDK package."
