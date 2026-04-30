@@ -67,7 +67,7 @@ export default function SitePage() {
                       variant="outline"
                       className="rounded-full border-sky-200 bg-sky-50 px-6 text-sky-700 hover:bg-sky-100"
                     >
-                      <Link href={getPageSampleHref("ai")}>
+                      <Link href="/live2d">
                         AI에게 물어보기
                         <MessageCircleQuestion className="ml-2" size={16} />
                       </Link>
