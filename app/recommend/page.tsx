@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/navbar';
 
-const API_BASE = 'http://localhost:8081/api/recommend';
+const API_BASE = '/api/recommend';
 
 interface Recoentity {
   id: number;
@@ -62,7 +62,7 @@ const categoryStyle: Record<string, { bg: string; text: string; border: string }
 };
 
 const gradeColor: Record<string, string> = {
-  A: '#16A34A', B: '#2563EB', C: '#D97706', D: '#DC2626',
+  A: '#16A34A', B: '#2563EB', C: '#db287c', D: '#fa0d0d',
 };
 
 const CATEGORIES = ['공공임대', '민간분양', '전세지원', '주거비지원', '금융지원'];
@@ -74,7 +74,7 @@ export default function RecommendPage() {
   const [activeTab, setActiveTab] = useState('전체');
 
   useEffect(() => {
-    fetch(`${API_BASE}/summary`)
+    fetch(`${API_BASE}`)
       .then(r => {
         if (!r.ok) throw new Error('서버 응답 오류');
         return r.json();
@@ -112,6 +112,11 @@ export default function RecommendPage() {
           <span style={{ background: '#F3F4F6', color: '#9CA3AF', fontSize: 12, padding: '4px 14px', borderRadius: 20 }}>step1. 자가진단</span>
           <span style={{ color: '#D1D5DB' }}>›</span>
           <span style={{ background: '#2196F3', color: '#fff', fontSize: 12, fontWeight: 700, padding: '4px 14px', borderRadius: 20 }}>step2. 제도추천 - 진단결과 확인</span>
+          <span style={{ background: '#F3F4F6', color: '#9CA3AF', fontSize: 12, padding: '4px 14px', borderRadius: 20 }}>step3. 대출계산</span>
+          <span style={{ color: '#D1D5DB' }}>›</span>
+           <span style={{ background: '#F3F4F6', color: '#9CA3AF', fontSize: 12, padding: '4px 14px', borderRadius: 20 }}>step4. 집 · 공고 확인</span>
+          <span style={{ color: '#D1D5DB' }}>›</span>
+          <span style={{ background: '#F3F4F6', color: '#9CA3AF', fontSize: 12, padding: '4px 14px', borderRadius: 20 }}>step5. 계약</span>
         </div>
       </div>
 
