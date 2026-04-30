@@ -51,11 +51,57 @@ function getResponseHeaders(response: Response) {
   return headers
 }
 
+async function readErrorMessage(response: Response) {
+  const contentType = response.headers.get("content-type") ?? ""
+
+  try {
+    if (contentType.includes("application/json")) {
+      const payload = await response.clone().json()
+
+      if (payload && typeof payload === "object" && "message" in payload) {
+        const message = (payload as { message?: unknown }).message
+        if (typeof message === "string" && message.trim()) {
+          return message
+        }
+      }
+
+      if (payload && typeof payload === "object" && "error" in payload) {
+        const error = (payload as { error?: unknown }).error
+        if (typeof error === "string" && error.trim()) {
+          return error
+        }
+      }
+
+      return JSON.stringify(payload)
+    }
+
+    const text = await response.clone().text()
+    return text.trim() || response.statusText
+  } catch {
+    return response.statusText
+  }
+}
+
+function logProxyError(message: string, context: { method: ProxyMethod; url: string; status?: number }) {
+  console.error("[api/proxy]", {
+    message,
+    method: context.method,
+    url: context.url,
+    status: context.status,
+  })
+}
+
 export function proxyRoute(method: ProxyMethod) {
   return async function handler(request: Request) {
     const backendUrl = getBackendUrl(request)
 
     if (!backendUrl) {
+      logProxyError("API_BASE_URL is not configured.", {
+        method,
+        url: request.url,
+        status: 500,
+      })
+
       return NextResponse.json({ message: "API_BASE_URL is not configured." }, { status: 500 })
     }
 
@@ -67,6 +113,14 @@ export function proxyRoute(method: ProxyMethod) {
         cache: "no-store",
       })
 
+      if (!response.ok) {
+        logProxyError(await readErrorMessage(response), {
+          method,
+          url: backendUrl,
+          status: response.status,
+        })
+      }
+
       return new NextResponse(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -74,6 +128,12 @@ export function proxyRoute(method: ProxyMethod) {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "API request failed."
+      logProxyError(message, {
+        method,
+        url: backendUrl,
+        status: 500,
+      })
+
       return NextResponse.json({ message }, { status: 500 })
     }
   }
