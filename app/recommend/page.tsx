@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/navbar';
 
-const API_BASE = '/api/recommend';
+const API_BASE = '/api/recommend/summary';
 
 interface Recoentity {
   id: number;
