@@ -20,5 +20,9 @@ export function getPageSample(slug: string): PageSample | undefined {
 }
 
 export function getPageSampleHref(slug: string) {
+  if (slug === "ai") {
+    return "/live2d"
+  }
+
   return slug === "site" ? "/site" : `/site/${slug}`
 }
