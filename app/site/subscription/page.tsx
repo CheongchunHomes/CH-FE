@@ -64,23 +64,27 @@ function AptInnerTabs() {
   async function fetchAnnouncements(recruitmentType: string) {
     setLoading(true);
 
-    try {
-      const response = await fetch(
-        `http://localhost:18080/api/announcements?recruitmentType=${recruitmentType}`
-      );
-
-      if (!response.ok) {
-        throw new Error("API 요청 실패");
-      }
-
-      const data = await response.json();
-      setItems(data);
-    } catch (error) {
-      console.error(error);
-      setItems([]);
-    } finally {
-      setLoading(false);
+ try {
+  const response = await fetch(
+    `/api/announcements?recruitmentType=${recruitmentType}`,
+    {
+      method: "GET",
+      cache: "no-store",
     }
+  );
+
+  if (!response.ok) {
+    throw new Error(`API 요청 실패: ${response.status}`);
+  }
+
+  const data = await response.json();
+  setItems(data);
+} catch (error) {
+  console.error("공고 조회 실패:", error);
+  setItems([]);
+} finally {
+  setLoading(false);
+}
   }
 
   return (
@@ -121,7 +125,7 @@ function AnnouncementCard({ item }: { item: AnnouncementItem }) {
   const router = useRouter();
 
   const goDetailPage = () => {
-    router.push(`/subscription/${item.id}`);
+    router.push(`/site/subscription/${item.id}`);
   };
 
   return (
