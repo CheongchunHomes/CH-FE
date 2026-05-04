@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:18080";
+import { get } from "@/lib/api";
 
 export interface Announcement {
   announcementId: number;
@@ -43,13 +43,9 @@ export async function getAnnouncements(params: {
   query.append("page", String(params.page ?? 0));
   query.append("size", String(params.size ?? 10));
 
-  const res = await fetch(`${API_BASE_URL}/api/announcements?${query}`);
-  if (!res.ok) throw new Error("API 호출 실패");
-  return res.json();
+  return get<PageResponse<Announcement>>(`/api/announcements?${query}`);
 }
 
 export async function getAnnouncement(id: number): Promise<Announcement> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/announcements/${id}`);
-  if (!res.ok) throw new Error("API 호출 실패");
-  return res.json();
+  return get<Announcement>(`/api/announcements/${id}`);
 }
