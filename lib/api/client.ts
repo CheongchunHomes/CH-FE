@@ -12,6 +12,8 @@ export type ApiRequestOptions<TBody = unknown> = {
   cache?: RequestCache
   next?: NextFetchRequestConfig
   credentials?: RequestCredentials
+  auth?: boolean
+  retryOnUnauthorized?: boolean
 }
 
 export type ApiErrorPayload = {
@@ -33,6 +35,27 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? ""
 const JSON_CONTENT_TYPE = "application/json"
+const AUTH_PATHS = new Set(["/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/users/register"])
+
+let accessToken: string | null = null
+let refreshPromise: Promise<string> | null = null
+
+type AccessTokenResponse = {
+  accessToken?: unknown
+}
+
+export function getAccessToken() {
+  return accessToken
+}
+
+export function setAccessToken(token: string) {
+  const trimmed = token.trim()
+  accessToken = trimmed || null
+}
+
+export function clearAccessToken() {
+  accessToken = null
+}
 
 function isAbsoluteUrl(url: string) {
   return /^https?:\/\//i.test(url)
@@ -45,6 +68,18 @@ function normalizeUrl(path: string) {
 
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
   return `${DEFAULT_BASE_URL}${normalizedPath}`
+}
+
+function getPathname(path: string) {
+  try {
+    return new URL(path, "http://localhost").pathname
+  } catch {
+    return path.startsWith("/") ? path : `/${path}`
+  }
+}
+
+function isAuthPath(path: string) {
+  return AUTH_PATHS.has(getPathname(path))
 }
 
 function appendQuery(url: string, query?: QueryParams) {
@@ -75,10 +110,15 @@ function shouldSerializeBody(body: unknown) {
 }
 
 async function parseResponsePayload(response: Response) {
+  if (response.status === 204) {
+    return null
+  }
+
   const contentType = response.headers.get("content-type") ?? ""
 
   if (contentType.includes(JSON_CONTENT_TYPE)) {
-    return response.json()
+    const text = await response.text()
+    return text.trim() ? JSON.parse(text) : null
   }
 
   if (contentType.startsWith("text/")) {
@@ -107,25 +147,64 @@ function buildHeaders(headers?: HeadersInit) {
   return new Headers(headers)
 }
 
-export async function request<TResponse, TBody = unknown>(
+function readAccessTokenPayload(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    throw new ApiError("Access token response is invalid.", 500, payload)
+  }
+
+  const token = (payload as AccessTokenResponse).accessToken
+  if (typeof token !== "string" || !token.trim()) {
+    throw new ApiError("Access token response is invalid.", 500, payload)
+  }
+
+  return token
+}
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = request<AccessTokenResponse>("POST", "/api/auth/refresh", {
+      auth: false,
+      retryOnUnauthorized: false,
+    })
+      .then((payload) => {
+        const token = readAccessTokenPayload(payload)
+        setAccessToken(token)
+        return token
+      })
+      .catch((error) => {
+        clearAccessToken()
+        throw error
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
+async function sendRequest<TResponse, TBody = unknown>(
   method: ApiMethod,
   path: string,
-  options: ApiRequestOptions<TBody> = {},
+  body: TBody | undefined,
+  options: Omit<ApiRequestOptions<TBody>, "body"> = {},
 ) {
   const {
-    body,
     headers,
     query,
     signal,
     cache,
     next,
     credentials = "include",
+    auth = !isAuthPath(path),
   } = options
 
   const finalHeaders = buildHeaders(headers)
 
-  // httpOnly cookie 기반 인증을 전제로 하므로 토큰을 직접 읽지 않고
-  // 브라우저가 쿠키를 자동 전송하도록 credentials: "include"를 기본값으로 둡니다.
+  if (auth && accessToken && !finalHeaders.has("Authorization")) {
+    finalHeaders.set("Authorization", `Bearer ${accessToken}`)
+  }
+
   const hasJsonBody = shouldSerializeBody(body)
 
   if (hasJsonBody && !finalHeaders.has("Content-Type")) {
@@ -151,6 +230,32 @@ export async function request<TResponse, TBody = unknown>(
   return payload as TResponse
 }
 
+export async function request<TResponse, TBody = unknown>(
+  method: ApiMethod,
+  path: string,
+  options: ApiRequestOptions<TBody> = {},
+) {
+  const {
+    body,
+    retryOnUnauthorized = !isAuthPath(path),
+    ...requestOptions
+  } = options
+
+  try {
+    return await sendRequest<TResponse, TBody>(method, path, body, requestOptions)
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401 || !retryOnUnauthorized) {
+      throw error
+    }
+
+    await refreshAccessToken()
+    return sendRequest<TResponse, TBody>(method, path, body, {
+      ...requestOptions,
+      retryOnUnauthorized: false,
+    })
+  }
+}
+
 // 일반 조회 요청은 여기만 import 해서 사용하면 됩니다.
 // 예: get<User>("/users/me")
 export function get<TResponse>(path: string, options: Omit<ApiRequestOptions<never>, "body"> = {}) {
@@ -158,7 +263,7 @@ export function get<TResponse>(path: string, options: Omit<ApiRequestOptions<nev
 }
 
 // 일반 생성/로그인 요청은 여기만 import 해서 사용하면 됩니다.
-// 예: post<LoginResponse, LoginRequest>("/auth/login", body)
+// 예: post<LoginResponse, LoginRequest>("/api/auth/login", body)
 export function post<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,

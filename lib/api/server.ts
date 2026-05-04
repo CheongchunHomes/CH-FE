@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 type ProxyMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
-const API_BASE_URL = process.env.API_BASE_URL?.trim()
+const API_BASE_URL = process.env.API_BASE_URL?.trim().replace(/\/+$/, "")
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "content-length",

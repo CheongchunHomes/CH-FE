@@ -1,7 +1,6 @@
 "use client"
 
-import { clearStoredNickname } from "@/lib/auth-session"
-import { post } from "@/lib/api"
+import { clearAccessToken, post } from "@/lib/api"
 
 type LogoutResponse = {
   success: boolean
@@ -13,8 +12,11 @@ type LogoutRouter = {
 }
 
 export async function logoutAndRedirect(router: LogoutRouter) {
-  await post<LogoutResponse>("/api/logout")
-  clearStoredNickname()
+  await post<LogoutResponse>("/api/auth/logout", undefined, {
+    auth: false,
+    retryOnUnauthorized: false,
+  })
+  clearAccessToken()
   router.push("/site")
   router.refresh()
 }

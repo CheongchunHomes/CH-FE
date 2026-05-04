@@ -1,12 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronRight, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react"
 
-import { post } from "@/lib/api"
-import { setStoredNickname } from "@/lib/auth-session"
+import { post, setAccessToken } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,6 +15,10 @@ import { Separator } from "@/components/ui/separator"
 type LoginRequest = {
   email: string
   password: string
+}
+
+type LoginResponse = {
+  accessToken: string
 }
 
 function GoogleBrandMark() {
@@ -51,7 +54,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const [infoMessage, setInfoMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (window.location.search.includes("registered=1")) {
+      setInfoMessage("회원가입이 완료되었습니다. 로그인해 주세요.")
+    }
+  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -65,12 +75,23 @@ export default function LoginPage() {
     setErrorMessage("")
 
     try {
-      const nickname = await post<string, LoginRequest>("/api/login", {
-        email: email.trim(),
-        password,
-      })
+      const { accessToken } = await post<LoginResponse, LoginRequest>(
+        "/api/auth/login",
+        {
+          email: email.trim(),
+          password,
+        },
+        {
+          auth: false,
+          retryOnUnauthorized: false,
+        },
+      )
 
-      setStoredNickname(nickname)
+      if (typeof accessToken !== "string" || !accessToken.trim()) {
+        throw new Error("로그인 응답에 access token이 없습니다.")
+      }
+
+      setAccessToken(accessToken)
       router.push("/site")
       router.refresh()
     } catch (error) {
@@ -184,6 +205,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  {infoMessage ? <p className="text-sm font-medium text-sky-700">{infoMessage}</p> : null}
                   {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
 
                   <div className="flex items-center justify-between text-sm">

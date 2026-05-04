@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { getStoredNickname } from "@/lib/auth-session"
+import { getAccessToken } from "@/lib/api"
 import { logoutAndRedirect } from "@/lib/logout-client"
 import { Bell, GraduationCap } from "lucide-react"
 
@@ -18,12 +18,12 @@ const navItems = [
 
 export default function Navbar() {
   const router = useRouter()
-  const [nickname, setNickname] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoutErrorMessage, setLogoutErrorMessage] = useState("")
 
   useEffect(() => {
-    setNickname(getStoredNickname())
+    setIsAuthenticated(Boolean(getAccessToken()))
   }, [])
 
   async function handleLogout() {
@@ -32,7 +32,7 @@ export default function Navbar() {
 
     try {
       await logoutAndRedirect(router)
-      setNickname(null)
+      setIsAuthenticated(false)
     } catch (error) {
       setLogoutErrorMessage(error instanceof Error ? error.message : "로그아웃에 실패했습니다.")
     } finally {
@@ -59,7 +59,7 @@ export default function Navbar() {
               {item.label}
             </Link>
           ))}
-          {nickname ? (
+          {isAuthenticated ? (
             <Link href={getPageSampleHref("my-page")} className="transition hover:text-slate-950">
               마이페이지
             </Link>
@@ -74,13 +74,13 @@ export default function Navbar() {
             <Bell size={18} />
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
           </button>
-          {nickname ? (
+          {isAuthenticated ? (
             <>
               <Link
                 href={getPageSampleHref("my-page")}
                 className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700"
               >
-                {nickname}님 환영합니다
+                로그인됨
               </Link>
               <Button
                 type="button"
