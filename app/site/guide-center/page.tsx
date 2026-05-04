@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ const REGIONS = ["전체", "서울특별시", "경기도", "인천광역시", "�
 const STATUSES = ["전체", "일반공고", "정정공고", "마감"];
 
 export default function GuideCenterPage() {
+  const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -139,7 +141,7 @@ export default function GuideCenterPage() {
           <Card
             key={a.announcementId}
             className="flex items-center gap-3 p-4 cursor-pointer hover:border-gray-400 transition-all"
-            onClick={() => window.open(a.sourceUrl, "_blank")}
+            onClick={() => router.push(`/site/guide-center/${a.announcementId}`)}
           >
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1.5">
