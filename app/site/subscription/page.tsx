@@ -9,7 +9,8 @@ type AnnouncementItem = {
   type: string;
   title: string;
   region: string;
-  date: string;
+  applyStartDate: string;
+  applyEndDate: string;
   status: string;
   address: string;
   recruitmentType: string;
@@ -17,10 +18,10 @@ type AnnouncementItem = {
 };
 
 const categoryMap = {
-  special: "APT_SPECIAL",
-  first: "APT_FIRST",
-  second: "APT_SECOND",
-  remain: "APT_REMAIN",
+  special: "아파트",
+  first: "다가구주택",
+  second: "연립주택",
+  
 };
 
 export default function SubscriptionPage() {
@@ -66,7 +67,7 @@ function AptInnerTabs() {
 
  try {
   const response = await fetch(
-    `/api/announcements?recruitmentType=${recruitmentType}`,
+     `/api/subscription?recruitmentType=${encodeURIComponent(recruitmentType)}`,
     {
       method: "GET",
       cache: "no-store",
@@ -139,7 +140,7 @@ function AnnouncementCard({ item }: { item: AnnouncementItem }) {
       <div className="mt-3 space-y-1 text-sm text-gray-600">
         <p>대상: {item.type}</p>
         <p>지역: {item.region}</p>
-        <p>접수일: {item.date}</p>
+        <p>접수일: {item.applyStartDate} ~ {item.applyEndDate}</p>
         <p>주소: {item.address}</p>
       </div>
 
