@@ -16,7 +16,7 @@ import {
 import { getAnnouncements, Announcement } from "@/lib/announcements-api";
 
 const REGIONS = ["전체", "서울특별시", "경기도", "인천광역시", "부산광역시", "대구광역시", "광주광역시", "대전광역시", "울산광역시"];
-const STATUSES = ["전체", "일반공고", "정정공고", "마감"];
+const STATUSES = ["전체", "접수중", "접수예정", "마감"];
 
 export default function GuideCenterPage() {
   const router = useRouter();
@@ -104,9 +104,9 @@ export default function GuideCenterPage() {
         </div>
 
        {/* 공고 상태 */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500 min-w-[52px]">공고 상태</span>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="flex items-center gap-4 flex-wrap py-2"> {/* gap을 늘리고 상하 여백 추가 */}
+          <span className="text-sm font-medium text-gray-600 min-w-[60px]">공고 상태</span>
+          <div className="flex flex-wrap gap-2"> {/* 버튼 사이 간격 조정 */}
             {STATUSES.map((s) => {
               const isActive = (s === "전체" && !status) || status === s;
               return (
@@ -115,6 +115,7 @@ export default function GuideCenterPage() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setStatus(s === "전체" ? undefined : s)}
+                  className={`px-4 h-9 ${isActive ? "shadow-md" : ""}`}
                 >
                   {s}
                 </Button>
@@ -141,7 +142,7 @@ export default function GuideCenterPage() {
           <Card
             key={a.announcementId}
             className="flex items-center gap-3 p-4 cursor-pointer hover:border-gray-400 transition-all"
-            onClick={() => router.push(`/site/guide-center/${a.announcementId}`)}
+            onClick={() => window.open(`/site/guide-center/${a.announcementId}`, "_blank")}
           >
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1.5">
