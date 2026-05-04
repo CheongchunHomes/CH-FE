@@ -358,7 +358,7 @@ export default function DiagnosisResultPage() {
                   </div>
                   <Button
                     className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto"
-                    onClick={() => router.push("/site/simulator")}
+                    onClick={() => router.push("/recommend")}
                   >
                     제도 추천 받기
                     <ChevronRight className="w-4 h-4" />
