@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Navbar from '@/components/navbar';
+import PolicyCard from './components/PolicyCard';
+import { categoryInfo } from './components/CategoryInfo';
+
 
 const API_BASE = '/api/recommend/summary';
 
@@ -72,6 +74,7 @@ export default function RecommendPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('전체');
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE}`)
@@ -97,6 +100,8 @@ const { policies } = summary;
   const tabs = ['전체', ...CATEGORIES.filter(c => policies.some(p => p.category === c))];
   const filtered = activeTab === '전체' ? policies : policies.filter(p => p.category === activeTab);
 
+
+  // TODO: diagnosis 연결되면 아래 null 체크 제거하고 실제 데이터 사용
  const scores = summary.diagnosis ? [
   { label: '청약준비도',     score: summary.diagnosis.subscriptionReadinessScore, grade: summary.diagnosis.subscriptionReadinessGrade },
   { label: '공공임대 적합도', score: summary.diagnosis.publicRentalFitScore,       grade: summary.diagnosis.publicRentalFitGrade },
@@ -104,10 +109,11 @@ const { policies } = summary;
   { label: '분양청약 가능성', score: summary.diagnosis.saleSubscriptionScore,      grade: summary.diagnosis.saleSubscriptionGrade },
 ] : [];
 
+
+
   return (
     <div style={{ minHeight: '100vh', background: '#F3F4F6', fontFamily: "'Apple SD Gothic Neo', 'Pretendard', sans-serif" }}>
 
-        <Navbar />
 
       <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '10px 24px', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -169,26 +175,39 @@ const { policies } = summary;
             const s = categoryStyle[cat] ?? { bg: '#F3F4F6', text: '#374151', border: '#9CA3AF' };
             return (
               <div key={cat} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, marginBottom: 12, overflow: 'hidden' }}>
-                <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #F3F4F6' }}>
+               <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #F3F4F6' }}>
                   <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 6 }}>{cat}</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#111' }}>{cat} 신청 가능 ({list.length}건)</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#111', flex: 1 }}>{cat} 신청 가능 ({list.length}건)</span>
+                  <button onClick={() => setOpenCategory(openCategory === cat ? null : cat)} style={{
+                    background: openCategory === cat ? '#E5E7EB' : '#F3F4F6',
+                    color: '#374151', border: 'none', borderRadius: 8,
+                    padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+                  }}>
+                    {openCategory === cat ? '설명닫기 ▲' : '제도설명 ▼'}
+                  </button>
                 </div>
-                {list.map((policy, i) => (
-                  <div key={policy.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: i < list.length - 1 ? '1px solid #F9FAFB' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.border, flexShrink: 0, display: 'inline-block' }} />
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{policy.name}</div>
-                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-                          {policy.region} · {policy.minAge}~{policy.maxAge}세 · 소득 {(policy.maxIncome / 1000).toFixed(0)}천만원 이하
+
+                {openCategory === cat && categoryInfo[cat] && (
+                  <div style={{ margin: '14px 18px 16px', background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 10, padding: '16px 20px' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#1F2937', marginBottom: 6 }}>{categoryInfo[cat].title}</div>
+                    <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.6 }}>{categoryInfo[cat].desc}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {categoryInfo[cat].details.map(d => (
+                        <div key={d.label} style={{ display: 'flex', gap: 12, fontSize: 13 }}>
+                          <span style={{ color: '#9CA3AF', minWidth: 70, fontWeight: 600 }}>{d.label}</span>
+                          <span style={{ color: '#374151' }}>{d.value}</span>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    <a href="/apply-sample" target="_blank" rel="noreferrer"
-                      style={{ background: '#3B82F6', color: '#fff', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      목록보기
-                    </a>
                   </div>
+                )}
+               {list.map((policy, i) => (
+                  <PolicyCard
+                    key={policy.id}
+                    policy={policy}
+                    isLast={i === list.length - 1}
+                    borderColor={s.border}
+                  />
                 ))}
               </div>
             );
