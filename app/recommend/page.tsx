@@ -48,8 +48,8 @@ interface DiagnosisResult {
 }
 
 interface Summary {
-  profile: UserProfile;
-  diagnosis: DiagnosisResult;
+  profile: UserProfile | null;
+  diagnosis: DiagnosisResult | null;
   policies: Recoentity[];
 }
 
@@ -89,18 +89,20 @@ export default function RecommendPage() {
   if (loading) return <LoadingScreen />;
   if (error || !summary) return <ErrorScreen message={error ?? '알 수 없는 오류'} />;
 
-  const { profile, diagnosis, policies } = summary;
-  const age = new Date().getFullYear() - new Date(profile.birthDate).getFullYear();
+  //const { profile, diagnosis, policies } = summary;
+  //const age = new Date().getFullYear() - new Date(profile.birthDate).getFullYear();
+
+const { policies } = summary;
 
   const tabs = ['전체', ...CATEGORIES.filter(c => policies.some(p => p.category === c))];
   const filtered = activeTab === '전체' ? policies : policies.filter(p => p.category === activeTab);
 
-  const scores = [
-    { label: '청약준비도',     score: diagnosis.subscriptionReadinessScore, grade: diagnosis.subscriptionReadinessGrade },
-    { label: '공공임대 적합도', score: diagnosis.publicRentalFitScore,       grade: diagnosis.publicRentalFitGrade },
-    { label: '전세대출 가능성', score: diagnosis.jeonseloanScore,            grade: diagnosis.jeonseloanGrade },
-    { label: '분양청약 가능성', score: diagnosis.saleSubscriptionScore,      grade: diagnosis.saleSubscriptionGrade },
-  ];
+ const scores = summary.diagnosis ? [
+  { label: '청약준비도',     score: summary.diagnosis.subscriptionReadinessScore, grade: summary.diagnosis.subscriptionReadinessGrade },
+  { label: '공공임대 적합도', score: summary.diagnosis.publicRentalFitScore,       grade: summary.diagnosis.publicRentalFitGrade },
+  { label: '전세대출 가능성', score: summary.diagnosis.jeonseloanScore,            grade: summary.diagnosis.jeonseloanGrade },
+  { label: '분양청약 가능성', score: summary.diagnosis.saleSubscriptionScore,      grade: summary.diagnosis.saleSubscriptionGrade },
+] : [];
 
   return (
     <div style={{ minHeight: '100vh', background: '#F3F4F6', fontFamily: "'Apple SD Gothic Neo', 'Pretendard', sans-serif" }}>
@@ -169,7 +171,7 @@ export default function RecommendPage() {
               <div key={cat} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, marginBottom: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #F3F4F6' }}>
                   <span style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 6 }}>{cat}</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#111' }}>{cat} 신청이 가능합니다.</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#111' }}>{cat} 신청 가능 ({list.length}건)</span>
                 </div>
                 {list.map((policy, i) => (
                   <div key={policy.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: i < list.length - 1 ? '1px solid #F9FAFB' : 'none' }}>
@@ -184,41 +186,13 @@ export default function RecommendPage() {
                     </div>
                     <a href="/apply-sample" target="_blank" rel="noreferrer"
                       style={{ background: '#3B82F6', color: '#fff', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      신청하기
+                      목록보기
                     </a>
                   </div>
                 ))}
               </div>
             );
           })}
-        </div>
-
-        <div style={{ width: 190, flexShrink: 0, position: 'sticky', top: 76 }}>
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{ background: '#374151', padding: '11px 14px' }}>
-              <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>선택 프로필</span>
-            </div>
-            {[
-              { label: '지역',        value: profile.currentResidence,                 highlight: false },
-              { label: '연령',        value: `만 ${age}세`,                             highlight: true  },
-              { label: '주택소유여부', value: profile.isHouseless ? '무주택' : '유주택', highlight: true  },
-              { label: '미혼/기혼',   value: profile.isMarried ? '기혼' : '미혼',       highlight: true  },
-              { label: '청약 가입',   value: `${profile.subscriptionMonths}개월`,       highlight: false },
-              { label: '희망지역',    value: profile.desiredCity ?? '-',                highlight: false },
-            ].map(item => (
-              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px', borderBottom: '1px solid #F9FAFB' }}>
-                <span style={{ fontSize: 12, color: '#6B7280' }}>{item.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: item.highlight ? '#2196F3' : '#374151' }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: '#FFF9F7', border: '1px solid #FCD9CC', borderRadius: 14, padding: '14px' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#2196F3', marginBottom: 8 }}>💡 AI 청약 전략</div>
-            <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.7, margin: 0 }}>
-              현재 점수로는 <b>공공임대·전세임대</b>를 우선 추천합니다. 청약통장 납입 기간을 늘리면 2년 내 점수 향상이 가능합니다.
-            </p>
-          </div>
         </div>
 
       </div>
