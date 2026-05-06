@@ -17,24 +17,35 @@ interface Props {
   policy: Recoentity;
   isLast: boolean;
   borderColor: string;
+  onDetail: () => void; // 상세보기 클릭 시 모달 열기
 }
 
-export default function PolicyCard({ policy, isLast, borderColor }: Props) {
+export default function PolicyCard({ policy, isLast, borderColor, onDetail }: Props) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: isLast ? 'none' : '1px solid #F9FAFB' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: borderColor, flexShrink: 0, display: 'inline-block' }} />
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{policy.name}</div>
-          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-            {policy.region} · {policy.minAge}~{policy.maxAge}세 · 소득 {(policy.maxIncome / 1000).toFixed(0)}천만원 이하
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '12px 16px',
+      borderBottom: isLast ? 'none' : '0.5px solid #F3F4F6',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: borderColor, flexShrink: 0 }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#1F2937' }}>{policy.name}</div>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+            {policy.region} · {policy.minAge}~{policy.maxAge}세 · 소득 {Math.round(policy.maxIncome / 10000000)}천만원 이하
           </div>
         </div>
       </div>
-      <a href="/apply-sample" target="_blank" rel="noreferrer"
-        style={{ background: '#3B82F6', color: '#fff', padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-        목록보기
-      </a>
+      <button
+        onClick={onDetail}
+        style={{
+          fontSize: 12, fontWeight: 500, padding: '6px 14px', borderRadius: 8,
+          border: '0.5px solid #1976D2', color: '#1976D2', background: 'transparent',
+          cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+        }}
+      >
+        상세보기
+      </button>
     </div>
   );
 }
