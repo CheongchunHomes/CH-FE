@@ -18,7 +18,7 @@ import { getPageSampleHref } from "@/lib/page-samples"
 
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
-  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("guide-center") },
+  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("recommend") },
   { icon: Coins, label: "대출 계산", href: "/site/loan-contract" },
   { icon: MapPin, label: "집·공고 확인", href: getPageSampleHref("rent") },
   { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
