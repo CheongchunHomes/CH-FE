@@ -12,13 +12,26 @@ export type ApiRequestOptions<TBody = unknown> = {
   cache?: RequestCache
   next?: NextFetchRequestConfig
   credentials?: RequestCredentials
+  /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
   auth?: boolean
+  /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
   retryOnUnauthorized?: boolean
 }
 
 export type ApiErrorPayload = {
   message?: string
+  code?: string
+  retryAfterSeconds?: number
+  maxAttempts?: number
   [key: string]: unknown
+}
+
+export type AuthRefreshRetryEventPayload = {
+  status: "retrying" | "success" | "failed"
+  attempt: number
+  maxAttempts: number
+  retryAfterSeconds: number
+  message: string
 }
 
 export class ApiError extends Error {
@@ -35,27 +48,9 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? ""
 const JSON_CONTENT_TYPE = "application/json"
-const AUTH_PATHS = new Set(["/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/users/register"])
-
-let accessToken: string | null = null
-let refreshPromise: Promise<string> | null = null
-
-type AccessTokenResponse = {
-  accessToken?: unknown
-}
-
-export function getAccessToken() {
-  return accessToken
-}
-
-export function setAccessToken(token: string) {
-  const trimmed = token.trim()
-  accessToken = trimmed || null
-}
-
-export function clearAccessToken() {
-  accessToken = null
-}
+export const AUTH_REFRESH_RETRY_EVENT = "auth-refresh-retry"
+const DEFAULT_REFRESH_RETRY_AFTER_SECONDS = 60
+const DEFAULT_REFRESH_MAX_ATTEMPTS = 3
 
 function isAbsoluteUrl(url: string) {
   return /^https?:\/\//i.test(url)
@@ -68,18 +63,6 @@ function normalizeUrl(path: string) {
 
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
   return `${DEFAULT_BASE_URL}${normalizedPath}`
-}
-
-function getPathname(path: string) {
-  try {
-    return new URL(path, "http://localhost").pathname
-  } catch {
-    return path.startsWith("/") ? path : `/${path}`
-  }
-}
-
-function isAuthPath(path: string) {
-  return AUTH_PATHS.has(getPathname(path))
 }
 
 function appendQuery(url: string, query?: QueryParams) {
@@ -147,40 +130,51 @@ function buildHeaders(headers?: HeadersInit) {
   return new Headers(headers)
 }
 
-function readAccessTokenPayload(payload: unknown) {
-  if (!payload || typeof payload !== "object") {
-    throw new ApiError("Access token response is invalid.", 500, payload)
-  }
-
-  const token = (payload as AccessTokenResponse).accessToken
-  if (typeof token !== "string" || !token.trim()) {
-    throw new ApiError("Access token response is invalid.", 500, payload)
-  }
-
-  return token
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object"
 }
 
-async function refreshAccessToken() {
-  if (!refreshPromise) {
-    refreshPromise = request<AccessTokenResponse>("POST", "/api/auth/refresh", {
-      auth: false,
-      retryOnUnauthorized: false,
-    })
-      .then((payload) => {
-        const token = readAccessTokenPayload(payload)
-        setAccessToken(token)
-        return token
-      })
-      .catch((error) => {
-        clearAccessToken()
-        throw error
-      })
-      .finally(() => {
-        refreshPromise = null
-      })
+function readPositiveNumber(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function getRefreshRetryInfo(payload: unknown) {
+  if (!isRecord(payload) || payload.code !== "REFRESH_RETRYABLE") {
+    return null
   }
 
-  return refreshPromise
+  return {
+    retryAfterSeconds: readPositiveNumber(payload.retryAfterSeconds, DEFAULT_REFRESH_RETRY_AFTER_SECONDS),
+    maxAttempts: readPositiveNumber(payload.maxAttempts, DEFAULT_REFRESH_MAX_ATTEMPTS),
+    message: typeof payload.message === "string" && payload.message.trim() ? payload.message : "Refresh failed temporarily.",
+  }
+}
+
+function dispatchAuthRefreshRetryEvent(payload: AuthRefreshRetryEventPayload) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent<AuthRefreshRetryEventPayload>(AUTH_REFRESH_RETRY_EVENT, { detail: payload }))
+}
+
+function waitForRetry(seconds: number, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("The operation was aborted.", "AbortError"))
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(resolve, seconds * 1000)
+
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout)
+        reject(new DOMException("The operation was aborted.", "AbortError"))
+      },
+      { once: true },
+    )
+  })
 }
 
 async function sendRequest<TResponse, TBody = unknown>(
@@ -196,14 +190,9 @@ async function sendRequest<TResponse, TBody = unknown>(
     cache,
     next,
     credentials = "include",
-    auth = !isAuthPath(path),
   } = options
 
   const finalHeaders = buildHeaders(headers)
-
-  if (auth && accessToken && !finalHeaders.has("Authorization")) {
-    finalHeaders.set("Authorization", `Bearer ${accessToken}`)
-  }
 
   const hasJsonBody = shouldSerializeBody(body)
 
@@ -211,23 +200,90 @@ async function sendRequest<TResponse, TBody = unknown>(
     finalHeaders.set("Content-Type", JSON_CONTENT_TYPE)
   }
 
-  const response = await fetch(appendQuery(normalizeUrl(path), query), {
-    method,
-    headers: finalHeaders,
-    body: body instanceof FormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
-    signal,
-    cache,
-    next,
-    credentials,
-  })
+  const url = appendQuery(normalizeUrl(path), query)
+  let retryAttempt = 0
+  let retryStarted = false
+  let retryInfo: ReturnType<typeof getRefreshRetryInfo> = null
+  let lastRetryInfo: NonNullable<ReturnType<typeof getRefreshRetryInfo>> | null = null
 
-  const payload = await parseResponsePayload(response)
+  while (true) {
+    const response = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body instanceof FormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
+      signal,
+      cache,
+      next,
+      credentials,
+    })
 
-  if (!response.ok) {
+    const payload = await parseResponsePayload(response)
+
+    if (response.ok) {
+      if (retryStarted && lastRetryInfo) {
+        dispatchAuthRefreshRetryEvent({
+          status: "success",
+          attempt: retryAttempt,
+          maxAttempts: lastRetryInfo.maxAttempts,
+          retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
+          message: "인증이 갱신되었습니다.",
+        })
+      }
+
+      return payload as TResponse
+    }
+
+    retryInfo = getRefreshRetryInfo(payload)
+
+    if (retryInfo) {
+      if (typeof window === "undefined") {
+        throw new ApiError(resolveErrorMessage(payload, `Request failed with status ${response.status}.`), response.status, payload)
+      }
+
+      lastRetryInfo = retryInfo
+
+      if (retryAttempt < retryInfo.maxAttempts) {
+        retryAttempt += 1
+        retryStarted = true
+        dispatchAuthRefreshRetryEvent({
+          status: "retrying",
+          attempt: retryAttempt,
+          maxAttempts: retryInfo.maxAttempts,
+          retryAfterSeconds: retryInfo.retryAfterSeconds,
+          message: "인증 갱신에 실패해 다시 시도 중입니다.",
+        })
+        await waitForRetry(retryInfo.retryAfterSeconds, signal)
+        continue
+      }
+
+      const failedPayload = {
+        ...(isRecord(payload) ? payload : {}),
+        code: "REFRESH_RETRY_FAILED",
+      }
+
+      dispatchAuthRefreshRetryEvent({
+        status: "failed",
+        attempt: retryAttempt,
+        maxAttempts: retryInfo.maxAttempts,
+        retryAfterSeconds: retryInfo.retryAfterSeconds,
+        message: "인증 갱신에 실패했습니다. 다시 로그인해 주세요.",
+      })
+
+      throw new ApiError("인증 갱신에 실패했습니다. 다시 로그인해 주세요.", response.status, failedPayload)
+    }
+
+    if (retryStarted && lastRetryInfo) {
+      dispatchAuthRefreshRetryEvent({
+        status: "failed",
+        attempt: retryAttempt,
+        maxAttempts: lastRetryInfo.maxAttempts,
+        retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
+        message: "인증 갱신에 실패했습니다. 다시 로그인해 주세요.",
+      })
+    }
+
     throw new ApiError(resolveErrorMessage(payload, `Request failed with status ${response.status}.`), response.status, payload)
   }
-
-  return payload as TResponse
 }
 
 export async function request<TResponse, TBody = unknown>(
@@ -235,35 +291,14 @@ export async function request<TResponse, TBody = unknown>(
   path: string,
   options: ApiRequestOptions<TBody> = {},
 ) {
-  const {
-    body,
-    retryOnUnauthorized = !isAuthPath(path),
-    ...requestOptions
-  } = options
-
-  try {
-    return await sendRequest<TResponse, TBody>(method, path, body, requestOptions)
-  } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401 || !retryOnUnauthorized) {
-      throw error
-    }
-
-    await refreshAccessToken()
-    return sendRequest<TResponse, TBody>(method, path, body, {
-      ...requestOptions,
-      retryOnUnauthorized: false,
-    })
-  }
+  const { body, auth: _auth, retryOnUnauthorized: _retry, ...requestOptions } = options
+  return sendRequest<TResponse, TBody>(method, path, body, requestOptions)
 }
 
-// 일반 조회 요청은 여기만 import 해서 사용하면 됩니다.
-// 예: get<User>("/users/me")
 export function get<TResponse>(path: string, options: Omit<ApiRequestOptions<never>, "body"> = {}) {
   return request<TResponse>("GET", path, options)
 }
 
-// 일반 생성/로그인 요청은 여기만 import 해서 사용하면 됩니다.
-// 예: post<LoginResponse, LoginRequest>("/api/auth/login", body)
 export function post<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,

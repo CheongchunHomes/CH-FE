@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { getAccessToken } from "@/lib/api"
-import { logoutAndRedirect } from "@/lib/logout-client"
 import { Bell, GraduationCap } from "lucide-react"
-
+import { useAuth } from "@/lib/auth-context"
+import { logoutAndRedirect } from "@/lib/logout-client"
 import { Button } from "@/components/ui/button"
 import { getPageSampleHref } from "@/lib/page-samples"
 
@@ -18,13 +17,11 @@ const navItems = [
 
 export default function Navbar() {
   const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { status, user } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoutErrorMessage, setLogoutErrorMessage] = useState("")
 
-  useEffect(() => {
-    setIsAuthenticated(Boolean(getAccessToken()))
-  }, [])
+  const isAuthenticated = status === "authenticated" || status === "reauthRequired"
 
   async function handleLogout() {
     setIsLoggingOut(true)
@@ -32,7 +29,6 @@ export default function Navbar() {
 
     try {
       await logoutAndRedirect(router)
-      setIsAuthenticated(false)
     } catch (error) {
       setLogoutErrorMessage(error instanceof Error ? error.message : "로그아웃에 실패했습니다.")
     } finally {
@@ -80,7 +76,7 @@ export default function Navbar() {
                 href={getPageSampleHref("my-page")}
                 className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700"
               >
-                로그인됨
+                {user?.nickname ?? "마이페이지"}
               </Link>
               <Button
                 type="button"

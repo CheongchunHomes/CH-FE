@@ -1,10 +1,6 @@
 "use client"
 
-import { clearAccessToken, post } from "@/lib/api"
-
-type LogoutResponse = {
-  success: boolean
-}
+import { post } from "@/lib/api"
 
 type LogoutRouter = {
   push: (href: string) => void
@@ -12,11 +8,11 @@ type LogoutRouter = {
 }
 
 export async function logoutAndRedirect(router: LogoutRouter) {
-  await post<LogoutResponse>("/api/auth/logout", undefined, {
+  await post("/api/auth/logout", undefined, {
     auth: false,
     retryOnUnauthorized: false,
   })
-  clearAccessToken()
+  // cookie 삭제는 BFF /api/auth/logout 핸들러가 담당한다.
   router.push("/site")
   router.refresh()
 }

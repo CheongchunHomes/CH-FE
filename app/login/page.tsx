@@ -5,7 +5,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronRight, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react"
 
-import { post, setAccessToken } from "@/lib/api"
+import { post } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,10 +16,6 @@ import { Separator } from "@/components/ui/separator"
 type LoginRequest = {
   email: string
   password: string
-}
-
-type LoginResponse = {
-  accessToken: string
 }
 
 function GoogleBrandMark() {
@@ -51,6 +48,7 @@ function GoogleBrandMark() {
 
 export default function LoginPage() {
   const router = useRouter()
+  const { refresh } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
@@ -75,7 +73,7 @@ export default function LoginPage() {
     setErrorMessage("")
 
     try {
-      const { accessToken } = await post<LoginResponse, LoginRequest>(
+      await post<never, LoginRequest>(
         "/api/auth/login",
         {
           email: email.trim(),
@@ -87,13 +85,10 @@ export default function LoginPage() {
         },
       )
 
-      if (typeof accessToken !== "string" || !accessToken.trim()) {
-        throw new Error("로그인 응답에 access token이 없습니다.")
-      }
-
-      setAccessToken(accessToken)
+      // BFF가 HttpOnly cookie를 발급한다. token은 body로 반환되지 않는다.
+      // /api/auth/me 호출로 AuthContext를 갱신한 뒤 이동한다.
+      await refresh()
       router.push("/site")
-      router.refresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "로그인에 실패했습니다.")
     } finally {

@@ -1,1 +1,1 @@
-export { POST } from "@/lib/api/server"
+export { login as POST } from "@/lib/api/auth/handlers"
