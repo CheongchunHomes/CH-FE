@@ -54,11 +54,30 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden flex-1 items-center justify-end gap-6 text-sm font-medium text-slate-600 md:flex">
-          {navItems.map((item) => (
-            <Link key={item.label} href={item.href} className="transition hover:text-slate-950">
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (item.label === "가이드") {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => router.push(`/site/guide-center?reset=${Date.now()}`)}
+                  className="transition hover:text-slate-950"
+                >
+                  {item.label}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="transition hover:text-slate-950"
+              >
+                {item.label}
+              </Link>
+            );
+          })}
           {nickname ? (
             <Link href={getPageSampleHref("my-page")} className="transition hover:text-slate-950">
               마이페이지

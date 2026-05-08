@@ -34,12 +34,17 @@ export interface PageResponse<T> {
 export async function getAnnouncements(params: {
   region?: string;
   status?: string;
+  keyword?: string;
+  deadlineSoon?: boolean;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Announcement>> {
   const query = new URLSearchParams();
   if (params.region) query.append("region", params.region);
   if (params.status) query.append("status", params.status);
+  if (params.keyword) query.append("keyword", params.keyword);
+  if (params.deadlineSoon) query.append("deadlineSoon", "true");
+
   query.append("page", String(params.page ?? 0));
   query.append("size", String(params.size ?? 10));
 
