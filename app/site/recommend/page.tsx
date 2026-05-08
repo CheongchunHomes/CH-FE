@@ -2,13 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import PolicyCard from './components/PolicyCard';
-import { categoryInfo } from './components/CategoryInfo';
 
-// ─────────────────────────────────────────────
-// 팀원 연결 포인트
-// 1단계 팀원: DiagnosisResult 타입대로 데이터 넘겨주면 점수 카드 자동 표시됨
-// 3단계 팀원: Recoentity[] 배열 그대로 policies에 넣으면 됨
-// ─────────────────────────────────────────────
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const API_BASE = '/api/recommend/summary';
 
@@ -60,34 +71,43 @@ interface Summary {
   policies: Recoentity[];
 }
 
-// ─────────────────────────────────────────────
-// 스타일 상수
-// ─────────────────────────────────────────────
-
-const CAT_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  '공공임대':   { bg: '#FFF3E8', text: '#C2410C', border: '#FB923C' },
-  '민간분양':   { bg: '#EFF6FF', text: '#1D4ED8', border: '#60A5FA' },
-  '전세지원':   { bg: '#F0FDF4', text: '#15803D', border: '#4ADE80' },
-  '주거비지원': { bg: '#FAF5FF', text: '#7E22CE', border: '#C084FC' },
-  '금융지원':   { bg: '#FFFBEB', text: '#B45309', border: '#FCD34D' },
+// 카테고리별 Badge variant 매핑
+const CAT_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  '행복주택':   'default',
+  '공공임대':   'secondary',
+  '대출':   'outline',
 };
 
 const GRADE_COLOR: Record<string, string> = {
-  A: '#16A34A', B: '#1976D2', C: '#db287c', D: '#E53935',
+  A: 'text-green-600',
+  B: 'text-blue-600',
+  C: 'text-pink-600',
+  D: 'text-red-600',
 };
 
-const CATEGORIES = ['공공임대', '민간분양', '전세지원', '주거비지원', '금융지원'];
+const GRADE_PROGRESS_COLOR: Record<string, string> = {
+  A: '#16A34A',
+  B: '#1976D2',
+  C: '#db287c',
+  D: '#E53935',
+};
 
-// ─────────────────────────────────────────────
-// 메인 페이지
-// ─────────────────────────────────────────────
+const CATEGORIES = ['행복주택', '공공임대', '대출'];
+
+const STEPS = [
+  { label: 'step1. 내 조건 진단', active: false },
+  { label: 'step2. 제도 추천', active: true },
+  { label: 'step3. 대출 계산', active: false },
+  { label: 'step4. 집·공고 확인', active: false },
+  { label: 'step5. 계약', active: false },
+];
 
 export default function RecommendPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [modalPolicy, setModalPolicy] = useState<Recoentity | null>(null);
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(API_BASE)
@@ -104,9 +124,8 @@ export default function RecommendPage() {
 
   const { policies, diagnosis } = summary;
 
-  // 점수 카드 - diagnosis 없으면 숨김
   const scores = diagnosis ? [
-    { label: '청약준비도',     score: diagnosis.subscriptionReadinessScore, grade: diagnosis.subscriptionReadinessGrade },
+    { label: '청약준비도',      score: diagnosis.subscriptionReadinessScore, grade: diagnosis.subscriptionReadinessGrade },
     { label: '공공임대 적합도', score: diagnosis.publicRentalFitScore,       grade: diagnosis.publicRentalFitGrade },
     { label: '전세대출 가능성', score: diagnosis.jeonseloanScore,            grade: diagnosis.jeonseloanGrade },
     { label: '분양청약 가능성', score: diagnosis.saleSubscriptionScore,      grade: diagnosis.saleSubscriptionGrade },
@@ -115,216 +134,239 @@ export default function RecommendPage() {
   const activeCats = CATEGORIES.filter(c => policies.some(p => p.category === c));
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F3F4F6', fontFamily: "'Apple SD Gothic Neo', Pretendard, sans-serif" }}>
+    <div className="min-h-screen bg-gray-100 font-sans">
 
-      {/* 스텝 바 */}
-      <div style={{ background: '#fff', borderBottom: '0.5px solid #E5E7EB' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: '10px 20px', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          {[
-            { label: 'step1. 자가진단', active: false },
-            null,
-            { label: 'step2. 제도추천', active: true },
-            null,
-            { label: 'step3. 대출계산', active: false },
-            null,
-            { label: 'step4. 집·공고 확인', active: false },
-            null,
-            { label: 'step5. 계약', active: false },
-          ].map((item, i) =>
-            item === null
-              ? <span key={i} style={{ color: '#D1D5DB', fontSize: 12 }}>›</span>
-              : <span key={i} style={{
-                  fontSize: 11, padding: '4px 12px', borderRadius: 20,
-                  background: item.active ? '#1976D2' : '#F3F4F6',
-                  color: item.active ? '#fff' : '#9CA3AF',
-                  fontWeight: item.active ? 500 : 400,
-                }}>{item.label}</span>
-          )}
+          {/* 스텝 바 */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-4xl px-5 py-4">
+          <div className="flex items-center justify-center">
+            {STEPS.map((step, i) => (
+              <div key={step.label} className="flex items-center">
+                {/* 스텝 아이템 */}
+                <div className="flex flex-col items-center gap-1.5">
+                  {/* 원형 아이콘 */}
+                  <div
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors ${
+                      step.active
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 bg-white text-gray-400'
+                    }`}
+                  >
+                    {/* 체크 아이콘 */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-2.5 w-2.5"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+
+                  {/* 텍스트 */}
+                  <div className="flex flex-col items-center">
+                    <span className={`text-[10px] ${step.active ? 'text-blue-600' : 'text-gray-400'}`}>
+                      Step {i + 1}
+                    </span>
+                    <span
+                      className={`text-xs ${
+                        step.active ? 'font-bold text-gray-900' : 'font-normal text-gray-400'
+                      }`}
+                    >
+                      {step.label.replace(/step\d+\. /i, '')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 연결선 */}
+                {i < STEPS.length - 1 && (
+                  <div className="mx-2 mb-6 h-[2px] w-12 bg-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '20px' }}>
+      <div className="mx-auto max-w-4xl px-5 py-5">
 
-        {/* 점수 카드 - diagnosis 있을 때만 표시 */}
+        {/* 점수 카드 */}
         {scores && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 16 }}>
+          <div className="mb-4 grid grid-cols-4 gap-2.5">
             {scores.map(s => (
-              <div key={s.label} style={{ background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: 12, padding: 14 }}>
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>{s.label}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
-                  <span style={{ fontSize: 24, fontWeight: 500, color: GRADE_COLOR[s.grade] ?? '#374151' }}>{s.score}</span>
-                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>점</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 500, color: GRADE_COLOR[s.grade] ?? '#374151' }}>{s.grade}</span>
-                </div>
-                <div style={{ height: 4, background: '#F3F4F6', borderRadius: 2 }}>
-                  <div style={{ width: `${s.score}%`, height: '100%', background: GRADE_COLOR[s.grade] ?? '#1976D2', borderRadius: 2 }} />
-                </div>
-              </div>
+              <Card key={s.label}>
+                <CardContent className="p-3.5">
+                  <p className="mb-2 text-xs text-muted-foreground">{s.label}</p>
+                  <div className="mb-2.5 flex items-baseline gap-1">
+                    <span className={`text-2xl font-medium ${GRADE_COLOR[s.grade] ?? 'text-gray-700'}`}>
+                      {s.score}
+                    </span>
+                    <span className="text-xs text-muted-foreground">점</span>
+                    <span className={`ml-auto text-base font-medium ${GRADE_COLOR[s.grade] ?? 'text-gray-700'}`}>
+                      {s.grade}
+                    </span>
+                  </div>
+                  {/* Progress는 색상을 CSS변수로 직접 제어 */}
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${s.score}%`,
+                        background: GRADE_PROGRESS_COLOR[s.grade] ?? '#1976D2',
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
 
         {/* 진단결과 헤더 */}
-        <div style={{ marginBottom: 14, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#1976D2' }}>진단결과</span>
-          {activeCats.map(cat => {
-            const s = CAT_STYLE[cat];
+      <div className="mb-3.5 flex flex-wrap items-center gap-1.5">
+        <span className="text-sm font-medium text-blue-600">● 진단결과</span>
+        {activeCats.map(cat => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setSelectedCat(selectedCat === cat ? null : cat)}
+            className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold transition-colors ${
+              selectedCat === cat
+                ? 'border-blue-600 bg-blue-600 text-white'
+                : 'border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-400'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+        <span className="text-sm text-gray-500">신청이 가능할 것으로 예상됩니다.</span>
+      </div>
+
+        {/* 카테고리 Accordion */}
+        <Accordion type="single" collapsible className="space-y-2.5">
+          {CATEGORIES
+          .filter(cat => !selectedCat || cat === selectedCat)
+          .map(cat => {
+            const list = policies.filter(p => p.category === cat);
+            if (!list.length) return null;
+
             return (
-              <span key={cat} style={{ fontSize: 12, background: s.bg, color: s.text, padding: '2px 10px', borderRadius: 6, fontWeight: 500 }}>
-                {cat}
-              </span>
+              <AccordionItem
+                key={cat}
+                value={cat}
+                className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+              >
+                <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
+                  <div className="flex items-center gap-2.5">
+                    <Badge variant={CAT_VARIANT[cat] ?? 'outline'}>{cat}</Badge>
+                    <span className="text-sm font-medium text-gray-900">
+                      {cat} 신청 가능 ({list.length}건)
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0">
+                  <div className="border-t border-gray-100">
+                    {list.map((policy, i) => (
+                      <PolicyCard
+                        key={policy.name} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
+                        policy={policy}
+                        isLast={i === list.length - 1}
+                        onDetail={() => setModalPolicy(policy)}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             );
           })}
-          <span style={{ fontSize: 13, color: '#6B7280' }}>신청이 가능할 것으로 예상됩니다.</span>
-        </div>
+        </Accordion>
+      </div>
 
-        {/* 카테고리 섹션 */}
-        {CATEGORIES.map(cat => {
-          const list = policies.filter(p => p.category === cat);
-          if (!list.length) return null;
-          const s = CAT_STYLE[cat] ?? { bg: '#F3F4F6', text: '#374151', border: '#9CA3AF' };
-          const isOpen = openCategory === cat;
+      {/* 상세보기 Dialog */}
+      <Dialog open={!!modalPolicy} onOpenChange={open => { if (!open) setModalPolicy(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{modalPolicy?.name}</DialogTitle>
+          </DialogHeader>
 
-          return (
-            <div key={cat} style={{ background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
-              {/* 섹션 헤더 - 클릭으로 토글 */}
-              <div
-                onClick={() => setOpenCategory(isOpen ? null : cat)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', cursor: 'pointer' }}
-              >
-                <span style={{ background: s.bg, color: s.text, border: `0.5px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6 }}>
-                  {cat}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#111', flex: 1 }}>{cat} 신청 가능 ({list.length}건)</span>
-                <span style={{
-                  fontSize: 20, lineHeight: 1, color: '#6B7280',
-                  background: '#F3F4F6', border: '0.5px solid #E5E7EB',
-                  padding: '2px 8px', borderRadius: 6,
-                }}>
-                  {isOpen ? '−' : '+'}
-                </span>
-              </div>
-
-              {/* 정책 리스트 - 펼쳤을 때만 표시 */}
-              {isOpen && (
-                <div style={{ borderTop: '0.5px solid #F3F4F6' }}>
-                  {list.map((policy, i) => (
-                    <PolicyCard
-                      key={policy.id}
-                      policy={policy}
-                      isLast={i === list.length - 1}
-                      borderColor={s.border}
-                      onDetail={() => setModalPolicy(policy)}
-                    />
-                  ))}
+          {modalPolicy && (
+            <div className="space-y-0 divide-y divide-gray-100">
+              {[
+                {
+                  label: '카테고리',
+                  value: <Badge variant={CAT_VARIANT[modalPolicy.category] ?? 'outline'}>{modalPolicy.category}</Badge>,
+                },
+                { label: '대상지역', value: modalPolicy.region },
+                { label: '연령기준', value: `${modalPolicy.minAge}~${modalPolicy.maxAge}세` },
+                {
+                  label: '소득기준',
+                  value: `연 ${modalPolicy.maxIncome.toLocaleString()}만원 이하`, //만원단위로 조정
+                },
+                { label: '사업개요', value: modalPolicy.description },
+              ].map(row => (
+                <div key={row.label} className="flex gap-3 py-2.5 text-sm">
+                  <span className="w-16 shrink-0 font-medium text-muted-foreground">{row.label}</span>
+                  <span className="flex-1 leading-relaxed text-gray-700">{row.value}</span>
                 </div>
-              )}
+              ))}
             </div>
-          );
-        })}
-      </div>
-
-      {/* 상세보기 모달 */}
-      {modalPolicy && (
-        <PolicyModal policy={modalPolicy} onClose={() => setModalPolicy(null)} />
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// 상세보기 모달
-// ─────────────────────────────────────────────
-
-function PolicyModal({ policy, onClose }: { policy: Recoentity; onClose: () => void }) {
-  const s = CAT_STYLE[policy.category] ?? { bg: '#F3F4F6', text: '#374151', border: '#9CA3AF' };
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100, padding: 20,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: 14, width: '100%', maxWidth: 500,
-          maxHeight: '80vh', overflowY: 'auto', padding: 24,
-        }}
-      >
-        <div style={{ fontSize: 16, fontWeight: 500, color: '#111', marginBottom: 16, paddingBottom: 12, borderBottom: '0.5px solid #E5E7EB' }}>
-          {policy.name}
-        </div>
-
-        {[
-          { label: '카테고리', value: <span style={{ background: s.bg, color: s.text, fontSize: 12, padding: '2px 10px', borderRadius: 6 }}>{policy.category}</span> },
-          { label: '대상지역', value: policy.region },
-          { label: '연령기준', value: `${policy.minAge}~${policy.maxAge}세` },
-          { label: '소득기준', value: `연 ${Math.round(policy.maxIncome / 10000000)}천만원 이하` },
-          { label: '사업개요', value: policy.description },
-        ].map(row => (
-          <div key={row.label} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '0.5px solid #F3F4F6', fontSize: 13 }}>
-            <span style={{ color: '#9CA3AF', minWidth: 70, fontWeight: 500, flexShrink: 0 }}>{row.label}</span>
-            <span style={{ color: '#374151', flex: 1, lineHeight: 1.6 }}>{row.value}</span>
-          </div>
-        ))}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {policy.applyUrl && (
-            <a
-              href={policy.applyUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                flex: 1, textAlign: 'center', padding: '10px 0',
-                background: '#1976D2', color: '#fff', borderRadius: 8,
-                fontSize: 13, fontWeight: 500, textDecoration: 'none',
-              }}
-            >
-              홈페이지 바로가기 →
-            </a>
           )}
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1, padding: '10px 0', background: '#F3F4F6',
-              color: '#374151', border: 'none', borderRadius: 8,
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}
-          >
-            닫기
-          </button>
-        </div>
-      </div>
+
+          <div className="flex gap-2 pt-2">
+            {modalPolicy?.applyUrl && (
+              <Button asChild className="flex-1">
+                <a href={modalPolicy.applyUrl} target="_blank" rel="noreferrer">
+                  홈페이지 바로가기 →
+                </a>
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setModalPolicy(null)}
+            >
+              닫기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-// ─────────────────────────────────────────────
-// 로딩 / 에러 화면
-// ─────────────────────────────────────────────
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6', gap: 16 }}>
-      <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTop: '3px solid #1976D2', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: '#9CA3AF', fontSize: 14 }}>맞춤 정책을 불러오는 중...</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="mx-auto max-w-4xl px-5 py-8">
+      <div className="mb-4 grid grid-cols-4 gap-2.5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-3.5 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-12" />
+              <Skeleton className="h-1 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="space-y-2.5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 }
 
 function ErrorScreen({ message }: { message: string }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6', gap: 12 }}>
-      <span style={{ fontSize: 36 }}>⚠️</span>
-      <p style={{ color: '#DC2626', fontWeight: 500, textAlign: 'center', maxWidth: 400, fontSize: 14 }}>{message}</p>
-      <button onClick={() => window.location.reload()} style={{ background: '#1976D2', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
-        다시 시도
-      </button>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-100">
+      <span className="text-4xl">⚠️</span>
+      <p className="max-w-sm text-center text-sm font-medium text-red-600">{message}</p>
+      <Button onClick={() => window.location.reload()}>다시 시도</Button>
     </div>
   );
 }
