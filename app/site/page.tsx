@@ -10,7 +10,6 @@ import {
   MessageCircleQuestion,
   Sparkles,
   Ticket,
-  Wallet,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -20,23 +19,16 @@ import { getPageSampleHref } from "@/lib/page-samples"
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
   { icon: Ticket, label: "제도 추천", href: getPageSampleHref("guide-center") },
-  { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
+  { icon: Coins, label: "대출 계산", href: "/site/loan-contract" },
   { icon: MapPin, label: "집·공고 확인", href: getPageSampleHref("rent") },
   { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
 ]
 
 const homeTips = [
   { title: "청약 자격 진단", desc: "내 조건에 맞는 청약을 한 번에 확인", href: getPageSampleHref("subscription") },
-  { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산", href: "/loan" },
+  { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산", href: "/site/loan-contract" },
   { title: "시뮬레이션", desc: "가상의 조건으로 계산해 보기", href: getPageSampleHref("simulator") },
   { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
-  { title: "공지사항", desc: "공지사항", href: "/notice" },
-  { title: "가계부", desc: "가계부", href: getPageSampleHref("ledger") },
-  { title: "동네별 커뮤니티", desc: "커뮤니티", href: getPageSampleHref("community") },
-  { title: "용어 설명", desc: "특공·임대 제도 차이 설명 (어려운 제도 용어 설명)", href: getPageSampleHref("terminology") },
-
-  
-
 ]
 
 export default function SitePage() {
@@ -52,6 +44,7 @@ export default function SitePage() {
                     <Sparkles size={14} />
                     AI가 청년 주거 준비를 도와드려요
                   </div>
+
                   <div className="space-y-3">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
                       청약부터 대출, 계약까지
@@ -134,18 +127,22 @@ export default function SitePage() {
         </section>
 
         <section className="mt-4">
-          <Card className="border-slate-200/80 bg-sky-600 shadow-sm">
+          <Card className="border-slate-200/80 bg-[#2563EB] shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg text-white">청년 주거 원스텝</CardTitle>
-                <span className="text-sm text-sky-600">더보기</span>
+                <span className="text-sm text-white/80">더보기</span>
               </div>
             </CardHeader>
             <CardContent className="px-6 pb-6">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {quickMenus.map(({ icon: Icon, label, href }) => (
-                  <Link key={label} href={href} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-sky-600">
+                  <Link
+                    key={label}
+                    href={href}
+                    className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm"
+                  >
+                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-[#2563EB]">
                       <Icon size={18} />
                     </div>
                     <p className="text-sm font-medium text-slate-800">{label}</p>
@@ -164,10 +161,10 @@ export default function SitePage() {
               </CardHeader>
               <CardContent className="space-y-4 px-6 pb-6">
                 <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-3xl bg-sky-600 p-5 text-white shadow-sm">
+                  <div className="rounded-3xl bg-[#2563EB] p-5 text-white shadow-sm">
                     <p className="text-sm/none font-medium">청약 진행 중 공고</p>
                     <p className="mt-4 text-4xl font-bold">7</p>
-                    <p className="mt-3 text-sm text-sky-100">신청 시간 09:00-17:30</p>
+                    <p className="mt-3 text-sm text-white/80">신청 시간 09:00-17:30</p>
                   </div>
                   <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-sm font-medium text-slate-500">당첨자 발표</p>
