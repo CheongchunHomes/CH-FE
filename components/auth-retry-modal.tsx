@@ -48,12 +48,7 @@ export function AuthRetryModal() {
   const isRetrying = state.status === "retrying"
   const isSuccess = state.status === "success"
   const iconClassName = isSuccess ? "text-emerald-600" : state.status === "failed" ? "text-rose-600" : "text-sky-600"
-  const message =
-    state.status === "retrying"
-      ? `인증 갱신에 실패해 다시 시도 중입니다. (${state.attempt}/${state.maxAttempts})`
-      : state.status === "success"
-        ? "인증이 갱신되었습니다."
-        : "인증 갱신에 실패했습니다. 다시 로그인해 주세요."
+  const message = state.status === "retrying" ? `${state.message} (${state.attempt}/${state.maxAttempts})` : state.message
 
   return (
     <div

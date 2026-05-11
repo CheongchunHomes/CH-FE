@@ -10,7 +10,7 @@ import {
 import { readJsonBody, validateAuthOrigin } from "@/lib/api/auth/request"
 import { refreshAccessToken } from "@/lib/api/auth/refresh"
 import {
-  authUpstreamError,
+  apiRetryableResponse,
   jsonWithClearedAuthCookies,
   jsonWithAccessCookie,
   jsonWithAuthCookies,
@@ -144,7 +144,7 @@ export async function me(request: Request) {
 
     const meResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken)
     if (!meResponse) {
-      return authUpstreamError("Spring request failed.")
+      return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
     }
 
     if (!meResponse.ok) {
@@ -162,7 +162,7 @@ export async function me(request: Request) {
   const meResponse = await getSpringWithAccess("/auth/me", accessToken)
 
   if (!meResponse) {
-    return authUpstreamError("Spring request failed.")
+    return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
   }
 
   if (meResponse.status === 401) {
@@ -178,7 +178,7 @@ export async function me(request: Request) {
 
     const retryMeResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken)
     if (!retryMeResponse) {
-      return authUpstreamError("Spring request failed.")
+      return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
     }
 
     if (!retryMeResponse.ok) {

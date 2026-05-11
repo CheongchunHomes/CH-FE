@@ -16,6 +16,7 @@ type AuthContextValue = {
   status: AuthStatus
   user: AuthUser | null
   refresh: () => Promise<void>
+  clear: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -23,6 +24,11 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading")
   const [user, setUser] = useState<AuthUser | null>(null)
+
+  const clear = useCallback(() => {
+    setUser(null)
+    setStatus("unauthenticated")
+  }, [])
 
   const refresh = useCallback(async () => {
     setStatus("loading")
@@ -58,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refresh()
   }, [refresh])
 
-  return <AuthContext.Provider value={{ status, user, refresh }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ status, user, refresh, clear }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth(): AuthContextValue {

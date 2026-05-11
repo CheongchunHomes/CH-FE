@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { AlertCircle, Loader2, Mail, UserRound } from "lucide-react"
 
 import { get } from "@/lib/api"
-import { getStoredNickname } from "@/lib/auth-session"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -15,21 +15,30 @@ type MyProfileDTO = {
 }
 
 export default function MyPageInfoPage() {
+  const { status, user } = useAuth()
   const [profile, setProfile] = useState<MyProfileDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [hasNickname, setHasNickname] = useState(false)
 
   useEffect(() => {
-    const nickname = getStoredNickname()
+    if (status === "loading") {
+      setIsLoading(true)
+      return
+    }
+
+    const nickname = user?.nickname
 
     if (!nickname) {
       setHasNickname(false)
       setIsLoading(false)
+      setProfile(null)
       return
     }
 
     setHasNickname(true)
+    setIsLoading(true)
+    setErrorMessage("")
 
     async function loadProfile() {
       try {
@@ -47,7 +56,7 @@ export default function MyPageInfoPage() {
     }
 
     loadProfile()
-  }, [])
+  }, [status, user?.nickname])
 
   if (!hasNickname && !isLoading) {
     return (

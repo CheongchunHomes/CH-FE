@@ -17,7 +17,7 @@ const navItems = [
 
 export default function Navbar() {
   const router = useRouter()
-  const { status, user } = useAuth()
+  const { status, user, clear } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoutErrorMessage, setLogoutErrorMessage] = useState("")
 
@@ -29,6 +29,7 @@ export default function Navbar() {
 
     try {
       await logoutAndRedirect(router)
+      clear()
     } catch (error) {
       setLogoutErrorMessage(error instanceof Error ? error.message : "로그아웃에 실패했습니다.")
     } finally {

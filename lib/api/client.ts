@@ -138,15 +138,27 @@ function readPositiveNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback
 }
 
-function getRefreshRetryInfo(payload: unknown) {
-  if (!isRecord(payload) || payload.code !== "REFRESH_RETRYABLE") {
+function getRetryInfo(payload: unknown) {
+  if (!isRecord(payload) || (payload.code !== "REFRESH_RETRYABLE" && payload.code !== "API_RETRYABLE")) {
     return null
   }
 
+  const isRefreshRetry = payload.code === "REFRESH_RETRYABLE"
+
   return {
+    code: payload.code,
     retryAfterSeconds: readPositiveNumber(payload.retryAfterSeconds, DEFAULT_REFRESH_RETRY_AFTER_SECONDS),
     maxAttempts: readPositiveNumber(payload.maxAttempts, DEFAULT_REFRESH_MAX_ATTEMPTS),
-    message: typeof payload.message === "string" && payload.message.trim() ? payload.message : "Refresh failed temporarily.",
+    retryingMessage:
+      typeof payload.message === "string" && payload.message.trim()
+        ? payload.message
+        : isRefreshRetry
+          ? "인증 갱신에 실패해 다시 시도 중입니다."
+          : "요청 처리에 실패해 다시 시도 중입니다.",
+    successMessage: isRefreshRetry ? "인증이 갱신되었습니다." : "요청이 완료되었습니다.",
+    failedMessage: isRefreshRetry
+      ? "인증 갱신에 실패했습니다. 다시 로그인해 주세요."
+      : "요청 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.",
   }
 }
 
@@ -203,8 +215,8 @@ async function sendRequest<TResponse, TBody = unknown>(
   const url = appendQuery(normalizeUrl(path), query)
   let retryAttempt = 0
   let retryStarted = false
-  let retryInfo: ReturnType<typeof getRefreshRetryInfo> = null
-  let lastRetryInfo: NonNullable<ReturnType<typeof getRefreshRetryInfo>> | null = null
+  let retryInfo: ReturnType<typeof getRetryInfo> = null
+  let lastRetryInfo: NonNullable<ReturnType<typeof getRetryInfo>> | null = null
 
   while (true) {
     const response = await fetch(url, {
@@ -226,14 +238,14 @@ async function sendRequest<TResponse, TBody = unknown>(
           attempt: retryAttempt,
           maxAttempts: lastRetryInfo.maxAttempts,
           retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
-          message: "인증이 갱신되었습니다.",
+          message: lastRetryInfo.successMessage,
         })
       }
 
       return payload as TResponse
     }
 
-    retryInfo = getRefreshRetryInfo(payload)
+    retryInfo = getRetryInfo(payload)
 
     if (retryInfo) {
       if (typeof window === "undefined") {
@@ -250,7 +262,7 @@ async function sendRequest<TResponse, TBody = unknown>(
           attempt: retryAttempt,
           maxAttempts: retryInfo.maxAttempts,
           retryAfterSeconds: retryInfo.retryAfterSeconds,
-          message: "인증 갱신에 실패해 다시 시도 중입니다.",
+          message: retryInfo.retryingMessage,
         })
         await waitForRetry(retryInfo.retryAfterSeconds, signal)
         continue
@@ -258,7 +270,7 @@ async function sendRequest<TResponse, TBody = unknown>(
 
       const failedPayload = {
         ...(isRecord(payload) ? payload : {}),
-        code: "REFRESH_RETRY_FAILED",
+        code: retryInfo.code === "REFRESH_RETRYABLE" ? "REFRESH_RETRY_FAILED" : "API_RETRY_FAILED",
       }
 
       dispatchAuthRefreshRetryEvent({
@@ -266,10 +278,10 @@ async function sendRequest<TResponse, TBody = unknown>(
         attempt: retryAttempt,
         maxAttempts: retryInfo.maxAttempts,
         retryAfterSeconds: retryInfo.retryAfterSeconds,
-        message: "인증 갱신에 실패했습니다. 다시 로그인해 주세요.",
+        message: retryInfo.failedMessage,
       })
 
-      throw new ApiError("인증 갱신에 실패했습니다. 다시 로그인해 주세요.", response.status, failedPayload)
+      throw new ApiError(retryInfo.failedMessage, response.status, failedPayload)
     }
 
     if (retryStarted && lastRetryInfo) {
@@ -278,7 +290,7 @@ async function sendRequest<TResponse, TBody = unknown>(
         attempt: retryAttempt,
         maxAttempts: lastRetryInfo.maxAttempts,
         retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
-        message: "인증 갱신에 실패했습니다. 다시 로그인해 주세요.",
+        message: lastRetryInfo.failedMessage,
       })
     }
 

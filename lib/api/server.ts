@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { makeAccessCookie, readAccessToken, readRefreshToken } from "@/lib/api/auth/cookies"
 import { ACCESS_TOKEN_MAX_AGE_SECONDS } from "@/lib/api/auth/constants"
 import { refreshAccessToken } from "@/lib/api/auth/refresh"
-import { refreshFailureResponse } from "@/lib/api/auth/responses"
+import { apiRetryableResponse, refreshFailureResponse } from "@/lib/api/auth/responses"
 
 type ProxyMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
@@ -103,7 +103,7 @@ export function proxyRoute(method: ProxyMethod) {
     })
 
     if (!response) {
-      return NextResponse.json({ message: "API request failed." }, { status: 500 })
+      return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
     }
 
     // 401 -> refresh 후 원 요청 1회 재시도. refresh 일시 실패 재시도는 client wrapper가 담당한다.
@@ -124,7 +124,7 @@ export function proxyRoute(method: ProxyMethod) {
       response = await tryRequest(refreshResult.accessToken).catch(() => null)
 
       if (!response) {
-        return NextResponse.json({ message: "API request failed." }, { status: 500 })
+        return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
       }
 
       if (!response.ok) {

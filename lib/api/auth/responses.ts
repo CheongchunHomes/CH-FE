@@ -22,6 +22,18 @@ export function authUpstreamError(message = "Auth server request failed."): Next
   return NextResponse.json({ code: "AUTH_UPSTREAM_ERROR", message }, { status: 502 })
 }
 
+export function apiRetryableResponse(message = "API request failed temporarily."): NextResponse {
+  return NextResponse.json(
+    {
+      code: "API_RETRYABLE",
+      message,
+      retryAfterSeconds: REFRESH_RETRY_AFTER_SECONDS,
+      maxAttempts: REFRESH_MAX_ATTEMPTS,
+    },
+    { status: 503 },
+  )
+}
+
 export function jsonWithClearedAuthCookies(payload: SpringErrorPayload, status: number): NextResponse {
   const response = NextResponse.json(payload, { status })
   response.headers.append("Set-Cookie", clearAccessCookie())
