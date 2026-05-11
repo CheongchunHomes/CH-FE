@@ -1,10 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  CalendarDays,
+  FileText,
+  ListChecks,
+  PieChart,
+  Plus,
+  Wallet,
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface Transaction {
   expenditure_id?: number;
-  user_id: number;
   category: string;
   amount: number;
   method: string;
@@ -13,10 +25,15 @@ interface Transaction {
   created_at?: string;
 }
 
+const CATEGORIES = ['전체', '식비', '교통', '기타'] as const;
+const METHODS = ['카드', '현금', '쿠폰'] as const;
+
 export default function LedgerPage() {
-  const [activeTab, setActiveTab] = useState('지출조회');
+  const [activeTab, setActiveTab] = useState<'지출조회' | '지출입력' | '월별조회'>(
+    '지출조회'
+  );
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [userId, setUserId] = useState<number | null>(1);
 
   const [viewMonth, setViewMonth] = useState(
     new Date().toISOString().slice(0, 7)
@@ -32,35 +49,23 @@ export default function LedgerPage() {
     memo: '',
   });
 
-  const MAIN_COLOR = '#2196F3';
-  const CATEGORIES = ['전체', '식비', '교통', '기타'];
-  const METHODS = ['카드', '현금', '쿠폰'];
-
   useEffect(() => {
-    const savedUserId = localStorage.getItem('userId');
-
-    if (savedUserId) {
-      setUserId(Number(savedUserId));
-    }
+    fetchLedgers();
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      fetchLedgers();
-    }
-  }, [userId]);
-
   const fetchLedgers = async () => {
-    if (!userId) return;
-
     try {
-      const response = await fetch(`/api/ledger/list?userId=${userId}`, {
+      const response = await fetch('/api/ledger/list', {
         method: 'GET',
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('조회 실패:', response.status, errorText);
+
+        if (response.status === 401 || response.status === 403) {
+          alert('로그인이 필요합니다.');
+        }
 
         return;
       }
@@ -74,9 +79,9 @@ export default function LedgerPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value } = event.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -84,16 +89,15 @@ export default function LedgerPage() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    if (!formData.amount || !formData.category || !userId) {
+    if (!formData.amount || !formData.category) {
       alert('금액과 카테고리를 입력하세요.');
       return;
     }
 
     const newEntry = {
-      user_id: userId,
       category: formData.category,
       amount: Number(formData.amount),
       method: formData.method,
@@ -113,6 +117,12 @@ export default function LedgerPage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('저장 실패:', response.status, errorText);
+
+        if (response.status === 401 || response.status === 403) {
+          alert('로그인이 필요합니다.');
+          return;
+        }
+
         alert(`저장 실패: ${response.status}`);
         return;
       }
@@ -121,6 +131,8 @@ export default function LedgerPage() {
 
       setTransactions((prev) => [savedData, ...prev]);
       setViewMonth(formData.spent_at.slice(0, 7));
+      setSelectedCategory('전체');
+      setActiveTab('지출조회');
 
       setFormData({
         spent_at: new Date().toISOString().split('T')[0],
@@ -130,9 +142,6 @@ export default function LedgerPage() {
         memo: '',
       });
 
-      setSelectedCategory('전체');
-      setActiveTab('지출조회');
-
       alert('저장 완료');
     } catch (error) {
       console.error('저장 실패:', error);
@@ -140,499 +149,421 @@ export default function LedgerPage() {
     }
   };
 
-  const monthlyTransactions = transactions.filter(
-    (t) => t.spent_at && t.spent_at.startsWith(viewMonth)
-  );
+  const monthlyTransactions = useMemo(() => {
+    return transactions.filter(
+      (transaction) =>
+        transaction.spent_at && transaction.spent_at.startsWith(viewMonth)
+    );
+  }, [transactions, viewMonth]);
 
-  const filteredTransactions =
-    selectedCategory === '전체'
-      ? monthlyTransactions
-      : monthlyTransactions.filter((t) => t.category === selectedCategory);
-
-  const displayTotal = filteredTransactions.reduce(
-    (acc, cur) => acc + Number(cur.amount),
-    0
-  );
-
-  const monthlySummary = transactions.reduce((acc, cur) => {
-    if (!cur.spent_at) return acc;
-
-    const month = cur.spent_at.slice(0, 7);
-
-    if (!acc[month]) {
-      acc[month] = 0;
+  const filteredTransactions = useMemo(() => {
+    if (selectedCategory === '전체') {
+      return monthlyTransactions;
     }
 
-    acc[month] += Number(cur.amount);
+    return monthlyTransactions.filter(
+      (transaction) => transaction.category === selectedCategory
+    );
+  }, [monthlyTransactions, selectedCategory]);
 
-    return acc;
-  }, {} as Record<string, number>);
+  const displayTotal = useMemo(() => {
+    return filteredTransactions.reduce(
+      (acc, cur) => acc + Number(cur.amount),
+      0
+    );
+  }, [filteredTransactions]);
+
+  const monthlySummary = useMemo(() => {
+    const summaryTargetTransactions =
+      selectedCategory === '전체'
+        ? transactions
+        : transactions.filter(
+            (transaction) => transaction.category === selectedCategory
+          );
+
+    return summaryTargetTransactions.reduce((acc, cur) => {
+      if (!cur.spent_at) return acc;
+
+      const month = cur.spent_at.slice(0, 7);
+
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+
+      acc[month] += Number(cur.amount);
+
+      return acc;
+    }, {} as Record<string, number>);
+  }, [transactions, selectedCategory]);
 
   return (
-    <div style={pageStyle}>
-      <aside style={sideBarStyle}>
-        <h2 style={sideTitleStyle}>가계부</h2>
+    <main className="min-h-screen bg-slate-50 px-4 py-8">
+      <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[220px_1fr]">
+        <aside className="h-fit rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-6 flex items-center gap-2">
+            <div className="rounded-md bg-[#2196F3]/10 p-2 text-[#2196F3]">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">가계부</h1>
+              <p className="text-xs text-muted-foreground">
+                청년홈즈 지출 관리
+              </p>
+            </div>
+          </div>
 
-        {['지출조회', '지출입력', '월별조회'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              ...sideButtonStyle,
-              backgroundColor: activeTab === tab ? MAIN_COLOR : '#ffffff',
-              color: activeTab === tab ? '#ffffff' : '#333333',
-            }}
-          >
-            {tab}
-          </button>
-        ))}
-      </aside>
+          <nav className="space-y-2">
+            <Button
+              type="button"
+              variant={activeTab === '지출조회' ? 'default' : 'ghost'}
+              className={
+                activeTab === '지출조회'
+                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+              }
+              onClick={() => setActiveTab('지출조회')}
+            >
+              <ListChecks className="h-4 w-4" />
+              지출조회
+            </Button>
 
-      <main style={mainStyle}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <div style={contentBoxStyle}>
-            {activeTab === '지출입력' && (
-              <form onSubmit={handleSubmit} style={formStyle}>
-                <div style={formTitleStyle}>
-                  <h2
-                    style={{
-                      fontSize: '20px',
-                      color: MAIN_COLOR,
-                      margin: 0,
-                    }}
-                  >
-                    지출 정보 입력
-                  </h2>
-                </div>
+            <Button
+              type="button"
+              variant={activeTab === '지출입력' ? 'default' : 'ghost'}
+              className={
+                activeTab === '지출입력'
+                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+              }
+              onClick={() => setActiveTab('지출입력')}
+            >
+              <Plus className="h-4 w-4" />
+              지출입력
+            </Button>
 
-                <div style={inputGroup}>
-                  <label style={labelStyle}>지출 일자</label>
-                  <input
-                    name="spent_at"
-                    type="date"
-                    value={formData.spent_at}
-                    onChange={handleInputChange}
-                    style={webInputStyle}
-                  />
-                </div>
+            <Button
+              type="button"
+              variant={activeTab === '월별조회' ? 'default' : 'ghost'}
+              className={
+                activeTab === '월별조회'
+                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+              }
+              onClick={() => setActiveTab('월별조회')}
+            >
+              <PieChart className="h-4 w-4" />
+              월별조회
+            </Button>
+          </nav>
+        </aside>
 
-                <div style={inputGroup}>
-                  <label style={labelStyle}>지출 금액</label>
-                  <input
-                    name="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={handleInputChange}
-                    style={webInputStyle}
-                    placeholder="예: 12000"
-                  />
-                </div>
+        <div className="space-y-6">
+          {activeTab === '지출입력' && (
+            <Card>
+              <CardHeader className="border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Plus className="h-5 w-5 text-[#2196F3]" />
+                  지출 정보 입력
+                </CardTitle>
+              </CardHeader>
 
-                <div style={inputGroup}>
-                  <label style={labelStyle}>카테고리</label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    style={webInputStyle}
-                  >
-                    <option value="">선택</option>
-                    {CATEGORIES.filter((c) => c !== '전체').map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <CardContent className="pt-6">
+                <form
+                  onSubmit={handleSubmit}
+                  className="grid gap-5 md:grid-cols-2"
+                >
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">지출 일자</label>
+                    <Input
+                      name="spent_at"
+                      type="date"
+                      value={formData.spent_at}
+                      onChange={handleInputChange}
+                      className="focus-visible:ring-[#2196F3]"
+                    />
+                  </div>
 
-                <div style={inputGroup}>
-                  <label style={labelStyle}>결제 방식</label>
-                  <select
-                    name="method"
-                    value={formData.method}
-                    onChange={handleInputChange}
-                    style={webInputStyle}
-                  >
-                    {METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">지출 금액</label>
+                    <Input
+                      name="amount"
+                      type="number"
+                      value={formData.amount}
+                      onChange={handleInputChange}
+                      placeholder="예: 12000"
+                      className="focus-visible:ring-[#2196F3]"
+                    />
+                  </div>
 
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={labelStyle}>메모</label>
-                  <input
-                    name="memo"
-                    value={formData.memo}
-                    onChange={handleInputChange}
-                    style={{ ...webInputStyle, backgroundColor: '#fffbe6' }}
-                    placeholder="예: 점심 식사"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">카테고리</label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2196F3] focus-visible:ring-offset-2"
+                    >
+                      <option value="">선택</option>
+                      {CATEGORIES.filter((category) => category !== '전체').map(
+                        (category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
 
-                <button type="submit" style={submitButtonStyle}>
-                  저장하기
-                </button>
-              </form>
-            )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">결제 방식</label>
+                    <select
+                      name="method"
+                      value={formData.method}
+                      onChange={handleInputChange}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2196F3] focus-visible:ring-offset-2"
+                    >
+                      {METHODS.map((method) => (
+                        <option key={method} value={method}>
+                          {method}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            {activeTab === '지출조회' && (
-              <div>
-                <div style={topRowStyle}>
-                  <h2 style={{ fontSize: '20px', margin: 0 }}>
-                    상세 지출 내역
-                  </h2>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium">메모</label>
+                    <Input
+                      name="memo"
+                      value={formData.memo}
+                      onChange={handleInputChange}
+                      placeholder="예: 점심 식사"
+                      className="focus-visible:ring-[#2196F3]"
+                    />
+                  </div>
 
-                  <input
-                    type="month"
-                    value={viewMonth}
-                    onChange={(e) => setViewMonth(e.target.value)}
-                    style={monthInputStyle}
-                  />
-                </div>
+                  <div className="md:col-span-2">
+                    <Button
+                      type="submit"
+                      className="w-full bg-[#2196F3] text-white hover:bg-[#1E88E5]"
+                    >
+                      저장하기
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
-                <table style={tableStyle}>
-                  <thead>
-                    <tr style={headRowStyle}>
-                      <th style={thStyle}>날짜</th>
-                      <th style={thStyle}>카테고리</th>
-                      <th style={thStyle}>결제방식</th>
-                      <th style={thStyle}>메모</th>
-                      <th style={{ ...thStyle, textAlign: 'right' }}>금액</th>
-                    </tr>
-                  </thead>
+          {activeTab === '지출조회' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <FileText className="h-5 w-5 text-[#2196F3]" />
+                  상세 지출 내역
+                </CardTitle>
 
-                  <tbody>
-                    {monthlyTransactions.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={emptyStyle}>
-                          지출 내역이 없습니다.
-                        </td>
+                <Input
+                  type="month"
+                  value={viewMonth}
+                  onChange={(event) => setViewMonth(event.target.value)}
+                  className="w-[170px] focus-visible:ring-[#2196F3]"
+                />
+              </CardHeader>
+
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/40 text-left text-muted-foreground">
+                        <th className="px-6 py-3 font-medium">날짜</th>
+                        <th className="px-6 py-3 font-medium">카테고리</th>
+                        <th className="px-6 py-3 font-medium">결제방식</th>
+                        <th className="px-6 py-3 font-medium">메모</th>
+                        <th className="px-6 py-3 text-right font-medium">
+                          금액
+                        </th>
                       </tr>
-                    ) : (
-                      monthlyTransactions.map((t, idx) => (
-                        <tr
-                          key={t.expenditure_id ?? idx}
-                          style={bodyRowStyle}
-                        >
-                          <td style={tdStyle}>{t.spent_at}</td>
+                    </thead>
 
-                          <td style={tdStyle}>
-                            <span style={badgeStyle}>{t.category}</span>
-                          </td>
-
-                          <td style={tdStyle}>{t.method}</td>
-
-                          <td style={tdStyle}>{t.memo || '-'}</td>
-
-                          <td style={amountStyle}>
-                            -{Number(t.amount).toLocaleString()}원
+                    <tbody>
+                      {monthlyTransactions.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-6 py-16 text-center text-muted-foreground"
+                          >
+                            지출 내역이 없습니다.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                      ) : (
+                        monthlyTransactions.map((transaction, index) => (
+                          <tr
+                            key={transaction.expenditure_id ?? index}
+                            className="border-b transition hover:bg-[#2196F3]/5"
+                          >
+                            <td className="px-6 py-4">
+                              {transaction.spent_at}
+                            </td>
 
-            {activeTab === '월별조회' && (
-              <div>
-                <div style={topRowStyle}>
-                  <h3 style={{ fontSize: '18px', margin: 0 }}>
-                    {viewMonth} 통계 리포트
-                  </h3>
+                            <td className="px-6 py-4">
+                              <Badge className="bg-[#2196F3]/10 text-[#2196F3] hover:bg-[#2196F3]/10">
+                                {transaction.category}
+                              </Badge>
+                            </td>
 
-                  <input
-                    type="month"
-                    value={viewMonth}
-                    onChange={(e) => setViewMonth(e.target.value)}
-                    style={monthInputStyle}
-                  />
-                </div>
+                            <td className="px-6 py-4">
+                              {transaction.method}
+                            </td>
 
-                <div style={statWrapStyle}>
-                  <div style={statCard}>
-                    <span style={statTitle}>{selectedCategory} 지출 합계</span>
+                            <td className="px-6 py-4">
+                              {transaction.memo || '-'}
+                            </td>
 
-                    <strong style={{ fontSize: '24px' }}>
-                      {displayTotal.toLocaleString()}원
-                    </strong>
-                  </div>
-
-                  <div style={statCard}>
-                    <span style={statTitle}>{selectedCategory} 건수</span>
-
-                    <strong style={{ fontSize: '24px' }}>
-                      {filteredTransactions.length}건
-                    </strong>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={categoryLabelStyle}>카테고리 선택조회</label>
-
-                  <div style={categoryButtonWrapStyle}>
-                    {CATEGORIES.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        style={{
-                          ...categoryButtonStyle,
-                          backgroundColor:
-                            selectedCategory === cat ? MAIN_COLOR : '#f0f0f0',
-                          color: selectedCategory === cat ? '#ffffff' : '#666666',
-                        }}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <h3 style={{ marginTop: '30px', color: MAIN_COLOR }}>
-                  전체 월별 총 지출
-                </h3>
-
-                <table style={tableStyle}>
-                  <thead>
-                    <tr style={headRowStyle}>
-                      <th style={thStyle}>월</th>
-                      <th style={{ ...thStyle, textAlign: 'right' }}>
-                        총 지출액
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {Object.entries(monthlySummary).length === 0 ? (
-                      <tr>
-                        <td colSpan={2} style={emptyStyle}>
-                          지출 내역이 없습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      Object.entries(monthlySummary)
-                        .sort((a, b) => b[0].localeCompare(a[0]))
-                        .map(([month, total]) => (
-                          <tr key={month} style={bodyRowStyle}>
-                            <td style={tdStyle}>{month}</td>
-                            <td style={amountStyle}>
-                              {total.toLocaleString()}원
+                            <td className="px-6 py-4 text-right font-bold text-red-500">
+                              -{Number(transaction.amount).toLocaleString()}원
                             </td>
                           </tr>
                         ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === '월별조회' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between border-b">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <CalendarDays className="h-5 w-5 text-[#2196F3]" />
+                    {viewMonth} 통계 리포트
+                  </CardTitle>
+
+                  <Input
+                    type="month"
+                    value={viewMonth}
+                    onChange={(event) => setViewMonth(event.target.value)}
+                    className="w-[170px] focus-visible:ring-[#2196F3]"
+                  />
+                </CardHeader>
+
+                <CardContent className="space-y-6 pt-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card className="border-[#2196F3]/20 bg-[#2196F3] text-white">
+                      <CardContent className="p-6">
+                        <Badge className="mb-4 bg-white/20 text-white hover:bg-white/20">
+                          {selectedCategory} 지출 합계
+                        </Badge>
+
+                        <p className="text-3xl font-bold">
+                          {displayTotal.toLocaleString()}원
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-[#2196F3]/20 bg-[#2196F3] text-white">
+                      <CardContent className="p-6">
+                        <Badge className="mb-4 bg-white/20 text-white hover:bg-white/20">
+                          {selectedCategory} 건수
+                        </Badge>
+
+                        <p className="text-3xl font-bold">
+                          {filteredTransactions.length}건
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <p className="mb-3 text-sm font-semibold">
+                      카테고리 선택조회
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORIES.map((category) => {
+                        const isActive = selectedCategory === category;
+
+                        return (
+                          <Button
+                            key={category}
+                            type="button"
+                            size="sm"
+                            variant={isActive ? 'default' : 'outline'}
+                            className={
+                              isActive
+                                ? 'bg-[#2196F3] text-white hover:bg-[#1E88E5]'
+                                : 'border-[#2196F3]/30 text-[#2196F3] hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                            }
+                            onClick={() => setSelectedCategory(category)}
+                          >
+                            {category}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="border-b">
+                  <CardTitle className="text-lg text-[#2196F3]">
+                    {selectedCategory === '전체'
+                      ? '전체 월별 총 지출'
+                      : `${selectedCategory} 월별 지출`}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left text-muted-foreground">
+                          <th className="px-6 py-3 font-medium">월</th>
+                          <th className="px-6 py-3 text-right font-medium">
+                            {selectedCategory === '전체'
+                              ? '총 지출액'
+                              : `${selectedCategory} 지출액`}
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {Object.entries(monthlySummary).length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="px-6 py-16 text-center text-muted-foreground"
+                            >
+                              지출 내역이 없습니다.
+                            </td>
+                          </tr>
+                        ) : (
+                          Object.entries(monthlySummary)
+                            .sort((a, b) => b[0].localeCompare(a[0]))
+                            .map(([month, total]) => (
+                              <tr
+                                key={month}
+                                className="border-b transition hover:bg-[#2196F3]/5"
+                              >
+                                <td className="px-6 py-4">{month}</td>
+                                <td className="px-6 py-4 text-right font-bold text-red-500">
+                                  {total.toLocaleString()}원
+                                </td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
-
-const pageStyle: React.CSSProperties = {
-  display: 'flex',
-  minHeight: '100vh',
-  backgroundColor: '#f5f7fa',
-  fontFamily: 'Pretendard, sans-serif',
-};
-
-const sideBarStyle: React.CSSProperties = {
-  width: '220px',
-  backgroundColor: '#e3f2fd',
-  padding: '40px 20px',
-  borderRight: '1px solid #d0d7de',
-};
-
-const sideTitleStyle: React.CSSProperties = {
-  color: '#2196F3',
-  textAlign: 'center',
-  marginBottom: '30px',
-};
-
-const sideButtonStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '14px',
-  marginBottom: '12px',
-  border: 'none',
-  borderRadius: '8px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  transition: '0.2s',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-};
-
-const mainStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '40px 20px',
-};
-
-const contentBoxStyle: React.CSSProperties = {
-  backgroundColor: '#ffffff',
-  borderRadius: '12px',
-  padding: '30px',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-};
-
-const formStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '20px',
-};
-
-const formTitleStyle: React.CSSProperties = {
-  gridColumn: 'span 2',
-  borderBottom: '1px solid #eeeeee',
-  paddingBottom: '15px',
-};
-
-const inputGroup: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 600,
-  color: '#555555',
-};
-
-const webInputStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  padding: '12px',
-  borderRadius: '6px',
-  border: '1px solid #dddddd',
-  fontSize: '14px',
-  outlineColor: '#2196F3',
-};
-
-const submitButtonStyle: React.CSSProperties = {
-  gridColumn: 'span 2',
-  padding: '15px',
-  backgroundColor: '#2196F3',
-  color: '#ffffff',
-  border: 'none',
-  borderRadius: '8px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-};
-
-const topRowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '25px',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-};
-
-const headRowStyle: React.CSSProperties = {
-  borderBottom: '2px solid #f4f4f4',
-  textAlign: 'left',
-};
-
-const bodyRowStyle: React.CSSProperties = {
-  borderBottom: '1px solid #f9f9f9',
-};
-
-const thStyle: React.CSSProperties = {
-  padding: '12px',
-  fontSize: '13px',
-  color: '#999999',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '15px 12px',
-  fontSize: '15px',
-  color: '#333333',
-};
-
-const amountStyle: React.CSSProperties = {
-  padding: '15px 12px',
-  fontSize: '15px',
-  textAlign: 'right',
-  fontWeight: 'bold',
-  color: '#e53935',
-};
-
-const badgeStyle: React.CSSProperties = {
-  backgroundColor: '#e3f2fd',
-  color: '#2196F3',
-  padding: '4px 8px',
-  borderRadius: '4px',
-  fontSize: '11px',
-  fontWeight: 'bold',
-};
-
-const monthInputStyle: React.CSSProperties = {
-  padding: '5px 10px',
-  borderRadius: '4px',
-  border: '1px solid #2196F3',
-  fontWeight: 'bold',
-};
-
-const emptyStyle: React.CSSProperties = {
-  padding: '40px',
-  textAlign: 'center',
-  color: '#aaaaaa',
-};
-
-const statWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '15px',
-  marginBottom: '30px',
-};
-
-const statCard: React.CSSProperties = {
-  flex: 1,
-  backgroundColor: '#2196F3',
-  padding: '20px',
-  borderRadius: '10px',
-  color: '#ffffff',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '10px',
-};
-
-const statTitle: React.CSSProperties = {
-  fontSize: '12px',
-  backgroundColor: 'rgba(255,255,255,0.2)',
-  padding: '2px 6px',
-  width: 'fit-content',
-  borderRadius: '3px',
-};
-
-const categoryLabelStyle: React.CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 'bold',
-  display: 'block',
-  marginBottom: '10px',
-  color: '#555555',
-};
-
-const categoryButtonWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-};
-
-const categoryButtonStyle: React.CSSProperties = {
-  padding: '8px 16px',
-  borderRadius: '20px',
-  border: 'none',
-  cursor: 'pointer',
-  fontWeight: 'bold',
-  fontSize: '13px',
-  transition: '0.2s',
-};

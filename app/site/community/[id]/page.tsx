@@ -60,7 +60,6 @@ export default function PostDetailPage({ params }: PostDetailProps) {
       setPosts(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
-      setError('게시글을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
