@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronRight, LockKeyhole, Sparkles, UserRound, ShieldCheck } from "lucide-react"
 
 import { post } from "@/lib/api"
-import { setStoredNickname } from "@/lib/auth-session"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +13,7 @@ import { Label } from "@/components/ui/label"
 
 type RegisterRequest = {
   email: string
+  nickname: string
   password: string
 }
 
@@ -50,13 +50,20 @@ export default function SignupPage() {
     setErrorMessage("")
 
     try {
-      const nickname = await post<string, RegisterRequest>("/api/register", {
-        email: email.trim(),
-        password,
-      })
+      await post<unknown, RegisterRequest>(
+        "/api/users/register",
+        {
+          email: email.trim(),
+          nickname: "test nickname",
+          password,
+        },
+        {
+          auth: false,
+          retryOnUnauthorized: false,
+        },
+      )
 
-      setStoredNickname(nickname)
-      router.push("/site")
+      router.push("/login?registered=1")
       router.refresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "회원가입에 실패했습니다.")

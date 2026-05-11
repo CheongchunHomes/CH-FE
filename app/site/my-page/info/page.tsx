@@ -4,8 +4,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { AlertCircle, Loader2, Mail, UserRound } from "lucide-react"
 
-import { get } from "@/lib/api"
-import { getStoredNickname } from "@/lib/auth-session"
+import { ApiError, get } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -15,31 +15,56 @@ type MyProfileDTO = {
 }
 
 export default function MyPageInfoPage() {
+  const { status, refresh } = useAuth()
   const [profile, setProfile] = useState<MyProfileDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
-  const [hasNickname, setHasNickname] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    const nickname = getStoredNickname()
+    if (status === "loading") {
+      setIsLoading(true)
+      return
+    }
 
-    if (!nickname) {
-      setHasNickname(false)
+    if (status === "reauthRequired") {
+      setIsAuthenticated(true)
       setIsLoading(false)
       return
     }
 
-    setHasNickname(true)
+    if (status !== "authenticated") {
+      setIsAuthenticated(false)
+      setIsLoading(false)
+      setProfile(null)
+      return
+    }
+
+    setIsAuthenticated(true)
+    setIsLoading(true)
+    setErrorMessage("")
 
     async function loadProfile() {
       try {
-        const data = await get<MyProfileDTO>("/api/mypage", {
-          query: { nickname },
+        const data = await get<MyProfileDTO>("/api/users/mypage", {
           cache: "no-store",
         })
 
         setProfile(data)
       } catch (error) {
+        const code =
+          error instanceof ApiError &&
+          error.payload &&
+          typeof error.payload === "object" &&
+          "code" in error.payload
+            ? (error.payload as { code?: string }).code
+            : undefined
+
+        if (code === "REAUTH_REQUIRED") {
+          await refresh()
+          return
+        }
+
         setErrorMessage(error instanceof Error ? error.message : "회원 정보를 불러오지 못했습니다.")
       } finally {
         setIsLoading(false)
@@ -47,9 +72,9 @@ export default function MyPageInfoPage() {
     }
 
     loadProfile()
-  }, [])
+  }, [refresh, status])
 
-  if (!hasNickname && !isLoading) {
+  if (!isAuthenticated && !isLoading) {
     return (
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center">
