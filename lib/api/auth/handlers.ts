@@ -34,10 +34,11 @@ export async function login(request: Request) {
   const originError = validateAuthOrigin(request)
   if (originError) return originError
 
+  const userAgent = request.headers.get("user-agent")
   const body = await readJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const springResponse = await postSpringJson("/auth/login", body)
+  const springResponse = await postSpringJson("/auth/login", body, { userAgent })
   if (springResponse instanceof NextResponse) return springResponse
 
   if (!springResponse.ok) {
@@ -58,13 +59,14 @@ export async function refresh(request: Request) {
   const originError = validateAuthOrigin(request)
   if (originError) return originError
 
+  const userAgent = request.headers.get("user-agent")
   const refreshToken = readRefreshToken(request)
 
   if (!refreshToken) {
     return refreshFailureResponse("UNAUTHENTICATED")
   }
 
-  const refreshResult = await refreshAccessToken(refreshToken)
+  const refreshResult = await refreshAccessToken(refreshToken, { userAgent })
   if (!refreshResult.ok) {
     return refreshFailureResponse(refreshResult)
   }
@@ -76,6 +78,7 @@ export async function reauth(request: Request) {
   const originError = validateAuthOrigin(request)
   if (originError) return originError
 
+  const userAgent = request.headers.get("user-agent")
   const refreshToken = readRefreshToken(request)
 
   if (!refreshToken) {
@@ -89,7 +92,7 @@ export async function reauth(request: Request) {
     return NextResponse.json({ message: "Password is required." }, { status: 400 })
   }
 
-  const springResponse = await postSpringJson("/auth/reauth", { refreshToken, password: body.password })
+  const springResponse = await postSpringJson("/auth/reauth", { refreshToken, password: body.password }, { userAgent })
   if (springResponse instanceof NextResponse) return springResponse
 
   if (!springResponse.ok) {
@@ -129,6 +132,7 @@ export async function me(request: Request) {
   const apiBaseUrl = requireApiBaseUrl()
   if (apiBaseUrl instanceof NextResponse) return apiBaseUrl
 
+  const userAgent = request.headers.get("user-agent")
   const accessToken = readAccessToken(request)
 
   if (!accessToken) {
@@ -137,12 +141,12 @@ export async function me(request: Request) {
       return refreshFailureResponse("UNAUTHENTICATED")
     }
 
-    const refreshResult = await refreshAccessToken(refreshToken)
+    const refreshResult = await refreshAccessToken(refreshToken, { userAgent })
     if (!refreshResult.ok) {
       return refreshFailureResponse(refreshResult)
     }
 
-    const meResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken)
+    const meResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken, { userAgent })
     if (!meResponse) {
       return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
     }
@@ -159,7 +163,7 @@ export async function me(request: Request) {
     return jsonWithAccessCookie(data, refreshResult.accessToken)
   }
 
-  const meResponse = await getSpringWithAccess("/auth/me", accessToken)
+  const meResponse = await getSpringWithAccess("/auth/me", accessToken, { userAgent })
 
   if (!meResponse) {
     return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
@@ -171,12 +175,12 @@ export async function me(request: Request) {
       return refreshFailureResponse("UNAUTHENTICATED")
     }
 
-    const refreshResult = await refreshAccessToken(refreshToken)
+    const refreshResult = await refreshAccessToken(refreshToken, { userAgent })
     if (!refreshResult.ok) {
       return refreshFailureResponse(refreshResult)
     }
 
-    const retryMeResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken)
+    const retryMeResponse = await getSpringWithAccess("/auth/me", refreshResult.accessToken, { userAgent })
     if (!retryMeResponse) {
       return apiRetryableResponse("백엔드 연결에 실패해 다시 시도 중입니다.")
     }
@@ -206,10 +210,11 @@ export async function logout(request: Request) {
   const originError = validateAuthOrigin(request)
   if (originError) return originError
 
+  const userAgent = request.headers.get("user-agent")
   const refreshToken = readRefreshToken(request)
 
   if (refreshToken) {
-    await postSpringJson("/auth/logout", { refreshToken })
+    await postSpringJson("/auth/logout", { refreshToken }, { userAgent })
   }
 
   const response = NextResponse.json({ ok: true }, { status: 200 })

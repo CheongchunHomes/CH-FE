@@ -86,6 +86,7 @@ export function proxyRoute(method: ProxyMethod) {
     }
 
     const accessToken = readAccessToken(request)
+    const userAgent = request.headers.get("user-agent")
     const body = method === "GET" ? undefined : await request.arrayBuffer()
 
     const tryRequest = async (token: string | null) =>
@@ -114,7 +115,7 @@ export function proxyRoute(method: ProxyMethod) {
         return refreshFailureResponse("UNAUTHENTICATED")
       }
 
-      const refreshResult = await refreshAccessToken(refreshToken)
+      const refreshResult = await refreshAccessToken(refreshToken, { userAgent })
 
       if (!refreshResult.ok) {
         return refreshFailureResponse(refreshResult)

@@ -4,6 +4,22 @@ import type { SpringErrorPayload } from "@/lib/api/auth/types"
 
 const API_BASE_URL = process.env.API_BASE_URL?.trim().replace(/\/+$/, "")
 
+type SpringJsonRequestOptions = {
+  retryableFailure?: boolean
+  userAgent?: string | null
+}
+
+type SpringAccessRequestOptions = {
+  userAgent?: string | null
+}
+
+function setUserAgentHeader(headers: Headers, userAgent?: string | null) {
+  const value = userAgent?.trim()
+  if (value) {
+    headers.set("User-Agent", value)
+  }
+}
+
 export function requireApiBaseUrl(): string | NextResponse {
   if (!API_BASE_URL) {
     return NextResponse.json(
@@ -22,17 +38,20 @@ export async function parseJsonPayload<T = SpringErrorPayload>(response: Respons
 export async function postSpringJson(
   path: string,
   body: unknown,
-  options: { retryableFailure?: boolean } = {},
+  options: SpringJsonRequestOptions = {},
 ): Promise<Response | NextResponse> {
   const apiBaseUrl = requireApiBaseUrl()
   if (apiBaseUrl instanceof NextResponse) {
     return apiBaseUrl
   }
 
+  const headers = new Headers({ "Content-Type": "application/json" })
+  setUserAgentHeader(headers, options.userAgent)
+
   try {
     return await fetch(`${apiBaseUrl}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       cache: "no-store",
     })
@@ -54,15 +73,22 @@ export async function postSpringJson(
   }
 }
 
-export async function getSpringWithAccess(path: string, accessToken: string): Promise<Response | null> {
+export async function getSpringWithAccess(
+  path: string,
+  accessToken: string,
+  options: SpringAccessRequestOptions = {},
+): Promise<Response | null> {
   const apiBaseUrl = requireApiBaseUrl()
   if (apiBaseUrl instanceof NextResponse) {
     return null
   }
 
+  const headers = new Headers({ Authorization: `Bearer ${accessToken}` })
+  setUserAgentHeader(headers, options.userAgent)
+
   return fetch(`${apiBaseUrl}${path}`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers,
     cache: "no-store",
   }).catch(() => null)
 }

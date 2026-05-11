@@ -2,8 +2,22 @@ import { REFRESH_MAX_ATTEMPTS, REFRESH_RETRY_AFTER_SECONDS } from "@/lib/api/aut
 import { parseJsonPayload, postSpringJson } from "@/lib/api/auth/spring"
 import type { RefreshResult } from "@/lib/api/auth/types"
 
-export async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> {
-  const springResponse = await postSpringJson("/auth/refresh", { refreshToken }, { retryableFailure: true })
+type RefreshAccessTokenOptions = {
+  userAgent?: string | null
+}
+
+export async function refreshAccessToken(
+  refreshToken: string,
+  options: RefreshAccessTokenOptions = {},
+): Promise<RefreshResult> {
+  const springResponse = await postSpringJson(
+    "/auth/refresh",
+    { refreshToken },
+    {
+      retryableFailure: true,
+      userAgent: options.userAgent,
+    },
+  )
 
   const payload = await parseJsonPayload<{ accessToken?: string; code?: string; message?: string }>(springResponse)
 
