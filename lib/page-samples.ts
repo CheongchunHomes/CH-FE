@@ -11,6 +11,7 @@ export const pageSamples = [
   { label: "시뮬레이터", slug: "simulator", image: "/images/page-sample/시뮬레이터.png" },
   { label: "자주 묻는 질문", slug: "faq", image: "/images/page-sample/자주 묻는 질문.png" },
   { label: "전월세", slug: "rent", image: "/images/page-sample/전월세.png" },
+  
 ] as const
 
 export type PageSample = (typeof pageSamples)[number]
