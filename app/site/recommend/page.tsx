@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import PolicyCard from './components/PolicyCard';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -72,11 +71,11 @@ interface Summary {
 }
 
 // 카테고리별 Badge variant 매핑
-const CAT_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  '행복주택':   'default',
-  '공공임대':   'secondary',
-  '대출':   'outline',
-};
+// const CAT_COLOR: Record<string, string> = {
+//   '행복주택': 'border border-blue-200 bg-blue-50 text-blue-600',
+//   '공공임대': 'border border-blue-200 bg-blue-50 text-blue-600',
+//   '대출':     'border border-blue-200 bg-blue-50 text-blue-600',
+// };
 
 const GRADE_COLOR: Record<string, string> = {
   A: 'text-green-600',
@@ -262,7 +261,10 @@ export default function RecommendPage() {
               >
                 <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
                   <div className="flex items-center gap-2.5">
-                    <Badge variant={CAT_VARIANT[cat] ?? 'outline'}>{cat}</Badge>
+                    {/* // Accordion 트리거 안 span */}
+                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                      {cat}
+                    </span>
                     <span className="text-sm font-medium text-gray-900">
                       {cat} 신청 가능 ({list.length}건)
                     </span>
@@ -272,7 +274,7 @@ export default function RecommendPage() {
                   <div className="border-t border-gray-100">
                     {list.map((policy, i) => (
                       <PolicyCard
-                        key={policy.name} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
+                        key={`${policy.name}-${i}`} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
                         policy={policy}
                         isLast={i === list.length - 1}
                         onDetail={() => setModalPolicy(policy)}
@@ -298,19 +300,23 @@ export default function RecommendPage() {
               {[
                 {
                   label: '카테고리',
-                  value: <Badge variant={CAT_VARIANT[modalPolicy.category] ?? 'outline'}>{modalPolicy.category}</Badge>,
+                  value: <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                            {modalPolicy.category}
+                          </span>
                 },
                 { label: '대상지역', value: modalPolicy.region },
-                { label: '연령기준', value: `${modalPolicy.minAge}~${modalPolicy.maxAge}세` },
-                {
-                  label: '소득기준',
-                  value: `연 ${modalPolicy.maxIncome.toLocaleString()}만원 이하`, //만원단위로 조정
-                },
+                modalPolicy.minAge || modalPolicy.maxAge
+                ? { label: '연령기준', value: `${modalPolicy.minAge}~${modalPolicy.maxAge}세` } : null,
+                modalPolicy.maxIncome
+                ? { label: '소득기준',
+                  value: `연 ${modalPolicy.maxIncome.toLocaleString()}만원 이하`} : null, //만원단위로 조정
                 { label: '사업개요', value: modalPolicy.description },
-              ].map(row => (
-                <div key={row.label} className="flex gap-3 py-2.5 text-sm">
-                  <span className="w-16 shrink-0 font-medium text-muted-foreground">{row.label}</span>
-                  <span className="flex-1 leading-relaxed text-gray-700">{row.value}</span>
+              ]
+              .filter(row => row !== null)
+              .map(row => (
+                <div key={row!.label} className="flex gap-3 py-2.5 text-sm">
+                  <span className="w-16 shrink-0 font-medium text-muted-foreground">{row!.label}</span>
+                  <span className="flex-1 leading-relaxed text-gray-700">{row!.value}</span>
                 </div>
               ))}
             </div>
@@ -320,7 +326,7 @@ export default function RecommendPage() {
             {modalPolicy?.applyUrl && (
               <Button asChild className="flex-1">
                 <a href={modalPolicy.applyUrl} target="_blank" rel="noreferrer">
-                  홈페이지 바로가기 →
+                  관련링크 바로가기 →
                 </a>
               </Button>
             )}

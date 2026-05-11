@@ -33,7 +33,8 @@ export default function PolicyCard({ policy, isLast, onDetail }: Props) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-800">{policy.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {policy.region} · {policy.minAge}~{policy.maxAge}세 · 소득 {Math.round(policy.maxIncome / 10_000_000)}천만원 이하
+            {policy.region} {(policy.minAge || policy.maxAge) ? ` · ${policy.minAge}~${policy.maxAge}세` : ''}
+            {policy.maxIncome ? ` · 소득 ${Math.round(policy.maxIncome / 10_000_000)}천만원 이하` : ''}
           </p>
         </div>
       </div>
