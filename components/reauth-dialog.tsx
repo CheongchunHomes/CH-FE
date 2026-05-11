@@ -31,6 +31,7 @@ export function ReauthDialog() {
       await post<ReauthResponse>("/api/auth/reauth", { password }, {
         auth: false,
         retryOnUnauthorized: false,
+        suppressGlobalError: true,
       })
       await refresh()
     } catch (error) {
