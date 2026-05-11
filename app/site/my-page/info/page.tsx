@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { AlertCircle, Loader2, Mail, UserRound } from "lucide-react"
 
-import { get } from "@/lib/api"
+import { ApiError, get } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,7 +15,7 @@ type MyProfileDTO = {
 }
 
 export default function MyPageInfoPage() {
-  const { status } = useAuth()
+  const { status, refresh } = useAuth()
   const [profile, setProfile] = useState<MyProfileDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
@@ -24,6 +24,12 @@ export default function MyPageInfoPage() {
   useEffect(() => {
     if (status === "loading") {
       setIsLoading(true)
+      return
+    }
+
+    if (status === "reauthRequired") {
+      setIsAuthenticated(true)
+      setIsLoading(false)
       return
     }
 
@@ -46,6 +52,19 @@ export default function MyPageInfoPage() {
 
         setProfile(data)
       } catch (error) {
+        const code =
+          error instanceof ApiError &&
+          error.payload &&
+          typeof error.payload === "object" &&
+          "code" in error.payload
+            ? (error.payload as { code?: string }).code
+            : undefined
+
+        if (code === "REAUTH_REQUIRED") {
+          await refresh()
+          return
+        }
+
         setErrorMessage(error instanceof Error ? error.message : "회원 정보를 불러오지 못했습니다.")
       } finally {
         setIsLoading(false)
@@ -53,7 +72,7 @@ export default function MyPageInfoPage() {
     }
 
     loadProfile()
-  }, [status])
+  }, [refresh, status])
 
   if (!isAuthenticated && !isLoading) {
     return (

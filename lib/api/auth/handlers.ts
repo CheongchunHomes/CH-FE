@@ -20,12 +20,15 @@ import { getSpringWithAccess, parseJsonPayload, postSpringJson, requireApiBaseUr
 
 type SpringLoginResponse = {
   accessToken?: string
+  accessExpiresAt?: string
   refreshToken?: string
+  refreshExpiresAt?: string
   [key: string]: unknown
 }
 
 type SpringReauthResponse = {
   accessToken?: string
+  accessExpiresAt?: string
   refreshExpiresAt?: string
   [key: string]: unknown
 }
@@ -48,11 +51,20 @@ export async function login(request: Request) {
 
   const data = await parseJsonPayload<SpringLoginResponse>(springResponse)
 
-  if (!data.accessToken || !data.refreshToken) {
+  if (!data.accessToken || !data.accessExpiresAt || !data.refreshToken || !data.refreshExpiresAt) {
     return NextResponse.json({ message: "Unexpected response from auth server." }, { status: 502 })
   }
 
-  return jsonWithAuthCookies({ ok: true }, { accessToken: data.accessToken, refreshToken: data.refreshToken })
+  const accessMaxAge = maxAgeFromExpiry(data.accessExpiresAt)
+  const refreshMaxAge = maxAgeFromExpiry(data.refreshExpiresAt)
+  if (!Number.isFinite(accessMaxAge) || !Number.isFinite(refreshMaxAge)) {
+    return NextResponse.json({ message: "Unexpected response from auth server." }, { status: 502 })
+  }
+
+  return jsonWithAuthCookies(
+    { ok: true },
+    { accessToken: data.accessToken, accessMaxAge, refreshToken: data.refreshToken, refreshMaxAge },
+  )
 }
 
 export async function refresh(request: Request) {
@@ -71,7 +83,7 @@ export async function refresh(request: Request) {
     return refreshFailureResponse(refreshResult)
   }
 
-  return jsonWithAccessCookie({ ok: true }, refreshResult.accessToken)
+  return jsonWithAccessCookie({ ok: true }, refreshResult.accessToken, refreshResult.accessMaxAge)
 }
 
 export async function reauth(request: Request) {
@@ -99,15 +111,13 @@ export async function reauth(request: Request) {
     const payload = await parseJsonPayload(springResponse)
     const shouldClearCookies =
       payload.code === "REFRESH_EXPIRED" ||
-      payload.code === "INVALID_CREDENTIALS" ||
-      springResponse.status === 401 ||
-      springResponse.status === 403
+      payload.code === "UNAUTHENTICATED"
 
     if (shouldClearCookies) {
       return jsonWithClearedAuthCookies(
         {
           ...payload,
-          code: payload.code ?? (springResponse.status === 401 ? "UNAUTHENTICATED" : "INVALID_CREDENTIALS"),
+          code: payload.code ?? "UNAUTHENTICATED",
         },
         springResponse.status,
       )
@@ -117,12 +127,17 @@ export async function reauth(request: Request) {
 
   const data = await parseJsonPayload<SpringReauthResponse>(springResponse)
 
-  if (!data.accessToken || !data.refreshExpiresAt) {
+  if (!data.accessToken || !data.accessExpiresAt || !data.refreshExpiresAt) {
     return NextResponse.json({ message: "Unexpected response from auth server." }, { status: 502 })
   }
 
+  const accessMaxAge = maxAgeFromExpiry(data.accessExpiresAt)
   const refreshMaxAge = maxAgeFromExpiry(data.refreshExpiresAt)
-  const response = jsonWithAccessCookie({ ok: true }, data.accessToken)
+  if (!Number.isFinite(accessMaxAge) || !Number.isFinite(refreshMaxAge)) {
+    return NextResponse.json({ message: "Unexpected response from auth server." }, { status: 502 })
+  }
+
+  const response = jsonWithAccessCookie({ ok: true }, data.accessToken, accessMaxAge)
   response.headers.append("Set-Cookie", makeRefreshCookie(refreshToken, refreshMaxAge))
 
   return response
@@ -160,7 +175,7 @@ export async function me(request: Request) {
     }
 
     const data = await meResponse.json()
-    return jsonWithAccessCookie(data, refreshResult.accessToken)
+    return jsonWithAccessCookie(data, refreshResult.accessToken, refreshResult.accessMaxAge)
   }
 
   const meResponse = await getSpringWithAccess("/auth/me", accessToken, { userAgent })
@@ -194,7 +209,7 @@ export async function me(request: Request) {
     }
 
     const data = await retryMeResponse.json()
-    return jsonWithAccessCookie(data, refreshResult.accessToken)
+    return jsonWithAccessCookie(data, refreshResult.accessToken, refreshResult.accessMaxAge)
   }
 
   if (!meResponse.ok) {

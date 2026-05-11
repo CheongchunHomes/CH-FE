@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { makeAccessCookie, readAccessToken, readRefreshToken } from "@/lib/api/auth/cookies"
-import { ACCESS_TOKEN_MAX_AGE_SECONDS } from "@/lib/api/auth/constants"
 import { refreshAccessToken } from "@/lib/api/auth/refresh"
 import { apiRetryableResponse, refreshFailureResponse } from "@/lib/api/auth/responses"
 
@@ -137,7 +136,7 @@ export function proxyRoute(method: ProxyMethod) {
         statusText: response.statusText,
         headers: getResponseHeaders(response),
       })
-      retryResponse.headers.append("Set-Cookie", makeAccessCookie(refreshResult.accessToken, ACCESS_TOKEN_MAX_AGE_SECONDS))
+      retryResponse.headers.append("Set-Cookie", makeAccessCookie(refreshResult.accessToken, refreshResult.accessMaxAge))
       return retryResponse
     }
 

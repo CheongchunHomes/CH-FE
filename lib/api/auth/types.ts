@@ -21,4 +21,4 @@ export type AuthFailureResult = {
   maxAttempts?: number
 }
 
-export type RefreshResult = { ok: true; accessToken: string } | AuthFailureResult
+export type RefreshResult = { ok: true; accessToken: string; accessMaxAge: number } | AuthFailureResult

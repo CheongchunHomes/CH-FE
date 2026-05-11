@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { LockKeyhole } from "lucide-react"
-import { post } from "@/lib/api"
+import { ApiError, post } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,6 +34,19 @@ export function ReauthDialog() {
       })
       await refresh()
     } catch (error) {
+      const code =
+        error instanceof ApiError &&
+        error.payload &&
+        typeof error.payload === "object" &&
+        "code" in error.payload
+          ? (error.payload as { code?: string }).code
+          : undefined
+
+      if (code === "INVALID_CREDENTIALS") {
+        setErrorMessage("비밀번호가 일치하지 않습니다.")
+        return
+      }
+
       setErrorMessage(error instanceof Error ? error.message : "재인증에 실패했습니다.")
       await refresh()
     } finally {

@@ -1,4 +1,5 @@
 import { REFRESH_MAX_ATTEMPTS, REFRESH_RETRY_AFTER_SECONDS } from "@/lib/api/auth/constants"
+import { maxAgeFromExpiry } from "@/lib/api/auth/cookies"
 import { parseJsonPayload, postSpringJson } from "@/lib/api/auth/spring"
 import type { RefreshResult } from "@/lib/api/auth/types"
 
@@ -19,10 +20,23 @@ export async function refreshAccessToken(
     },
   )
 
-  const payload = await parseJsonPayload<{ accessToken?: string; code?: string; message?: string }>(springResponse)
+  const payload = await parseJsonPayload<{
+    accessToken?: string
+    accessExpiresAt?: string
+    code?: string
+    message?: string
+  }>(springResponse)
 
-  if (springResponse.ok && payload.accessToken) {
-    return { ok: true, accessToken: payload.accessToken }
+  if (springResponse.ok && payload.accessToken && payload.accessExpiresAt) {
+    const accessMaxAge = maxAgeFromExpiry(payload.accessExpiresAt)
+    if (!Number.isFinite(accessMaxAge)) {
+      return { ok: false, code: "AUTH_UPSTREAM_ERROR", message: "Unexpected response from auth server." }
+    }
+    return { ok: true, accessToken: payload.accessToken, accessMaxAge }
+  }
+
+  if (springResponse.ok) {
+    return { ok: false, code: "AUTH_UPSTREAM_ERROR", message: "Unexpected response from auth server." }
   }
 
   if (springResponse.status === 401 && payload.code === "REAUTH_REQUIRED") {
