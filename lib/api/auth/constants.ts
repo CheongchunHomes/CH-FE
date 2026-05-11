@@ -1,0 +1,2 @@
+export const REFRESH_RETRY_AFTER_SECONDS = 30
+export const REFRESH_MAX_ATTEMPTS = 3

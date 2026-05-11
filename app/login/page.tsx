@@ -1,12 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronRight, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react"
 
 import { post } from "@/lib/api"
-import { setStoredNickname } from "@/lib/auth-session"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -48,10 +48,18 @@ function GoogleBrandMark() {
 
 export default function LoginPage() {
   const router = useRouter()
+  const { refresh } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const [infoMessage, setInfoMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (window.location.search.includes("registered=1")) {
+      setInfoMessage("회원가입이 완료되었습니다. 로그인해 주세요.")
+    }
+  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -65,14 +73,22 @@ export default function LoginPage() {
     setErrorMessage("")
 
     try {
-      const nickname = await post<string, LoginRequest>("/api/login", {
-        email: email.trim(),
-        password,
-      })
+      await post<never, LoginRequest>(
+        "/api/auth/login",
+        {
+          email: email.trim(),
+          password,
+        },
+        {
+          auth: false,
+          retryOnUnauthorized: false,
+        },
+      )
 
-      setStoredNickname(nickname)
+      // BFF가 HttpOnly cookie를 발급한다. token은 body로 반환되지 않는다.
+      // /api/auth/me 호출로 AuthContext를 갱신한 뒤 이동한다.
+      await refresh()
       router.push("/site")
-      router.refresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "로그인에 실패했습니다.")
     } finally {
@@ -184,6 +200,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  {infoMessage ? <p className="text-sm font-medium text-sky-700">{infoMessage}</p> : null}
                   {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
 
                   <div className="flex items-center justify-between text-sm">
