@@ -15,11 +15,11 @@ type MyProfileDTO = {
 }
 
 export default function MyPageInfoPage() {
-  const { status, user } = useAuth()
+  const { status } = useAuth()
   const [profile, setProfile] = useState<MyProfileDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
-  const [hasNickname, setHasNickname] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     if (status === "loading") {
@@ -27,23 +27,20 @@ export default function MyPageInfoPage() {
       return
     }
 
-    const nickname = user?.nickname
-
-    if (!nickname) {
-      setHasNickname(false)
+    if (status !== "authenticated") {
+      setIsAuthenticated(false)
       setIsLoading(false)
       setProfile(null)
       return
     }
 
-    setHasNickname(true)
+    setIsAuthenticated(true)
     setIsLoading(true)
     setErrorMessage("")
 
     async function loadProfile() {
       try {
-        const data = await get<MyProfileDTO>("/api/mypage", {
-          query: { nickname },
+        const data = await get<MyProfileDTO>("/api/users/mypage", {
           cache: "no-store",
         })
 
@@ -56,9 +53,9 @@ export default function MyPageInfoPage() {
     }
 
     loadProfile()
-  }, [status, user?.nickname])
+  }, [status])
 
-  if (!hasNickname && !isLoading) {
+  if (!isAuthenticated && !isLoading) {
     return (
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center">
