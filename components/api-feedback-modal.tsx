@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
-import { AUTH_REFRESH_RETRY_EVENT, type AuthRefreshRetryEventPayload } from "@/lib/api/client"
+import { API_FEEDBACK_EVENT, type ApiFeedbackEventPayload } from "@/lib/api"
 
-type RetryState = AuthRefreshRetryEventPayload | null
+type FeedbackState = ApiFeedbackEventPayload | null
 
-export function AuthRetryModal() {
-  const [state, setState] = useState<RetryState>(null)
+export function ApiFeedbackModal() {
+  const [state, setState] = useState<FeedbackState>(null)
   const [isVisible, setIsVisible] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -19,24 +19,28 @@ export function AuthRetryModal() {
       }
     }
 
-    function handleRetryEvent(event: Event) {
-      const payload = (event as CustomEvent<AuthRefreshRetryEventPayload>).detail
+    function closeAfterDelay(delay = 2400) {
+      closeTimer.current = setTimeout(() => {
+        setIsVisible(false)
+        closeTimer.current = setTimeout(() => setState(null), 300)
+      }, delay)
+    }
+
+    function handleFeedbackEvent(event: Event) {
+      const payload = (event as CustomEvent<ApiFeedbackEventPayload>).detail
       clearCloseTimer()
       setState(payload)
       requestAnimationFrame(() => setIsVisible(true))
 
-      if (payload.status === "success" || payload.status === "failed") {
-        closeTimer.current = setTimeout(() => {
-          setIsVisible(false)
-          closeTimer.current = setTimeout(() => setState(null), 300)
-        }, 2400)
+      if (payload.kind === "error" || payload.status === "success" || payload.status === "failed") {
+        closeAfterDelay(payload.kind === "error" ? 3200 : 2400)
       }
     }
 
-    window.addEventListener(AUTH_REFRESH_RETRY_EVENT, handleRetryEvent)
+    window.addEventListener(API_FEEDBACK_EVENT, handleFeedbackEvent)
 
     return () => {
-      window.removeEventListener(AUTH_REFRESH_RETRY_EVENT, handleRetryEvent)
+      window.removeEventListener(API_FEEDBACK_EVENT, handleFeedbackEvent)
       clearCloseTimer()
     }
   }, [])
@@ -45,10 +49,14 @@ export function AuthRetryModal() {
     return null
   }
 
-  const isRetrying = state.status === "retrying"
-  const isSuccess = state.status === "success"
-  const iconClassName = isSuccess ? "text-emerald-600" : state.status === "failed" ? "text-rose-600" : "text-sky-600"
-  const message = state.status === "retrying" ? `${state.message} (${state.attempt}/${state.maxAttempts})` : state.message
+  const isRetrying = state.kind === "retry" && state.status === "retrying"
+  const isSuccess = state.kind === "retry" && state.status === "success"
+  const isError = state.kind === "error" || state.status === "failed"
+  const iconClassName = isSuccess ? "text-emerald-600" : isError ? "text-rose-600" : "text-sky-600"
+  const message =
+    state.kind === "retry" && state.status === "retrying"
+      ? `${state.message} (${state.attempt}/${state.maxAttempts})`
+      : state.message
 
   return (
     <div
