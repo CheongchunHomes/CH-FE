@@ -75,9 +75,9 @@ const sqmToPyeong = (sqm: number): number => Math.round((sqm / 3.3058) * 10) / 1
 
 const INITIAL_FORM: DiagnosisForm = {
   birthDate: "",
-  married: false,
-  houseless: false,
-  householdSep: false,
+  married: null,
+  houseless: null,
+  householdSep: null,
   disabilityYn: false,
   dependentCount: 0,
   currentResidence: "",
@@ -85,7 +85,7 @@ const INITIAL_FORM: DiagnosisForm = {
   monthlyIncome: 0,
   cashAsset: 0,
   totalAsset: 0,
-  hasSubscription: false,
+  hasSubscription: null,
   subscriptionMonths: 0,
   desiredCity: "",
   desiredDistrict: "",
@@ -99,17 +99,46 @@ const INITIAL_FORM: DiagnosisForm = {
   singleParent: false,
 };
 
-// 스텝 완료 여부
 const isStepCompleted = (stepId: number, form: DiagnosisForm): boolean => {
   switch (stepId) {
-    case 1: return form.currentResidence !== "";
-    case 2: return form.totalAsset > 0 && form.annualIncome > 0;
-    case 3: return form.houseless || form.householdSep;
-    case 4: return form.birthDate !== "";
-    case 5: return form.hasSubscription;
-    case 6: return form.employmentStatus !== "";
-    case 7: return form.desiredCity !== "";
-    default: return false;
+    // Q1. 주거형태 - 선택 필수
+    case 1:
+      return form.currentResidence !== "";
+
+    // Q2. 자산/소득 - 총자산 + 연소득 둘 다 필수
+    case 2:
+      return form.totalAsset > 0 && form.annualIncome > 0;
+
+    // Q3. 무주택 - 무주택/유주택, 세대분리 여부 둘 다 명시적 선택 필수
+    case 3:
+      return form.houseless !== null && form.householdSep !== null;
+
+    // Q4. 기본자격 - 생년월일 필수
+    case 4:
+      return form.birthDate !== "";
+
+    // Q5. 청약정보 - 명시적 선택 필수, 있으면 개월수도 필수
+    case 5:
+      if (form.hasSubscription === null) return false;
+      if (form.hasSubscription === true) return form.subscriptionMonths > 0;
+      return true;
+
+    // Q6. 가구정보 - 혼인여부 + 취업상태 필수, 조건부 추가 필수
+    case 6: {
+      if (form.married === null) return false;
+      if (!form.employmentStatus) return false;
+      if ((form.employmentStatus === "NEWCOMER" || form.employmentStatus === "EMPLOYED")
+          && !form.employmentPeriod) return false;
+      if (form.married === true && !form.marriagePeriod) return false;
+      return true;
+    }
+
+    // Q7. 희망조건 - 도시 + 지역구 필수
+    case 7:
+      return form.desiredCity !== "" && form.desiredDistrict !== "";
+
+    default:
+      return false;
   }
 };
 
@@ -136,10 +165,8 @@ const EMPLOYMENT_PERIOD_LABEL: Record<string, string> = {
 };
 
 const MARRIAGE_PERIOD_LABEL: Record<string, string> = {
-  UNDER_1: "1년 미만",
-  YEAR_1_3: "1~3년",
-  YEAR_3_7: "3~7년",
-  OVER_7: "7년 이상",
+  WITHIN_7: "7년 이내",
+  OVER_7: "7년 초과",
 };
 
 // 선택확인란 데이터 - 입력된 값만
@@ -149,13 +176,13 @@ const getSummaryItems = (form: DiagnosisForm) => {
     { label: "총 자산",     value: form.totalAsset > 0 ? `${formatAsset(form.totalAsset)} 이하` : "" },
     { label: "현금성 자산", value: form.cashAsset > 0 ? formatAsset(form.cashAsset) : "" },
     { label: "연소득",      value: form.annualIncome > 0 ? formatAsset(form.annualIncome) : "" },
-    { label: "무주택",      value: form.houseless ? "무주택" : "" },
-    { label: "세대 분리",   value: form.householdSep ? "분리됨" : "" },
+    { label: "무주택", value: form.houseless === true ? "무주택" : form.houseless === false ? "유주택" : "" },
+    { label: "세대 분리", value: form.householdSep === true ? "분리됨" : form.householdSep === false ? "미분리" : "" },
     { label: "생년월일",    value: form.birthDate },
-    { label: "혼인 여부",   value: form.married ? "기혼" : "" },
+    { label: "혼인 여부", value: form.married === true ? "기혼" : form.married === false ? "미혼" : "" },
     { label: "장애 여부",   value: form.disabilityYn ? "있음" : "" },
     { label: "부양가족",    value: form.dependentCount > 0 ? `${form.dependentCount}명` : "" },
-    { label: "청약통장",    value: form.hasSubscription ? `${form.subscriptionMonths}개월` : "" },
+    { label: "청약통장", value: form.hasSubscription === true ? `${form.subscriptionMonths}개월` : form.hasSubscription === false ? "없음" : "" },
     { label: "희망 도시",   value: form.desiredCity },
     { label: "희망 지역구", value: form.desiredDistrict },
     {label: "희망 면적",    value: form.desiredArea > 0 ? `${form.desiredArea}㎡ (약 ${sqmToPyeong(form.desiredArea)}평)` : "",},
@@ -255,38 +282,39 @@ const HousingFormPage = () => {
     setForm((prev) => ({ ...prev, desiredCity: city, desiredDistrict: "" }));
   };
 
-  // 제출 핸들러
   const handleSubmit = async () => {
-    if (!form.birthDate) return alert("생년월일을 입력해주세요.");
-    if (!form.currentResidence) return alert("주거 형태를 선택해주세요.");
-    if (!form.desiredCity) return alert("희망 도시를 선택해주세요.");
+  // 모든 스텝 완료 여부 체크
+  const incompleteSteps = STEPS.filter(s => !isStepCompleted(s.id, form));
+  if (incompleteSteps.length > 0) {
+    const stepLabels = incompleteSteps.map(s => s.label).join(", ");
+    return alert(`다음 항목을 완료해주세요: ${stepLabels}`);
+  }
 
-    setIsSubmitting(true);
-    try {
-        const res = await fetch("/api/diagnosis/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // 만원 → 원 단위 변환
-        body: JSON.stringify({
-          ...sanitizeDiagnosisForm(form),
-          annualIncome: form.annualIncome * 10000,
-          totalAsset: form.totalAsset * 10000,
-          cashAsset: form.cashAsset * 10000,
-        }),
-      });
+  setIsSubmitting(true);
+  try {
+    const res = await fetch("/api/diagnosis/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...sanitizeDiagnosisForm(form),
+        annualIncome: form.annualIncome * 10000,
+        totalAsset: form.totalAsset * 10000,
+        cashAsset: form.cashAsset * 10000,
+      }),
+    });
 
-      if (!res.ok) throw new Error("서버 오류");
-      const result = await res.json();
+    if (!res.ok) throw new Error("서버 오류");
+    const result = await res.json();
 
-      sessionStorage.setItem("diagnosisResult", JSON.stringify(result));
-      sessionStorage.setItem("diagnosisForm", JSON.stringify(sanitizeDiagnosisForm(form)));
-      router.push("/site/condition-check/result");
-    } catch {
-      alert("진단 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    sessionStorage.setItem("diagnosisResult", JSON.stringify(result));
+    sessionStorage.setItem("diagnosisForm", JSON.stringify(sanitizeDiagnosisForm(form)));
+    router.push("/site/condition-check/result");
+  } catch {
+    alert("진단 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <main className="bg-gray-50 min-h-screen">
@@ -459,19 +487,14 @@ const HousingFormPage = () => {
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-gray-700">가구 총 자산 가액</p>
                       <p className="text-xs text-gray-400">* 부동산, 금융자산, 자동차 등 모든 자산 합산</p>
+                      <p className="text-xs text-gray-400">* 자동차 단독 가액이 4,542만원 초과 시 일부 제도 신청 불가</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {[
-                          { label: "1억 700만원 이하", val: 10700 },
-                          { label: "2억 1,550만원 이하", val: 21550 },
-                          { label: "2억 8,800만원 이하", val: 28800 },
-                          { label: "2억 8,900만원 이하", val: 28900 },
-                          { label: "2억 9,900만원 이하", val: 29900 },
-                          { label: "3억 1,000만원 이하", val: 31000 },
-                          { label: "3억 5,500만원 이하", val: 35500 },
-                          { label: "3억 6,100만원 이하", val: 36100 },
-                          { label: "3억 7,900만원 이하", val: 37900 },
-                          { label: "5억 600만원 이하", val: 50600 },
-                          { label: "5억 600만원 초과", val: 50601 },
+                          { label: "1억 800만원 이하", val: 10800 },    // 대학생
+                          { label: "2억 5,100만원 이하", val: 25100 },  // 청년
+                          { label: "3억 4,500만원 이하", val: 34500 },  // 신혼부부·한부모
+                          { label: "3억 4,500만원 초과", val: 34501 },  // 기준초과
+
                         ].map((opt) => (
                           <button
                             key={opt.val}
@@ -556,26 +579,41 @@ const HousingFormPage = () => {
                   </div>
 
                 {/* Q3. 무주택 정보 */}
-                <div id="q3" className="space-y-4">
-                  <QuestionHeader num={3} title="무주택 및 세대 정보를 확인해 주세요." completed={isStepCompleted(3, form)} />
-                  {[
-                    { key: "houseless" as keyof DiagnosisForm, title: "본인은 현재 무주택 세대주입니다.", desc: "세대원 전원이 주택을 소유하고 있지 않은 경우", val: form.houseless },
-                    { key: "householdSep" as keyof DiagnosisForm, title: "부모님과 세대가 분리되어 있습니다.", desc: "주민등록상 독립 세대로 등록된 경우", val: form.householdSep },
-                  ].map((item) => (
-                    <label key={item.key} className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors gap-4">
-                      <div>
-                        <p className="font-semibold text-sm">{item.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        className="w-6 h-6 accent-blue-600 shrink-0"
-                        checked={item.val as boolean}
-                        onChange={(e) => update(item.key, e.target.checked as DiagnosisForm[typeof item.key])}
-                      />
-                    </label>
-                  ))}
-                </div>
+                  <div id="q3" className="space-y-4">
+                    <QuestionHeader num={3} title="무주택 및 세대 정보를 확인해 주세요." completed={isStepCompleted(3, form)} />
+
+                    {/* 무주택 여부 */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">무주택 여부</p>
+                      {[
+                        { label: "본인은 현재 무주택 세대주입니다.", val: true },
+                        { label: "주택을 보유하고 있습니다.", val: false },
+                      ].map((item) => (
+                        <RadioCard
+                          key={String(item.val)}
+                          label={item.label}
+                          checked={form.houseless === item.val}
+                          onClick={() => update("houseless", item.val)}
+                        />
+                      ))}
+                    </div>
+
+                    {/* 세대분리 여부 */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">세대 분리 여부</p>
+                      {[
+                        { label: "부모님과 세대가 분리되어 있습니다.", val: true },
+                        { label: "부모님과 같은 세대입니다.", val: false },
+                      ].map((item) => (
+                        <RadioCard
+                          key={String(item.val)}
+                          label={item.label}
+                          checked={form.householdSep === item.val}
+                          onClick={() => update("householdSep", item.val)}
+                        />
+                      ))}
+                    </div>
+                  </div>
 
                 {/* Q4. 생년월일 */}
                 <div id="q4" className="space-y-4">
@@ -627,38 +665,47 @@ const HousingFormPage = () => {
                 </div>
 
                 {/* Q5. 청약 정보 */}
-                <div id="q5" className="space-y-4">
-                  <QuestionHeader num={5} title="청약통장 정보를 알려주세요." completed={isStepCompleted(5, form)} />
-                  <label className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors gap-4">
-                    <div>
-                      <p className="font-semibold text-sm">청약통장을 보유하고 있습니다.</p>
-                      <p className="text-xs text-gray-400 mt-0.5">주택청약종합저축, 청약저축 등</p>
+                  <div id="q5" className="space-y-4">
+                    <QuestionHeader num={5} title="청약통장 정보를 알려주세요." completed={isStepCompleted(5, form)} />
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">청약통장 보유 여부</p>
+                      {[
+                        { label: "청약통장을 보유하고 있습니다.", val: true },
+                        { label: "청약통장이 없습니다.", val: false },
+                      ].map((item) => (
+                        <RadioCard
+                          key={String(item.val)}
+                          label={item.label}
+                          checked={form.hasSubscription === item.val}
+                          onClick={() => update("hasSubscription", item.val)}
+                        />
+                      ))}
                     </div>
-                    <input type="checkbox" className="w-6 h-6 accent-blue-600 shrink-0" checked={form.hasSubscription} onChange={(e) => update("hasSubscription", e.target.checked)} />
-                  </label>
-                  {form.hasSubscription && (
-                    <>
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2">
-                        <span className="text-sm text-gray-500">* 24개월 이상 → 1순위</span>
-                        <div className="flex items-center gap-2 justify-end">
-                          <input
-                            type="number"
-                            placeholder="0"
-                            className="w-24 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
-                            value={form.subscriptionMonths || ""}
-                            onChange={(e) => update("subscriptionMonths", Number(e.target.value))}
-                          />
-                          <span className="text-sm font-bold">개월</span>
+
+                    {form.hasSubscription === true && (
+                      <>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2">
+                          <span className="text-sm text-gray-500">* 24개월 이상 → 1순위</span>
+                          <div className="flex items-center gap-2 justify-end">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              className="w-24 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
+                              value={form.subscriptionMonths || ""}
+                              onChange={(e) => update("subscriptionMonths", Number(e.target.value))}
+                            />
+                            <span className="text-sm font-bold">개월</span>
+                          </div>
                         </div>
-                      </div>
-                      {form.subscriptionMonths > 0 && (
-                        <div className={`rounded-lg px-4 py-2 text-sm ${form.subscriptionMonths >= 24 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-                          {form.subscriptionMonths >= 24 ? "✅ 1순위 청약 요건 충족 (24개월 이상)" : `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                        {form.subscriptionMonths > 0 && (
+                          <div className={`rounded-lg px-4 py-2 text-sm ${form.subscriptionMonths >= 24 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                            {form.subscriptionMonths >= 24 ? "✅ 1순위 청약 요건 충족 (24개월 이상)" : `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                 {/* Q6. 가구 정보 */}
                   <div id="q6" className="space-y-4">
@@ -676,39 +723,37 @@ const HousingFormPage = () => {
                     </div>
 
                     {/* 혼인 기간 - 기혼일 때만 */}
-                    {form.married && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-700">혼인 기간</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            { label: "1년 미만", val: "UNDER_1" },
-                            { label: "1~3년", val: "YEAR_1_3" },
-                            { label: "3~7년", val: "YEAR_3_7" },
-                            { label: "7년 이상", val: "OVER_7" },
-                          ].map((item) => (
-                            <RadioCard key={item.val} label={item.label} checked={form.marriagePeriod === item.val} onClick={() => update("marriagePeriod", item.val)} />
-                          ))}
+                      {form.married === true && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">혼인 기간</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { label: "7년 이내", val: "WITHIN_7" },
+                              { label: "7년 초과", val: "OVER_7" },
+                            ].map((item) => (
+                              <RadioCard key={item.val} label={item.label} checked={form.marriagePeriod === item.val} onClick={() => update("marriagePeriod", item.val)} />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* 결혼 계획 - 미혼일 때만 */}
-                    {!form.married && (
-                      <label className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors gap-4">
-                        <div>
-                          <p className="font-semibold text-sm">결혼 예정이신가요?</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            결혼 예정이라면 신혼부부 특별공급·전세대출 우대 조건을 사전에 확일 할 수 있습니다.
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="w-6 h-6 accent-blue-600 shrink-0"
-                          checked={form.marriagePlan}
-                          onChange={(e) => update("marriagePlan", e.target.checked)}
-                        />
-                      </label>
-                    )}
+                    {/* 결혼 계획 - 미혼일 때만 (null이면 미선택이라 숨김) */}
+                      {form.married === false && (
+                        <label className="flex justify-between items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors gap-4">
+                          <div>
+                            <p className="font-semibold text-sm">결혼 예정이신가요?</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              결혼 예정이라면 행복주택 예비신혼부부 혜택을 받을 수 있습니다. 단 입주 전까지 혼인신고 증명이 가능한 경우에만 자격이 유지됩니다.
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="w-6 h-6 accent-blue-600 shrink-0"
+                            checked={form.marriagePlan}
+                            onChange={(e) => update("marriagePlan", e.target.checked)}
+                          />
+                        </label>
+                      )}
 
                     {/* 부양가족 수 */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2">
@@ -1017,7 +1062,7 @@ const HousingFormPage = () => {
                           <span className="flex items-center gap-1.5"><Wallet className="w-3 h-3" /> 소득 기준, 얼마까지 괜찮나요?</span>
                         </AccordionTrigger>
                       <AccordionContent className="text-xs text-gray-500 leading-relaxed pb-2">
-                         보통 1인 가구 월 333만 원 이하가 기준이에요. 내 소득에 따라 신청 가능한 주택이 달라집니다.
+                         보통 1인 가구 월 381만원(2026 행복주택 기준) 이하가 기준이에요. 내 소득에 따라 신청 가능한 주택이 달라집니다.
                       </AccordionContent>
                     </AccordionItem>
 

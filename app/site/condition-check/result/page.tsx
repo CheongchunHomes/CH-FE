@@ -69,28 +69,25 @@ const getKeywords = (form: DiagnosisForm, result: DiagnosisResult): string[] => 
   return tags;
 };
 
-// 상태값 → 동그라미 아이콘 + 툴팁 매핑
+// 상태값 → 동그라미 아이콘 + 한글 텍스트 매핑
 const getStatusIcon = (status: string) => {
-  const configs: Record<string, { bg: string; textColor: string; icon: React.ReactNode; tooltip: string }> = {
-    "충족":     { bg: "bg-blue-600",   textColor: "text-white",       icon: <Check className="w-3 h-3 text-white stroke-[3]" />, tooltip: "충족" },
-    "일부제한": { bg: "bg-amber-100",  textColor: "text-amber-600",   icon: <span className="text-amber-600 text-xs font-bold">!</span>, tooltip: "일부제한" },
-    "보완필요": { bg: "bg-orange-100", textColor: "text-orange-600",  icon: <span className="text-orange-600 text-xs font-bold">!</span>, tooltip: "보완필요" },
+  const configs: Record<string, { bg: string; icon: React.ReactNode; label: string }> = {
+    "충족":     { bg: "bg-blue-600",   icon: <Check className="w-3 h-3 text-white stroke-[3]" />, label: "충족" },
+    "일부제한": { bg: "bg-amber-100",  icon: <span className="text-amber-600 text-xs font-bold">!</span>, label: "일부제한" },
+    "보완필요": { bg: "bg-orange-100", icon: <span className="text-orange-600 text-xs font-bold">!</span>, label: "보완필요" },
   };
-  const cfg = configs[status] ?? { bg: "bg-red-100", textColor: "text-red-600", icon: <span className="text-red-600 text-xs font-bold">✕</span>, tooltip: "미충족" };
+  const cfg = configs[status] ?? { bg: "bg-red-100", icon: <span className="text-red-600 text-xs font-bold">✕</span>, label: "미충족" };
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 cursor-default ${cfg.bg}`}>
-          {cfg.icon}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{cfg.tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
+    <span className="flex items-center gap-1.5 justify-end">
+      <span className="text-xs font-bold text-gray-600">{cfg.label}</span>
+      <span className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${cfg.bg}`}>
+        {cfg.icon}
+      </span>
+    </span>
   );
 };
+
 // 점수 → 등급
 const getGrade = (score: number) => {
   if (score >= 70) return { label: "높음", color: "text-green-600", bg: "bg-green-100" };
@@ -338,16 +335,24 @@ export default function DiagnosisResultPage() {
                     <table className="w-full text-sm">
                       <tbody>
                         {statusItems.map((item, i) => {
+                          const isMet = item.status === "충족";
                           return (
-                            <tr key={i} className={`border-b last:border-0 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                               <td className="px-4 py-3 w-8">
-                                {/* 행 구분 불릿 */}
+                            <tr
+                              key={i}
+                              className={`border-b last:border-0 transition-colors ${
+                                isMet ? "bg-blue-100" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                              }`}
+                            >
+                              <td className="px-4 py-3 w-8">
                                 <span className="flex items-center justify-center w-2 h-2 rounded-sm bg-blue-200 shrink-0 mx-auto" />
                               </td>
-                              <td className="px-2 py-3 font-medium text-gray-800">{item.label}</td>
-                              <td className="px-2 py-3 text-xs text-gray-500 hidden sm:table-cell">{item.desc}</td>
+                              <td className="px-2 py-3 font-medium text-gray-800">
+                                {item.label}
+                              </td>
+                              <td className="px-2 py-3 text-xs hidden sm:table-cell text-gray-500">
+                                {item.desc}
+                              </td>
                               <td className="px-4 py-4 text-right">
-                                {/* 상태 아이콘 - 진단폼 체크 스타일 */}
                                 {getStatusIcon(item.status)}
                               </td>
                             </tr>
@@ -358,21 +363,16 @@ export default function DiagnosisResultPage() {
                   </div>
                 </div>
 
-                {/* 준비도 점수 - 아코디언 (기본 접힌 상태) */}
-                <Accordion type="single" collapsible defaultValue="scores">
-                  <AccordionItem value="scores" className="border rounded-lg px-4">
-                    <AccordionTrigger className="text-sm font-bold text-gray-700 hover:no-underline py-3">
-                      주거 준비도 점수 상세 보기
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 pb-2">
-                        {scores.map((s, i) => (
-                          <DonutChart key={i} score={s.score} label={s.label} comment={s.comment} color={s.color} />
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                {/* 준비도 점수 - 항상 표시 */}
+                  <div className="rounded-lg border px-4 py-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">주거 준비도 점수</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {scores.map((s, i) => (
+                        <DonutChart key={i} score={s.score} label={s.label} comment={s.comment} color={s.color} />
+                      ))}
+                    </div>
+                  </div>
+
                   {/* 구분선 */}
                 <div className="border-t" />
 

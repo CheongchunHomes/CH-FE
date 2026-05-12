@@ -3,9 +3,9 @@
 
 export interface DiagnosisForm {
   birthDate: string;
-  married: boolean;
-  houseless: boolean;
-  householdSep: boolean;
+  married: boolean | null;
+  houseless: boolean | null;
+  householdSep: boolean | null;
   disabilityYn: boolean;
   dependentCount: number;
   currentResidence: string;
@@ -13,7 +13,7 @@ export interface DiagnosisForm {
   monthlyIncome: number;
   cashAsset: number;
   totalAsset: number;
-  hasSubscription: boolean;
+  hasSubscription: boolean | null;
   subscriptionMonths: number;
   desiredCity: string;
   desiredDistrict: string;
@@ -58,14 +58,21 @@ export interface RecommendationResponse {
   results: PolicyResult[];
 }
 
-// enum/nullable 필드 빈 문자열 → null 변환
+// enum/nullable 필드 빈 문자열 → null 변환, monthlyIncome 백엔드 전송 제외
 // BE enum 파싱 오류 방지용
-export const sanitizeDiagnosisForm = (form: DiagnosisForm) => ({
-  ...form,
-  employmentStatus: form.employmentStatus || null,
-  employmentPeriod: form.employmentPeriod || null,
-  marriagePeriod:   form.marriagePeriod   || null,
-  marriagePlan:     form.marriagePlan      ?? null,
-  hasYoungChild:    form.hasYoungChild     ?? null,
-  singleParent:     form.singleParent      ?? null,
-});
+export const sanitizeDiagnosisForm = (form: DiagnosisForm) => {
+  const { monthlyIncome, ...rest } = form;
+  return {
+    ...rest,
+    married:          form.married          ?? null,
+    houseless:        form.houseless        ?? null,
+    householdSep:     form.householdSep     ?? null,
+    hasSubscription:  form.hasSubscription  ?? null,
+    employmentStatus: form.employmentStatus || null,
+    employmentPeriod: form.employmentPeriod || null,
+    marriagePeriod:   form.marriagePeriod   || null,
+    marriagePlan:     form.marriagePlan      ?? null,
+    hasYoungChild:    form.hasYoungChild     ?? null,
+    singleParent:     form.singleParent      ?? null,
+  };
+};
