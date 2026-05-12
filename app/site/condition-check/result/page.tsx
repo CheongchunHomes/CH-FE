@@ -1,115 +1,108 @@
 "use client";
 
+import { post } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, AlertTriangle, AlertCircle, RotateCcw, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// ─────────────────────────────────────────────────────────
-// 타입 정의
-// ─────────────────────────────────────────────────────────
-interface DiagnosisResult {
-  houselessStatus: string;
-  ageStatus: string;
-  incomeStatus: string;
-  assetStatus: string;
-  subscriptionStatus: string;
-  dependentStatus: string;
-  subscriptionScore: number;
-  publicRentalScore: number;
-  jeonseScore: number;
-  saleScore: number;
-  strengthComment: string;
-  weaknessComment: string;
-  improveComment: string;
-  recommendComment: string;
-}
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
+import { Check, AlertTriangle, RotateCcw, ChevronRight, MapPin, Lightbulb,
+         ThumbsUp, ClipboardList } from "lucide-react";
+import { DiagnosisForm, DiagnosisResult, PolicyResult, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import React from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-interface DiagnosisForm {
-  birthDate: string;
-  married: boolean;
-  houseless: boolean;
-  householdSep: boolean;
-  disabilityYn: boolean;
-  dependentCount: number;
-  currentResidence: string;
-  annualIncome: number;
-  totalAsset: number;
-  cashAsset: number;
-  hasSubscription: boolean;
-  subscriptionMonths: number;
-  desiredCity: string;
-  desiredDistrict: string;
-  desiredArea: number;
-  desiredType: string;
-}
+// 취업·재직·혼인 기간 표시 라벨
+const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
+  STUDENT: "학생", JOB_SEEKER: "구직중", NEWCOMER: "사회초년생", EMPLOYED: "재직중", OTHER: "기타",
+};
+const EMPLOYMENT_PERIOD_LABEL: Record<string, string> = {
+  UNDER_1: "1년 미만", YEAR_1_3: "1~3년", YEAR_3_5: "3~5년", OVER_5: "5년 이상",
+};
+const MARRIAGE_PERIOD_LABEL: Record<string, string> = {
+  UNDER_1: "1년 미만", YEAR_1_3: "1~3년", YEAR_3_7: "3~7년", OVER_7: "7년 이상",
+};
 
-// ─────────────────────────────────────────────────────────
 // 만원 → 억/만 단위 변환
-// ─────────────────────────────────────────────────────────
 const formatAsset = (value: number): string => {
   if (!value || value <= 0) return "-";
   // 백엔드에서 원 단위로 받으므로 만원 변환
   const uk = Math.floor(value / 10000);
   const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
+  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원 이하`;
   if (uk > 0) return `${uk}억`;
   return `${value.toLocaleString()}만원`;
 };
 
-// ─────────────────────────────────────────────────────────
-// 상태값 → 스타일/아이콘 매핑
-// ─────────────────────────────────────────────────────────
-const getStatusStyle = (status: string) => {
-  switch (status) {
-    case "충족":
-      return {
-        bg: "bg-green-50",
-        text: "text-green-700",
-        border: "border-green-200",
-        badge: "bg-green-100 text-green-700",
-        icon: <Check className="w-4 h-4" />,
-      };
-    case "일부제한":
-      return {
-        bg: "bg-amber-50",
-        text: "text-amber-700",
-        border: "border-amber-200",
-        badge: "bg-amber-100 text-amber-700",
-        icon: <AlertTriangle className="w-4 h-4" />,
-      };
-    case "보완필요":
-      return {
-        bg: "bg-orange-50",
-        text: "text-orange-700",
-        border: "border-orange-200",
-        badge: "bg-orange-100 text-orange-700",
-        icon: <AlertCircle className="w-4 h-4" />,
-      };
-    default: // 미충족
-      return {
-        bg: "bg-red-50",
-        text: "text-red-700",
-        border: "border-red-200",
-        badge: "bg-red-100 text-red-700",
-        icon: <AlertCircle className="w-4 h-4" />,
-      };
-  }
+// 만 39세까지 남은 날 계산
+const calcDday = (birthDate: string): { years: number; months: number } => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age39 = new Date(birth.getFullYear() + 39, birth.getMonth(), birth.getDate());
+  if (today > age39) return { years: 0, months: 0 };
+  const years = age39.getFullYear() - today.getFullYear();
+  const months = age39.getMonth() - today.getMonth();
+  return { years, months: months < 0 ? months + 12 : months };
 };
 
-// ─────────────────────────────────────────────────────────
+// 조건 기반 핵심 키워드 생성
+const getKeywords = (form: DiagnosisForm, result: DiagnosisResult): string[] => {
+  const tags: string[] = [];
+  if (form.householdSep) tags.push("세대분리완료");
+  if (form.houseless) tags.push("무주택완성");
+  if (result.incomeStatus === "충족") tags.push("소득기준충족");
+  if (form.employmentStatus === "NEWCOMER") tags.push("사회초년생우대");
+  if (form.disabilityYn) tags.push("장애인특공");
+  if (form.hasSubscription && form.subscriptionMonths >= 24) tags.push("청약1순위");
+  if (form.desiredCity) tags.push(`${form.desiredCity}타겟`);
+  if (form.married) tags.push("신혼부부특공");
+  if (form.hasYoungChild) tags.push("영유아자녀");
+  if (form.singleParent) tags.push("한부모우선");
+  // if (form.subscriptionMonths >= 24) tags.push("청약1순위");
+  // if (form.marriagePlan) tags.push("예비신혼부부");
+  // if (form.employmentStatus === "STUDENT") tags.push("대학생우대");
+  // if (result.publicRentalScore >= 70) tags.push("공공임대적합");
+  // if (result.jeonseScore >= 70) tags.push("전세대출가능");
+  return tags;
+};
+
+// 상태값 → 동그라미 아이콘 + 한글 텍스트 매핑
+const getStatusIcon = (status: string) => {
+  const configs: Record<string, { bg: string; icon: React.ReactNode; label: string }> = {
+    "충족":     { bg: "bg-blue-600",   icon: <Check className="w-3 h-3 text-white stroke-[3]" />, label: "충족" },
+    "일부제한": { bg: "bg-amber-100",  icon: <span className="text-amber-600 text-xs font-bold">!</span>, label: "일부제한" },
+    "보완필요": { bg: "bg-orange-100", icon: <span className="text-orange-600 text-xs font-bold">!</span>, label: "보완필요" },
+  };
+  const cfg = configs[status] ?? { bg: "bg-red-100", icon: <span className="text-red-600 text-xs font-bold">✕</span>, label: "미충족" };
+
+  return (
+    <span className="flex items-center gap-1.5 justify-end">
+      <span className="text-xs font-bold text-gray-600">{cfg.label}</span>
+      <span className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${cfg.bg}`}>
+        {cfg.icon}
+      </span>
+    </span>
+  );
+};
+
 // 점수 → 등급
-// ─────────────────────────────────────────────────────────
 const getGrade = (score: number) => {
   if (score >= 70) return { label: "높음", color: "text-green-600", bg: "bg-green-100" };
   if (score >= 40) return { label: "보통", color: "text-blue-600", bg: "bg-blue-100" };
   return { label: "낮음", color: "text-purple-600", bg: "bg-purple-100" };
 };
 
-// ─────────────────────────────────────────────────────────
+// 섹션 타이틀 동그라미 번호 컴포넌트
+const SectionNumber = ({ num }: { num: number }) => (
+  <span className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">
+    {num}
+  </span>
+);
+
 // 도넛 차트 컴포넌트
-// ─────────────────────────────────────────────────────────
 const DonutChart = ({
   score,
   label,
@@ -160,13 +153,39 @@ const DonutChart = ({
   );
 };
 
-// ─────────────────────────────────────────────────────────
+
 // 메인 결과 페이지
-// ─────────────────────────────────────────────────────────
 export default function DiagnosisResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [form, setForm] = useState<DiagnosisForm | null>(null);
+
+  // ── 제도추천 상태 ──
+  const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null);
+  const [recLoading, setRecLoading] = useState(false);
+
+  // 제도추천 계산 API 호출 → 결과를 sessionStorage에 저장 (제도추천 페이지에서 사용)
+  const loadRecommendation = async (formData: DiagnosisForm) => {
+    setRecLoading(true);
+    try {
+      const data = await post<RecommendationResponse>(
+        "/api/recommendation/calculate",
+        sanitizeDiagnosisForm(formData)
+      );
+      setRecommendation(data);
+      sessionStorage.setItem("recommendationResult", JSON.stringify(data));
+    } catch {
+      // 추천 실패해도 진단 결과는 정상 표시
+    } finally {
+      setRecLoading(false);
+    }
+  };
+
+  // 다시 진단하기 => 리셋버튼
+  const handleReset = () => {
+  sessionStorage.removeItem("diagnosisFormTemp");
+  router.push("/site/condition-check");
+};
 
   useEffect(() => {
     // sessionStorage에서 결과 읽기
@@ -177,9 +196,15 @@ export default function DiagnosisResultPage() {
       return;
     }
     setResult(JSON.parse(savedResult));
-    if (savedForm) setForm(JSON.parse(savedForm));
+    if (savedForm) {
+      const parsedForm = JSON.parse(savedForm);
+      setForm(parsedForm);
+      // ── 제도추천 API 호출 ──
+      loadRecommendation(parsedForm);
+    }
   }, [router]);
 
+  // ── null 가드: 이 아래부터 result non-null 보장 ──
   if (!result) return null;
 
   // 6개 자격 상태 목록
@@ -188,7 +213,7 @@ export default function DiagnosisResultPage() {
     { icon: "👤", label: "연령 조건", status: result.ageStatus, desc: form?.birthDate ? `생년월일 기준, 청년 기준(만 19~39세) 조건입니다.` : "연령 조건을 확인해주세요." },
     { icon: "💰", label: "소득 기준", status: result.incomeStatus, desc: form?.annualIncome ? `연소득 ${formatAsset(form.annualIncome)}으로, 소득 기준을 확인했습니다.` : "소득 정보를 확인해주세요." },
     { icon: "🏦", label: "자산 기준", status: result.assetStatus, desc: form?.totalAsset ? `총 자산 ${formatAsset(form.totalAsset)}으로, 자산 기준을 확인했습니다.` : "자산 정보를 확인해주세요." },
-    { icon: "👨‍👩‍👧", label: "부양가족 가점", status: result.dependentStatus, desc: `부양가족 ${form?.dependentCount ?? 0}명으로, 가점 항목에서 확인됩니다.` },
+    { icon: "👨‍👩‍👧", label: "부양가족", status: result.dependentStatus, desc: `부양가족 ${form?.dependentCount ?? 0}명으로, 가점 항목에서 확인됩니다.` },
     { icon: "📋", label: "청약통장 상태", status: result.subscriptionStatus, desc: form?.hasSubscription ? `가입 기간 ${form.subscriptionMonths}개월로, 청약 조건을 확인했습니다.` : "청약통장 미보유 상태입니다." },
   ];
 
@@ -202,11 +227,52 @@ export default function DiagnosisResultPage() {
 
   // 코멘트 항목
   const comments = [
-    { icon: "✅", label: "현재 강점", text: result.strengthComment, color: "text-green-700", bg: "bg-green-50", border: "border-green-200" },
-    { icon: "⚠️", label: "보완이 필요한 부분", text: result.weaknessComment, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
-    { icon: "💡", label: "개선 제안", text: result.improveComment, color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
-    { icon: "🎯", label: "추천 방향", text: result.recommendComment, color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200" },
+    { icon: <ThumbsUp className="w-4 h-4" />, label: "현재 강점", text: result.strengthComment, color: "text-blue-600" },
+    { icon: <AlertTriangle className="w-4 h-4" />, label: "보완이 필요한 부분", text: result.weaknessComment, color: "text-amber-600" },
+    { icon: <Lightbulb className="w-4 h-4" />, label: "개선 제안", text: result.improveComment, color: "text-blue-600" },
+    { icon: <MapPin className="w-4 h-4" />, label: "추천 방향", text: result.recommendComment, color: "text-blue-600" },
   ];
+
+  // 상단 요약 데이터
+  const dday = form?.birthDate ? calcDday(form.birthDate) : null;
+  const keywords = form ? getKeywords(form, result) : [];
+
+  // 충족/미충족 분리
+  const metItems = statusItems.filter(item => item.status === "충족");
+  const unmetItems = statusItems.filter(item => item.status !== "충족");
+
+  // 개인화 전략 필드 정의
+  const STRATEGY_FIELDS = [
+    {
+      key: "desiredDistrict" as const,
+      deps: ["desiredCity"] as const,
+      format: () => `${form?.desiredDistrict}(${form?.desiredCity})`,
+    },
+    {
+      key: "desiredArea" as const,
+      deps: [] as const,
+      format: () => `${form?.desiredArea}㎡`,
+    },
+    {
+      key: "annualIncome" as const,
+      deps: [] as const,
+      format: () => `연소득 ${formatAsset(form?.annualIncome ?? 0)}`,
+    },
+  ];
+
+  // 개인화 전략 문장
+  const strategyText = (() => {
+    if (!form) return result.recommendComment;
+
+    const parts = STRATEGY_FIELDS
+      .filter(({ key, deps }) =>
+        form[key] != null && form[key] !== 0 && deps.every((d) => !!form[d])
+      )
+      .map(({ format }) => format());
+
+    if (parts.length === 0) return result.recommendComment;
+    return `${parts.join(" · ")} 조건으로 진단했습니다. ${result.recommendComment}`;
+  })();
 
   // 나의 체크리스트
   const summaryItems = [
@@ -224,11 +290,18 @@ export default function DiagnosisResultPage() {
     { label: "희망 도시",   value: form?.desiredCity || "" },
     { label: "희망 지역구", value: form?.desiredDistrict || "" },
     { label: "희망 면적",   value: form?.desiredArea ? `${form.desiredArea}㎡` : "" },
+    { label: "취업 상태",   value: form?.employmentStatus ? (EMPLOYMENT_STATUS_LABEL[form.employmentStatus] ?? "") : "" },
+    { label: "재직 기간",   value: form?.employmentPeriod ? (EMPLOYMENT_PERIOD_LABEL[form.employmentPeriod] ?? "") : "" },
+    { label: "결혼 계획",   value: form?.marriagePlan ? "있음" : "" },
+    { label: "혼인 기간",   value: form?.marriagePeriod ? (MARRIAGE_PERIOD_LABEL[form.marriagePeriod] ?? "") : "" },
+    { label: "영유아 자녀", value: form?.hasYoungChild ? "있음" : "" },
+    { label: "한부모 가족", value: form?.singleParent ? "해당" : "" },
     { label: "희망 유형",   value: form?.desiredType || "" },
   ].filter((item) => item.value !== "");
 
   return (
-    <main className="bg-gray-50 min-h-screen">
+    <TooltipProvider>
+      <main className="bg-gray-50 min-h-screen">
 
       {/* ── 헤더 ── */}
       <div className="bg-white border-b px-4 md:px-8 py-6">
@@ -239,7 +312,7 @@ export default function DiagnosisResultPage() {
           </div>
           <Button
             variant="outline"
-            onClick={() => router.push("/site/condition-check")}
+            onClick={handleReset}
             className="flex items-center gap-2 text-sm"
           >
             <RotateCcw className="w-4 h-4" />
@@ -252,8 +325,9 @@ export default function DiagnosisResultPage() {
 
         {/* ── 모바일: 나의 체크리스트 확인 드롭다운 ── */}
         <details className="md:hidden mb-4 bg-white border rounded-xl overflow-hidden shadow-sm">
-          <summary className="px-4 py-3 font-semibold text-sm text-gray-700 cursor-pointer">
-            📋 나의 체크리스트 ({summaryItems.length}개)
+          <summary className="px-4 py-3 font-semibold text-sm text-gray-700 cursor-pointer flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-gray-500" />
+            나의 체크리스트 ({summaryItems.length}개)
           </summary>
           <div className="px-4 pb-4 grid grid-cols-2 gap-2">
             {summaryItems.map((item, i) => (
@@ -271,101 +345,203 @@ export default function DiagnosisResultPage() {
           {/* ── 좌측: 결과 섹션 ── */}
           <div className="space-y-6 min-w-0">
 
-            {/* 섹션 1: 기본 자격 상태 */}
-            <Card className="border border-gray-200 shadow-sm">
-              <CardContent className="p-5 md:p-6">
-                <h2 className="text-base md:text-lg font-bold text-gray-900 mb-4">
-                  1. 기본 자격 상태 요약
-                </h2>
-                <div className="space-y-3">
-                  {statusItems.map((item, i) => {
-                    const style = getStatusStyle(item.status);
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-center justify-between p-3 md:p-4 rounded-xl border ${style.border} ${style.bg}`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="text-xl flex-shrink-0">{item.icon}</span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-800">{item.label}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 truncate md:whitespace-normal">{item.desc}</p>
-                          </div>
-                        </div>
-                        <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ml-2 ${style.badge}`}>
-                          {style.icon}
-                          {item.status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            {/* 카드 1: 기본 자격 상태 + 준비도 점수(아코디언) */}
+            <Card className="shadow-sm">
+              <CardContent className="p-5 md:p-8 space-y-6">
 
-            {/* 섹션 2: 주거 준비도 및 가능성 요약 */}
-            <Card className="border border-gray-200 shadow-sm">
-              <CardContent className="p-5 md:p-6">
-                <h2 className="text-base md:text-lg font-bold text-gray-900 mb-4">
-                  2. 주거 준비도 및 가능성 요약
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {scores.map((s, i) => (
-                    <DonutChart
-                      key={i}
-                      score={s.score}
-                      label={s.label}
-                      comment={s.comment}
-                      color={s.color}
-                    />
-                  ))}
+                {/* 기본 자격 상태 - 테이블 */}
+                <div>
+                  {/* 기존 h2 교체 */}
+                  <h2 className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-900 mb-4">
+                    <SectionNumber num={1} />
+                    기본 자격 상태
+                  </h2>
+                  <div className="rounded-lg border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {statusItems.map((item, i) => {
+                          const isMet = item.status === "충족";
+                          return (
+                            <tr
+                              key={i}
+                              className={`border-b last:border-0 transition-colors ${
+                                isMet ? "bg-blue-100" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                              }`}
+                            >
+                              <td className="px-4 py-3 w-8">
+                                <span className="flex items-center justify-center w-2 h-2 rounded-sm bg-blue-200 shrink-0 mx-auto" />
+                              </td>
+                              <td className="px-2 py-3 font-medium text-gray-800">
+                                {item.label}
+                              </td>
+                              <td className="px-2 py-3 text-xs hidden sm:table-cell text-gray-500">
+                                {item.desc}
+                              </td>
+                              <td className="px-4 py-4 text-right">
+                                {getStatusIcon(item.status)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* 섹션 3: 진단 코멘트 */}
-            <Card className="border border-gray-200 shadow-sm">
-              <CardContent className="p-5 md:p-6">
-                <h2 className="text-base md:text-lg font-bold text-gray-900 mb-4">
-                  3. 진단 코멘트 및 개선 포인트
-                </h2>
-                <div className="space-y-3">
-                  {comments.map((c, i) => (
-                    <div key={i} className={`flex gap-3 p-4 rounded-xl border ${c.border} ${c.bg}`}>
-                      <span className="text-lg flex-shrink-0">{c.icon}</span>
-                      <div>
-                        <p className={`text-sm font-bold ${c.color}`}>{c.label}</p>
-                        <p className="text-sm text-gray-600 mt-1">{c.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 섹션 4: 다음 단계 배너 */}
-            <Card className="border border-blue-200 bg-blue-50 shadow-sm">
-              <CardContent className="p-5 md:p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">📋</span>
-                    <div>
-                      <p className="font-bold text-gray-900">다음 단계</p>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        진단 결과를 바탕으로 나에게 맞는 주거 지원 제도를 추천해드릴게요!
-                      </p>
+                {/* 준비도 점수 - 항상 표시 */}
+                  <div className="rounded-lg border px-4 py-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">주거 준비도 점수</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {scores.map((s, i) => (
+                        <DonutChart key={i} score={s.score} label={s.label} comment={s.comment} color={s.color} />
+                      ))}
                     </div>
                   </div>
-                  <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto"
-                    onClick={() => router.push("/recommend")}
-                  >
-                    제도 추천 받기
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
+
+                  {/* 구분선 */}
+                <div className="border-t" />
+
+                {/* 진단 코멘트 */}
+                <div>
+                  <h2 className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-900 mb-4">
+                    <SectionNumber num={2} />
+                    진단 코멘트
+                  </h2>
+
+                  {/* 레이더 차트 + 키워드/D-Day 2단 레이아웃 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+
+                    {/* 좌측: 레이더 차트 */}
+                    <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
+                      <p className="text-xs font-bold text-gray-500 mb-2 text-center">나의 주거 준비 현황</p>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <RadarChart data={[
+                          { subject: "무주택", value: result.houselessStatus === "충족" ? 100 : result.houselessStatus === "일부제한" ? 60 : 20 },
+                          { subject: "연령",   value: result.ageStatus === "충족" ? 100 : result.ageStatus === "일부제한" ? 60 : 20 },
+                          { subject: "소득",   value: result.incomeStatus === "충족" ? 100 : result.incomeStatus === "일부제한" ? 60 : 20 },
+                          { subject: "자산",   value: result.assetStatus === "충족" ? 100 : result.assetStatus === "일부제한" ? 60 : 20 },
+                          { subject: "부양",   value: result.dependentStatus === "충족" ? 100 : result.dependentStatus === "일부제한" ? 60 : 20 },
+                          { subject: "청약",   value: result.subscriptionStatus === "충족" ? 100 : result.subscriptionStatus === "일부제한" ? 60 : 20 },
+                        ]}>
+                          <PolarGrid stroke="#f3f4f6" />
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                          <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* 우측: 키워드 + D-Day + 충족/미충족 */}
+                    <div className="flex flex-col gap-3">
+
+                      {/* 키워드 뱃지 */}
+                      <div className="p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
+                        <p className="text-xs text-gray-400 mb-2">나의 키워드</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {keywords.map((tag, i) => (
+                            <span key={i} className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* D-Day */}
+                      {dday && (dday.years > 0 || dday.months > 0) && (
+                        <div className="p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
+                          <p className="text-xs text-gray-400">청년 혜택 종료까지</p>
+                          <p className="text-lg font-bold text-blue-600 mt-0.5">
+                            {dday.years > 0 ? `${dday.years}년 ` : ""}{dday.months}개월 남음
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 충족/미충족 요약 */}
+                      <div className="grid grid-cols-2 gap-2 flex-1">
+                        <div className="p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+                          <p className="text-xs font-bold text-blue-700 mb-1.5 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> 충족
+                          </p>
+                          {metItems.map((item, i) => (
+                            <p key={i} className="text-xs text-gray-600 leading-relaxed">{item.label}</p>
+                          ))}
+                        </div>
+                        <div className="p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
+                          <p className="text-xs font-bold text-amber-700 mb-1.5 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> 보완
+                          </p>
+                          {unmetItems.length > 0 ? unmetItems.map((item, i) => (
+                            <p key={i} className="text-xs text-gray-600 leading-relaxed">{item.label}</p>
+                          )) : (
+                            <p className="text-xs text-gray-400">모두 충족!</p>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                    {/* 우측 패널 끝 */}
+
+                  </div>
+                  {/* 2단 그리드 끝 */}
+
+                  {/* 하단: 개인화 전략 */}
+                  <div className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
+                    <p className="text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-blue-500" /> 나의 맞춤 전략
+                    </p>
+                    <p className="text-sm text-gray-600 leading-relaxed">{strategyText}</p>
+                    {result.improveComment && (
+                      <p className="text-xs text-gray-500 mt-2 leading-relaxed flex items-start gap-1.5">
+                        <Lightbulb className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
+                        {result.improveComment}
+                      </p>
+                    )}
+                  </div>
+
                 </div>
+                {/* 진단 코멘트 끝 */}
+
+                {/* 구분선 */}
+                <div className="border-t" />
+
+                {/* 제도 추천 - 바로가기 버튼 */}
+                <div>
+                  <h2 className="flex items-center gap-2 text-base md:text-lg font-bold text-gray-900 mb-4">
+                    <SectionNumber num={3} />
+                    나에게 맞는 맞춤 제도
+                  </h2>
+                  {recLoading ? (
+                    <div className="space-y-2">
+                      {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                          <ClipboardList className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">
+                            {recommendation ? `${recommendation.results.filter(r => r.grade === "적극추천" || r.grade === "추천가능").length}개 제도 추천 가능` : "제도 추천 결과"}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-0.5">진단 결과를 바탕으로 맞춤 제도를 확인해보세요.</p>
+                        </div>
+                      </div>
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto font-bold shrink-0"
+                        onClick={() => router.push("/site/recommend")}
+                      >
+                        제도 상세 보러가기
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
               </CardContent>
             </Card>
+            {/* 카드 1 끝 */}
 
           </div>
 
@@ -391,7 +567,7 @@ export default function DiagnosisResultPage() {
 
                 {/* 다시하기 버튼 */}
                 <button
-                  onClick={() => router.push("/site/condition-check")}
+                  onClick={handleReset}
                   className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -400,9 +576,9 @@ export default function DiagnosisResultPage() {
               </CardContent>
             </Card>
           </aside>
-
         </div>
       </div>
-    </main>
+      </main>
+    </TooltipProvider>
   );
 }

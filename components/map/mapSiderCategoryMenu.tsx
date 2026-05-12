@@ -1,54 +1,42 @@
-"use client";
+import type { MapFilterCategory } from "@/lib/map/map-types";
 
-export type MapCategoryType =
-  | "oneRoom"
-  | "apartment"
-  | "villa"
-  | "officetel"
-  | "sale";
-
-type MapCategory = {
-  label: string;
-  value: MapCategoryType;
+type MapSiderCategoryMenuProps = {
+  activeCategory: MapFilterCategory;
+  onChangeCategory: (category: MapFilterCategory) => void;
 };
 
-const mapCategories: MapCategory[] = [
-  { label: "원/투룸", value: "oneRoom" },
-  { label: "아파트", value: "apartment" },
-  { label: "주택/빌라", value: "villa" },
-  { label: "오피스텔", value: "officetel" },
-  { label: "분양", value: "sale" },
+const categories: {
+  key: MapFilterCategory;
+  label: string;
+}[] = [
+  { key: "all", label: "전체" },
+  { key: "oneRoom", label: "원/투룸" },
+  { key: "apartment", label: "아파트" },
+  { key: "houseVilla", label: "주택/빌라" },
+  { key: "officetel", label: "오피스텔" },
+  { key: "subscription", label: "분양공고" },
 ];
 
-type MapCategoryMenuProps = {
-  activeCategory: MapCategoryType;
-  onChangeCategory: (category: MapCategoryType) => void;
-};
-
-export default function MapCategoryMenu({
+export default function MapSiderCategoryMenu({
   activeCategory,
   onChangeCategory,
-}: MapCategoryMenuProps) {
+}: MapSiderCategoryMenuProps) {
   return (
     <nav className="w-[72px] border-r border-slate-100 bg-slate-50 py-4">
-      {mapCategories.map((category) => {
-        const isActive = activeCategory === category.value;
-
-        return (
-          <button
-            key={category.value}
-            type="button"
-            onClick={() => onChangeCategory(category.value)}
-            className={`mb-2 w-full px-2 py-3 text-xs font-semibold transition ${
-              isActive
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-600 hover:text-blue-600"
-            }`}
-          >
-            {category.label}
-          </button>
-        );
-      })}
+      {categories.map((category) => (
+        <button
+          key={category.key}
+          type="button"
+          onClick={() => onChangeCategory(category.key)}
+          className={`mb-2 w-full px-2 py-3 text-xs font-semibold ${
+            activeCategory === category.key
+              ? "text-blue-600"
+              : "text-slate-600 hover:text-blue-600"
+          }`}
+        >
+          {category.label}
+        </button>
+      ))}
     </nav>
   );
 }
