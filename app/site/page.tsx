@@ -19,7 +19,7 @@ import { getPageSampleHref } from "@/lib/page-samples"
 
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
-  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("guide-center") },
+  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("recommend") },
   { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
   { icon: MapPin, label: "집·공고 확인", href: "site/map" },
   { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
@@ -30,6 +30,13 @@ const homeTips = [
   { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산", href: "/loan" },
   { title: "시뮬레이션", desc: "가상의 조건으로 계산해 보기", href: getPageSampleHref("simulator") },
   { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
+  { title: "공지사항", desc: "공지사항", href: "/notice" },
+  { title: "가계부", desc: "가계부", href: getPageSampleHref("ledger") },
+  { title: "동네별 커뮤니티", desc: "커뮤니티", href: getPageSampleHref("community") },
+  { title: "용어 설명", desc: "특공·임대 제도 차이 설명 (어려운 제도 용어 설명)", href: getPageSampleHref("terminology") },
+
+  
+
 ]
 
 export default function SitePage() {

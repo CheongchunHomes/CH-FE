@@ -8,6 +8,7 @@ export interface Announcement {
   status: string;
   recuitmentType: string;
   targetType: string;
+  sourceType: string;
   sourceUrl: string;
   applyStartDate: string;
   applyEndDate: string;
@@ -34,18 +35,30 @@ export interface PageResponse<T> {
 export async function getAnnouncements(params: {
   region?: string;
   status?: string;
+  keyword?: string;
+  sourceType?: string;
+  targetType?: string;
+  deadlineSoon?: boolean;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Announcement>> {
-  const query = new URLSearchParams();
-  if (params.region) query.append("region", params.region);
-  if (params.status) query.append("status", params.status);
-  query.append("page", String(params.page ?? 0));
-  query.append("size", String(params.size ?? 10));
-
-  return get<PageResponse<Announcement>>(`/api/announcements?${query}`);
+  return get<PageResponse<Announcement>>("/api/announcements", {
+    query: {
+      region: params.region,
+      status: params.status,
+      keyword: params.keyword,
+      sourceType: params.sourceType,
+      targetType: params.targetType,
+      deadlineSoon: params.deadlineSoon,
+      page: params.page ?? 0,
+      size: params.size ?? 10,
+    },
+    cache: "no-store",
+  });
 }
 
 export async function getAnnouncement(id: number): Promise<Announcement> {
-  return get<Announcement>(`/api/announcements/${id}`);
+  return get<Announcement>(`/api/announcements/${id}`, {
+    cache: "no-store",
+  });
 }
