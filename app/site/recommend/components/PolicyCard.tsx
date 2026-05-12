@@ -38,6 +38,7 @@ export default function PolicyCard({ policy, isLast, onDetail }: Props) {
           </p>
         </div>
       </div>
+      {policy.category !== '대출' && (
       <Button
         variant="outline"
         size="sm"
@@ -46,6 +47,7 @@ export default function PolicyCard({ policy, isLast, onDetail }: Props) {
       >
         상세보기
       </Button>
+      )}
     </div>
   );
 }
