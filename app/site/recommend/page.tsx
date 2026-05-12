@@ -272,7 +272,7 @@ export default function RecommendPage() {
                     </span>
                     {cat === '대출' && (
                       <a
-                      href=""
+                      href="/site/loan"
                       onClick={(e) => e.stopPropagation()}
                       className="ml-auto mr-2 inline-flex items-center rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50"
                        >
