@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import PolicyCard from './components/PolicyCard';
-
-import { Badge } from '@/components/ui/badge';
+import {get, ApiError} from '@/lib/api'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -22,6 +21,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 
 const API_BASE = '/api/recommend/summary';
+
+const CAT_DESCRIPTION: Record<string, string> = {
+  '행복주택': '청년, 대학생, 사회초년생 등을 대상으로 공급되는 공공임대주택입니다. 시세 대비 저렴한 임대료로 거주할 수 있으며, 교통과 생활 환경을 고려한 지역에 공급됩니다. 주거비 부담을 줄이고 안정적인 주거 환경을 지원합니다.',
+  '공공임대': '무주택 청년 및 서민을 위해 공급되는 임대주택입니다. 일정 소득 및 자산 기준 충족 시 신청 가능하며, 비교적 낮은 임대료와 안정적인 거주 기간을 제공합니다. 다양한 유형의 공공주택 정보를 확인할 수 있습니다.',
+};
+
 
 export interface Recoentity {
   id: number;
@@ -72,11 +77,11 @@ interface Summary {
 }
 
 // 카테고리별 Badge variant 매핑
-const CAT_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  '행복주택':   'default',
-  '공공임대':   'secondary',
-  '대출':   'outline',
-};
+// const CAT_COLOR: Record<string, string> = {
+//   '행복주택': 'border border-blue-200 bg-blue-50 text-blue-600',
+//   '공공임대': 'border border-blue-200 bg-blue-50 text-blue-600',
+//   '대출':     'border border-blue-200 bg-blue-50 text-blue-600',
+// };
 
 const GRADE_COLOR: Record<string, string> = {
   A: 'text-green-600',
@@ -110,13 +115,9 @@ export default function RecommendPage() {
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(API_BASE)
-      .then(r => {
-        if (!r.ok) throw new Error('서버 응답 오류');
-        return r.json();
-      })
-      .then((data: Summary) => { setSummary(data); setLoading(false); })
-      .catch(() => { setError('서버에 연결할 수 없습니다.'); setLoading(false); });
+    get<Summary>(API_BASE, {cache: 'no-store'})
+    .then((data) => {setSummary(data); setLoading(false);})
+    .catch(() => {setError('서버에 연결할 수 없습니다.'); setLoading(false);});
   }, []);
 
   if (loading) return <LoadingScreen />;
@@ -262,7 +263,10 @@ export default function RecommendPage() {
               >
                 <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
                   <div className="flex items-center gap-2.5">
-                    <Badge variant={CAT_VARIANT[cat] ?? 'outline'}>{cat}</Badge>
+                    {/* // Accordion 트리거 안 span */}
+                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                      {cat}
+                    </span>
                     <span className="text-sm font-medium text-gray-900">
                       {cat} 신청 가능 ({list.length}건)
                     </span>
@@ -272,7 +276,7 @@ export default function RecommendPage() {
                   <div className="border-t border-gray-100">
                     {list.map((policy, i) => (
                       <PolicyCard
-                        key={policy.name} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
+                        key={`${policy.name}-${i}`} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
                         policy={policy}
                         isLast={i === list.length - 1}
                         onDetail={() => setModalPolicy(policy)}
@@ -293,34 +297,31 @@ export default function RecommendPage() {
             <DialogTitle>{modalPolicy?.name}</DialogTitle>
           </DialogHeader>
 
-          {modalPolicy && (
-            <div className="space-y-0 divide-y divide-gray-100">
-              {[
-                {
-                  label: '카테고리',
-                  value: <Badge variant={CAT_VARIANT[modalPolicy.category] ?? 'outline'}>{modalPolicy.category}</Badge>,
-                },
-                { label: '대상지역', value: modalPolicy.region },
-                { label: '연령기준', value: `${modalPolicy.minAge}~${modalPolicy.maxAge}세` },
-                {
-                  label: '소득기준',
-                  value: `연 ${modalPolicy.maxIncome.toLocaleString()}만원 이하`, //만원단위로 조정
-                },
-                { label: '사업개요', value: modalPolicy.description },
-              ].map(row => (
-                <div key={row.label} className="flex gap-3 py-2.5 text-sm">
-                  <span className="w-16 shrink-0 font-medium text-muted-foreground">{row.label}</span>
-                  <span className="flex-1 leading-relaxed text-gray-700">{row.value}</span>
+          
+           {modalPolicy && (
+              <div className="space-y-0 divide-y divide-gray-100">
+                <div className="flex gap-3 py-2.5 text-sm">
+                  <span className="w-16 shrink-0 font-medium text-muted-foreground">카테고리</span>
+                  <span className="flex-1 leading-relaxed text-gray-700">
+                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                      {modalPolicy.category}
+                    </span>
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="flex gap-3 py-2.5 text-sm">
+                  <span className="w-16 shrink-0 font-medium text-muted-foreground">소개</span>
+                  <span className="flex-1 leading-relaxed text-gray-700">
+                    {CAT_DESCRIPTION[modalPolicy.category] ?? modalPolicy.description}
+                  </span>
+                </div>
+              </div>
+            )}
 
           <div className="flex gap-2 pt-2">
             {modalPolicy?.applyUrl && (
               <Button asChild className="flex-1">
                 <a href={modalPolicy.applyUrl} target="_blank" rel="noreferrer">
-                  홈페이지 바로가기 →
+                  관련링크 바로가기 →
                 </a>
               </Button>
             )}
