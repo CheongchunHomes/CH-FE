@@ -12,12 +12,38 @@ export type ApiRequestOptions<TBody = unknown> = {
   cache?: RequestCache
   next?: NextFetchRequestConfig
   credentials?: RequestCredentials
+  suppressGlobalError?: boolean
+  /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
+  auth?: boolean
+  /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
+  retryOnUnauthorized?: boolean
 }
 
 export type ApiErrorPayload = {
   message?: string
+  code?: string
+  retryAfterSeconds?: number
+  maxAttempts?: number
   [key: string]: unknown
 }
+
+export type AuthRefreshRetryEventPayload = {
+  status: "retrying" | "success" | "failed"
+  attempt: number
+  maxAttempts: number
+  retryAfterSeconds: number
+  message: string
+}
+
+export type ApiFeedbackEventPayload =
+  | ({ kind: "retry" } & AuthRefreshRetryEventPayload)
+  | {
+      kind: "error"
+      status: "error"
+      httpStatus: number
+      message: string
+      payload?: unknown
+    }
 
 export class ApiError extends Error {
   status: number
@@ -33,6 +59,11 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? ""
 const JSON_CONTENT_TYPE = "application/json"
+export const API_FEEDBACK_EVENT = "api-feedback"
+export const AUTH_REFRESH_RETRY_EVENT = "auth-refresh-retry"
+const DEFAULT_REFRESH_RETRY_AFTER_SECONDS = 60
+const DEFAULT_REFRESH_MAX_ATTEMPTS = 3
+const GLOBAL_ERROR_EXCLUDED_CODES = new Set(["REAUTH_REQUIRED", "REFRESH_EXPIRED", "UNAUTHENTICATED"])
 
 function isAbsoluteUrl(url: string) {
   return /^https?:\/\//i.test(url)
@@ -75,10 +106,15 @@ function shouldSerializeBody(body: unknown) {
 }
 
 async function parseResponsePayload(response: Response) {
+  if (response.status === 204) {
+    return null
+  }
+
   const contentType = response.headers.get("content-type") ?? ""
 
   if (contentType.includes(JSON_CONTENT_TYPE)) {
-    return response.json()
+    const text = await response.text()
+    return text.trim() ? JSON.parse(text) : null
   }
 
   if (contentType.startsWith("text/")) {
@@ -107,58 +143,234 @@ function buildHeaders(headers?: HeadersInit) {
   return new Headers(headers)
 }
 
-export async function request<TResponse, TBody = unknown>(
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object"
+}
+
+function readPositiveNumber(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function getRetryInfo(payload: unknown) {
+  if (!isRecord(payload) || (payload.code !== "REFRESH_RETRYABLE" && payload.code !== "API_RETRYABLE")) {
+    return null
+  }
+
+  const isRefreshRetry = payload.code === "REFRESH_RETRYABLE"
+
+  return {
+    code: payload.code,
+    retryAfterSeconds: readPositiveNumber(payload.retryAfterSeconds, DEFAULT_REFRESH_RETRY_AFTER_SECONDS),
+    maxAttempts: readPositiveNumber(payload.maxAttempts, DEFAULT_REFRESH_MAX_ATTEMPTS),
+    retryingMessage:
+      typeof payload.message === "string" && payload.message.trim()
+        ? payload.message
+        : isRefreshRetry
+          ? "인증 갱신에 실패해 다시 시도 중입니다."
+          : "요청 처리에 실패해 다시 시도 중입니다.",
+    successMessage: isRefreshRetry ? "인증이 갱신되었습니다." : "요청이 완료되었습니다.",
+    failedMessage: isRefreshRetry
+      ? "인증 갱신에 실패했습니다. 다시 로그인해 주세요."
+      : "요청 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  }
+}
+
+function getPayloadCode(payload: unknown) {
+  return isRecord(payload) && typeof payload.code === "string" ? payload.code : undefined
+}
+
+function dispatchAuthRefreshRetryEvent(payload: AuthRefreshRetryEventPayload) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent<ApiFeedbackEventPayload>(API_FEEDBACK_EVENT, { detail: { kind: "retry", ...payload } }))
+  window.dispatchEvent(new CustomEvent<AuthRefreshRetryEventPayload>(AUTH_REFRESH_RETRY_EVENT, { detail: payload }))
+}
+
+function dispatchApiErrorFeedbackEvent(payload: ApiFeedbackEventPayload) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent<ApiFeedbackEventPayload>(API_FEEDBACK_EVENT, { detail: payload }))
+}
+
+function shouldDispatchGlobalError(status: number, payload: unknown, suppressGlobalError?: boolean) {
+  if (suppressGlobalError || typeof window === "undefined") {
+    return false
+  }
+
+  if (status === 401) {
+    return false
+  }
+
+  const code = getPayloadCode(payload)
+  return !code || !GLOBAL_ERROR_EXCLUDED_CODES.has(code)
+}
+
+function buildApiError(status: number, payload: unknown, fallback: string) {
+  return new ApiError(resolveErrorMessage(payload, fallback), status, payload)
+}
+
+function throwApiError(status: number, payload: unknown, suppressGlobalError?: boolean): never {
+  const error = buildApiError(status, payload, `Request failed with status ${status}.`)
+
+  if (shouldDispatchGlobalError(status, payload, suppressGlobalError)) {
+    dispatchApiErrorFeedbackEvent({
+      kind: "error",
+      status: "error",
+      httpStatus: status,
+      message: error.message,
+      payload,
+    })
+  }
+
+  throw error
+}
+
+function waitForRetry(seconds: number, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("The operation was aborted.", "AbortError"))
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(resolve, seconds * 1000)
+
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout)
+        reject(new DOMException("The operation was aborted.", "AbortError"))
+      },
+      { once: true },
+    )
+  })
+}
+
+async function sendRequest<TResponse, TBody = unknown>(
   method: ApiMethod,
   path: string,
-  options: ApiRequestOptions<TBody> = {},
+  body: TBody | undefined,
+  options: Omit<ApiRequestOptions<TBody>, "body"> = {},
 ) {
   const {
-    body,
     headers,
     query,
     signal,
     cache,
     next,
     credentials = "include",
+    suppressGlobalError,
   } = options
 
   const finalHeaders = buildHeaders(headers)
 
-  // httpOnly cookie 기반 인증을 전제로 하므로 토큰을 직접 읽지 않고
-  // 브라우저가 쿠키를 자동 전송하도록 credentials: "include"를 기본값으로 둡니다.
   const hasJsonBody = shouldSerializeBody(body)
 
   if (hasJsonBody && !finalHeaders.has("Content-Type")) {
     finalHeaders.set("Content-Type", JSON_CONTENT_TYPE)
   }
 
-  const response = await fetch(appendQuery(normalizeUrl(path), query), {
-    method,
-    headers: finalHeaders,
-    body: body instanceof FormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
-    signal,
-    cache,
-    next,
-    credentials,
-  })
+  const url = appendQuery(normalizeUrl(path), query)
+  let retryAttempt = 0
+  let retryStarted = false
+  let retryInfo: ReturnType<typeof getRetryInfo> = null
+  let lastRetryInfo: NonNullable<ReturnType<typeof getRetryInfo>> | null = null
 
-  const payload = await parseResponsePayload(response)
+  while (true) {
+    const response = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body instanceof FormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
+      signal,
+      cache,
+      next,
+      credentials,
+    })
 
-  if (!response.ok) {
-    throw new ApiError(resolveErrorMessage(payload, `Request failed with status ${response.status}.`), response.status, payload)
+    const payload = await parseResponsePayload(response)
+
+    if (response.ok) {
+      if (retryStarted && lastRetryInfo) {
+        dispatchAuthRefreshRetryEvent({
+          status: "success",
+          attempt: retryAttempt,
+          maxAttempts: lastRetryInfo.maxAttempts,
+          retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
+          message: lastRetryInfo.successMessage,
+        })
+      }
+
+      return payload as TResponse
+    }
+
+    retryInfo = getRetryInfo(payload)
+
+    if (retryInfo) {
+      if (typeof window === "undefined") {
+        throw buildApiError(response.status, payload, `Request failed with status ${response.status}.`)
+      }
+
+      lastRetryInfo = retryInfo
+
+      if (retryAttempt < retryInfo.maxAttempts) {
+        retryAttempt += 1
+        retryStarted = true
+        dispatchAuthRefreshRetryEvent({
+          status: "retrying",
+          attempt: retryAttempt,
+          maxAttempts: retryInfo.maxAttempts,
+          retryAfterSeconds: retryInfo.retryAfterSeconds,
+          message: retryInfo.retryingMessage,
+        })
+        await waitForRetry(retryInfo.retryAfterSeconds, signal)
+        continue
+      }
+
+      const failedPayload = {
+        ...(isRecord(payload) ? payload : {}),
+        code: retryInfo.code === "REFRESH_RETRYABLE" ? "REFRESH_RETRY_FAILED" : "API_RETRY_FAILED",
+      }
+
+      dispatchAuthRefreshRetryEvent({
+        status: "failed",
+        attempt: retryAttempt,
+        maxAttempts: retryInfo.maxAttempts,
+        retryAfterSeconds: retryInfo.retryAfterSeconds,
+        message: retryInfo.failedMessage,
+      })
+
+      throw new ApiError(retryInfo.failedMessage, response.status, failedPayload)
+    }
+
+    if (retryStarted && lastRetryInfo) {
+      dispatchAuthRefreshRetryEvent({
+        status: "failed",
+        attempt: retryAttempt,
+        maxAttempts: lastRetryInfo.maxAttempts,
+        retryAfterSeconds: lastRetryInfo.retryAfterSeconds,
+        message: lastRetryInfo.failedMessage,
+      })
+    }
+
+    throwApiError(response.status, payload, suppressGlobalError)
   }
-
-  return payload as TResponse
 }
 
-// 일반 조회 요청은 여기만 import 해서 사용하면 됩니다.
-// 예: get<User>("/users/me")
+export async function request<TResponse, TBody = unknown>(
+  method: ApiMethod,
+  path: string,
+  options: ApiRequestOptions<TBody> = {},
+) {
+  const { body, auth: _auth, retryOnUnauthorized: _retry, ...requestOptions } = options
+  return sendRequest<TResponse, TBody>(method, path, body, requestOptions)
+}
+
 export function get<TResponse>(path: string, options: Omit<ApiRequestOptions<never>, "body"> = {}) {
   return request<TResponse>("GET", path, options)
 }
 
-// 일반 생성/로그인 요청은 여기만 import 해서 사용하면 됩니다.
-// 예: post<LoginResponse, LoginRequest>("/auth/login", body)
 export function post<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,
