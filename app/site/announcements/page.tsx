@@ -48,7 +48,7 @@ const REGIONS = [
 
 const STATUSES = ["전체", "접수중", "접수예정", "마감"];
 
-export default function GuideCenterPage() {
+export default function AnnouncementsPage() {
   const searchParams = useSearchParams();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -85,6 +85,7 @@ export default function GuideCenterPage() {
         status,
         keyword,
         deadlineSoon,
+        targetType: "공공임대주택",
         page,
         size: 10,
       });
@@ -135,6 +136,7 @@ export default function GuideCenterPage() {
       try {
         const data = await getAnnouncements({
           keyword: trimmedKeyword,
+          targetType: "공공임대주택",
           page: 0,
           size: 8,
         });
@@ -381,7 +383,7 @@ export default function GuideCenterPage() {
               key={a.announcementId}
               className="flex items-center gap-4 p-5 cursor-pointer hover:border-gray-400 transition-all"
               onClick={() =>
-                window.open(`/site/guide-center/${a.announcementId}`, "_blank")
+                window.open(`/site/announcements/${a.announcementId}`, "_blank")
               }
             >
               <div className="flex-1">

@@ -6,11 +6,11 @@ import { ChevronUp, Home } from "lucide-react";
 const SIDEBAR_MENUS = [
   {
     label: "공공임대주택",
-    children: [{ label: "모집공고", path: "/site/guide-center" }],
+    children: [{ label: "모집공고", path: "/site/announcements" }],
   },
   {
     label: "공공분양주택",
-    children: [{ label: "모집공고", path: "/site/guide-center" }],
+    children: [{ label: "모집공고", path: "/site/sale-center" }],
   },
 ];
 
