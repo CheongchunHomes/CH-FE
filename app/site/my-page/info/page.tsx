@@ -48,6 +48,7 @@ export default function MyPageInfoPage() {
       try {
         const data = await get<MyProfileDTO>("/api/users/mypage", {
           cache: "no-store",
+          suppressGlobalError: true,
         })
 
         setProfile(data)

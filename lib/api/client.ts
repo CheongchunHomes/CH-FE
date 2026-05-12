@@ -12,6 +12,7 @@ export type ApiRequestOptions<TBody = unknown> = {
   cache?: RequestCache
   next?: NextFetchRequestConfig
   credentials?: RequestCredentials
+  suppressGlobalError?: boolean
   /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
   auth?: boolean
   /** @deprecated cookie 기반 인증으로 전환됨. 옵션은 호환성을 위해 유지하나 동작에 영향 없음. */
@@ -34,6 +35,16 @@ export type AuthRefreshRetryEventPayload = {
   message: string
 }
 
+export type ApiFeedbackEventPayload =
+  | ({ kind: "retry" } & AuthRefreshRetryEventPayload)
+  | {
+      kind: "error"
+      status: "error"
+      httpStatus: number
+      message: string
+      payload?: unknown
+    }
+
 export class ApiError extends Error {
   status: number
   payload: unknown
@@ -48,9 +59,11 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? ""
 const JSON_CONTENT_TYPE = "application/json"
+export const API_FEEDBACK_EVENT = "api-feedback"
 export const AUTH_REFRESH_RETRY_EVENT = "auth-refresh-retry"
 const DEFAULT_REFRESH_RETRY_AFTER_SECONDS = 60
 const DEFAULT_REFRESH_MAX_ATTEMPTS = 3
+const GLOBAL_ERROR_EXCLUDED_CODES = new Set(["REAUTH_REQUIRED", "REFRESH_EXPIRED", "UNAUTHENTICATED"])
 
 function isAbsoluteUrl(url: string) {
   return /^https?:\/\//i.test(url)
@@ -162,12 +175,58 @@ function getRetryInfo(payload: unknown) {
   }
 }
 
+function getPayloadCode(payload: unknown) {
+  return isRecord(payload) && typeof payload.code === "string" ? payload.code : undefined
+}
+
 function dispatchAuthRefreshRetryEvent(payload: AuthRefreshRetryEventPayload) {
   if (typeof window === "undefined") {
     return
   }
 
+  window.dispatchEvent(new CustomEvent<ApiFeedbackEventPayload>(API_FEEDBACK_EVENT, { detail: { kind: "retry", ...payload } }))
   window.dispatchEvent(new CustomEvent<AuthRefreshRetryEventPayload>(AUTH_REFRESH_RETRY_EVENT, { detail: payload }))
+}
+
+function dispatchApiErrorFeedbackEvent(payload: ApiFeedbackEventPayload) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent<ApiFeedbackEventPayload>(API_FEEDBACK_EVENT, { detail: payload }))
+}
+
+function shouldDispatchGlobalError(status: number, payload: unknown, suppressGlobalError?: boolean) {
+  if (suppressGlobalError || typeof window === "undefined") {
+    return false
+  }
+
+  if (status === 401) {
+    return false
+  }
+
+  const code = getPayloadCode(payload)
+  return !code || !GLOBAL_ERROR_EXCLUDED_CODES.has(code)
+}
+
+function buildApiError(status: number, payload: unknown, fallback: string) {
+  return new ApiError(resolveErrorMessage(payload, fallback), status, payload)
+}
+
+function throwApiError(status: number, payload: unknown, suppressGlobalError?: boolean): never {
+  const error = buildApiError(status, payload, `Request failed with status ${status}.`)
+
+  if (shouldDispatchGlobalError(status, payload, suppressGlobalError)) {
+    dispatchApiErrorFeedbackEvent({
+      kind: "error",
+      status: "error",
+      httpStatus: status,
+      message: error.message,
+      payload,
+    })
+  }
+
+  throw error
 }
 
 function waitForRetry(seconds: number, signal?: AbortSignal) {
@@ -202,6 +261,7 @@ async function sendRequest<TResponse, TBody = unknown>(
     cache,
     next,
     credentials = "include",
+    suppressGlobalError,
   } = options
 
   const finalHeaders = buildHeaders(headers)
@@ -249,7 +309,7 @@ async function sendRequest<TResponse, TBody = unknown>(
 
     if (retryInfo) {
       if (typeof window === "undefined") {
-        throw new ApiError(resolveErrorMessage(payload, `Request failed with status ${response.status}.`), response.status, payload)
+        throw buildApiError(response.status, payload, `Request failed with status ${response.status}.`)
       }
 
       lastRetryInfo = retryInfo
@@ -294,7 +354,7 @@ async function sendRequest<TResponse, TBody = unknown>(
       })
     }
 
-    throw new ApiError(resolveErrorMessage(payload, `Request failed with status ${response.status}.`), response.status, payload)
+    throwApiError(response.status, payload, suppressGlobalError)
   }
 }
 

@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         auth: false,
         retryOnUnauthorized: false,
         cache: "no-store",
+        suppressGlobalError: true,
       })
       setUser(data)
       setStatus("authenticated")
