@@ -1,19 +1,19 @@
 "use client";
 
+import { post } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Check, AlertTriangle, RotateCcw, ChevronRight, MapPin, Lightbulb,
          ThumbsUp, ClipboardList } from "lucide-react";
-         import { DiagnosisForm, DiagnosisResult, PolicyResult, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import { DiagnosisForm, DiagnosisResult, PolicyResult, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
 import React from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // 취업·재직·혼인 기간 표시 라벨
 const EMPLOYMENT_STATUS_LABEL: Record<string, string> = {
@@ -165,18 +165,14 @@ export default function DiagnosisResultPage() {
   const [recLoading, setRecLoading] = useState(false);
 
   // 제도추천 계산 API 호출 → 결과를 sessionStorage에 저장 (제도추천 페이지에서 사용)
-  const fetchRecommendation = async (formData: DiagnosisForm) => {
+  const loadRecommendation = async (formData: DiagnosisForm) => {
     setRecLoading(true);
     try {
-      const res = await fetch("/api/recommendation/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sanitizeDiagnosisForm(formData)),
-      });
-      if (!res.ok) throw new Error("추천 API 오류");
-      const data: RecommendationResponse = await res.json();
+      const data = await post<RecommendationResponse>(
+        "/api/recommendation/calculate",
+        sanitizeDiagnosisForm(formData)
+      );
       setRecommendation(data);
-      // 제도추천 페이지에서 결과 사용할 수 있도록 저장
       sessionStorage.setItem("recommendationResult", JSON.stringify(data));
     } catch {
       // 추천 실패해도 진단 결과는 정상 표시
@@ -184,6 +180,12 @@ export default function DiagnosisResultPage() {
       setRecLoading(false);
     }
   };
+
+  // 다시 진단하기 => 리셋버튼
+  const handleReset = () => {
+  sessionStorage.removeItem("diagnosisFormTemp");
+  router.push("/site/condition-check");
+};
 
   useEffect(() => {
     // sessionStorage에서 결과 읽기
@@ -198,7 +200,7 @@ export default function DiagnosisResultPage() {
       const parsedForm = JSON.parse(savedForm);
       setForm(parsedForm);
       // ── 제도추천 API 호출 ──
-      fetchRecommendation(parsedForm);
+      loadRecommendation(parsedForm);
     }
   }, [router]);
 
@@ -239,12 +241,35 @@ export default function DiagnosisResultPage() {
   const metItems = statusItems.filter(item => item.status === "충족");
   const unmetItems = statusItems.filter(item => item.status !== "충족");
 
+  // 개인화 전략 필드 정의
+  const STRATEGY_FIELDS = [
+    {
+      key: "desiredDistrict" as const,
+      deps: ["desiredCity"] as const,
+      format: () => `${form?.desiredDistrict}(${form?.desiredCity})`,
+    },
+    {
+      key: "desiredArea" as const,
+      deps: [] as const,
+      format: () => `${form?.desiredArea}㎡`,
+    },
+    {
+      key: "annualIncome" as const,
+      deps: [] as const,
+      format: () => `연소득 ${formatAsset(form?.annualIncome ?? 0)}`,
+    },
+  ];
+
   // 개인화 전략 문장
   const strategyText = (() => {
-    const parts: string[] = [];
-    if (form?.desiredCity && form?.desiredDistrict) parts.push(`${form.desiredDistrict}(${form.desiredCity})`);
-    if (form?.desiredArea) parts.push(`${form.desiredArea}㎡`);
-    if (form?.annualIncome) parts.push(`연소득 ${formatAsset(form.annualIncome)}`);
+    if (!form) return result.recommendComment;
+
+    const parts = STRATEGY_FIELDS
+      .filter(({ key, deps }) =>
+        form[key] != null && form[key] !== 0 && deps.every((d) => !!form[d])
+      )
+      .map(({ format }) => format());
+
     if (parts.length === 0) return result.recommendComment;
     return `${parts.join(" · ")} 조건으로 진단했습니다. ${result.recommendComment}`;
   })();
@@ -287,7 +312,7 @@ export default function DiagnosisResultPage() {
           </div>
           <Button
             variant="outline"
-            onClick={() => router.push("/site/condition-check")}
+            onClick={handleReset}
             className="flex items-center gap-2 text-sm"
           >
             <RotateCcw className="w-4 h-4" />
@@ -542,7 +567,7 @@ export default function DiagnosisResultPage() {
 
                 {/* 다시하기 버튼 */}
                 <button
-                  onClick={() => router.push("/site/condition-check")}
+                  onClick={handleReset}
                   className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />

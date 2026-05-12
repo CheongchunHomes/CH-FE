@@ -1,5 +1,6 @@
 "use client";
 
+import { post } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -233,11 +234,21 @@ const HousingFormPage = () => {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [pyeongInput, setPyeongInput] = useState(""); // 평수 입력 임시 상태
 
+  // form 바뀔 때마다 저장
   const update = <K extends keyof DiagnosisForm>(key: K, val: DiagnosisForm[K]) =>
-    setForm((prev) => ({ ...prev, [key]: val }));
-
+    setForm((prev) => {
+      const next = { ...prev, [key]: val };
+      sessionStorage.setItem("diagnosisFormTemp", JSON.stringify(next));
+      return next;
+    });
 // 네비 클릭 스크롤 중 observer 무시용 플래그
   const isScrollingRef = useRef(false);
+
+// form 임시저장 복원 (뒤로가기 대응)
+  useEffect(() => {
+    const saved = sessionStorage.getItem("diagnosisFormTemp");
+    if (saved) setForm(JSON.parse(saved));
+  }, []);
 
   // 스크롤 위치 기반 현재 스텝 업데이트
   useEffect(() => {
@@ -292,20 +303,18 @@ const HousingFormPage = () => {
 
   setIsSubmitting(true);
   try {
-    const res = await fetch("/api/diagnosis/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const result = await post(
+      "/api/diagnosis/profile",
+      {
         ...sanitizeDiagnosisForm(form),
         annualIncome: form.annualIncome * 10000,
         totalAsset: form.totalAsset * 10000,
         cashAsset: form.cashAsset * 10000,
-      }),
-    });
+      },
+      { suppressGlobalError: true }
+    );
 
-    if (!res.ok) throw new Error("서버 오류");
-    const result = await res.json();
-
+    // 성공 시 임시저장 삭제 — 제출 완료 후 찌꺼기 제거
     sessionStorage.setItem("diagnosisResult", JSON.stringify(result));
     sessionStorage.setItem("diagnosisForm", JSON.stringify(sanitizeDiagnosisForm(form)));
     router.push("/site/condition-check/result");
@@ -664,7 +673,7 @@ const HousingFormPage = () => {
                   })()}
                 </div>
 
-                {/* Q5. 청약 정보 */}
+               {/* Q5. 청약 정보 */}
                   <div id="q5" className="space-y-4">
                     <QuestionHeader num={5} title="청약통장 정보를 알려주세요." completed={isStepCompleted(5, form)} />
 
@@ -674,37 +683,39 @@ const HousingFormPage = () => {
                         { label: "청약통장을 보유하고 있습니다.", val: true },
                         { label: "청약통장이 없습니다.", val: false },
                       ].map((item) => (
-                        <RadioCard
-                          key={String(item.val)}
-                          label={item.label}
-                          checked={form.hasSubscription === item.val}
-                          onClick={() => update("hasSubscription", item.val)}
-                        />
+                        <div key={String(item.val)}>
+                          <RadioCard
+                            label={item.label}
+                            checked={form.hasSubscription === item.val}
+                            onClick={() => update("hasSubscription", item.val)}
+                          />
+                          {item.val === true && form.hasSubscription === true && (
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2 mt-2">
+                              <span className={`text-sm font-semibold ${
+                                form.subscriptionMonths >= 24 ? "text-green-600" :
+                                form.subscriptionMonths > 0 ? "text-amber-600" : "text-gray-500"
+                              }`}>
+                                {form.subscriptionMonths >= 24
+                                  ? "✅ 1순위 충족"
+                                  : form.subscriptionMonths > 0
+                                  ? `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`
+                                  : "* 24개월 이상 → 1순위"}
+                              </span>
+                              <div className="flex items-center gap-2 justify-end">
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-24 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
+                                  value={form.subscriptionMonths || ""}
+                                  onChange={(e) => update("subscriptionMonths", Number(e.target.value))}
+                                />
+                                <span className="text-sm font-bold">개월</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
-
-                    {form.hasSubscription === true && (
-                      <>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2">
-                          <span className="text-sm text-gray-500">* 24개월 이상 → 1순위</span>
-                          <div className="flex items-center gap-2 justify-end">
-                            <input
-                              type="number"
-                              placeholder="0"
-                              className="w-24 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
-                              value={form.subscriptionMonths || ""}
-                              onChange={(e) => update("subscriptionMonths", Number(e.target.value))}
-                            />
-                            <span className="text-sm font-bold">개월</span>
-                          </div>
-                        </div>
-                        {form.subscriptionMonths > 0 && (
-                          <div className={`rounded-lg px-4 py-2 text-sm ${form.subscriptionMonths >= 24 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-                            {form.subscriptionMonths >= 24 ? "✅ 1순위 청약 요건 충족 (24개월 이상)" : `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`}
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
 
                 {/* Q6. 가구 정보 */}
