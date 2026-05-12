@@ -270,6 +270,15 @@ export default function RecommendPage() {
                     <span className="text-sm font-medium text-gray-900">
                       {cat} 신청 가능 ({list.length}건)
                     </span>
+                    {cat === '대출' && (
+                      <a
+                      href="/site/loan"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-auto mr-2 inline-flex items-center rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50"
+                       >
+                       신청하기 
+                       </a>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-0">
