@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/pagination";
 import { getAnnouncements, Announcement } from "@/lib/announcements-api";
 import { AnnouncementSidebar } from "@/components/announcements-sidebar";
+import {
+  getMyAnnouncementScrapIds,
+  addAnnouncementScrap,
+  removeAnnouncementScrap,
+} from "@/lib/announcement-scraps-api";
 
 const REGIONS = [
   "전체",
@@ -71,6 +76,21 @@ export default function GuideCenterPage() {
   const [appliedDeadlineSoon, setAppliedDeadlineSoon] = useState(false);
 
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+  
+    useEffect(() => {
+      const fetchScrapIds = async () => {
+        try {
+          const ids = await getMyAnnouncementScrapIds();
+          setLikedIds(new Set(ids));
+        } catch (e) {
+          // 비로그인 또는 토큰 만료 상태에서는 스크랩 목록을 못 가져오는 게 정상
+          // 공고 리스트는 계속 보여야 하므로 빈 Set으로 처리
+          setLikedIds(new Set());
+        }
+      };
+
+        fetchScrapIds();
+    }, []); 
 
   const fetchData = async (
     page: number,
@@ -183,13 +203,31 @@ export default function GuideCenterPage() {
     resetAll();
   };
 
-  const handleLike = (id: number) => {
+ const handleLike = async (id: number) => {
+  const isLiked = likedIds.has(id);
+
+  try {
+    if (isLiked) {
+      await removeAnnouncementScrap(id);
+    } else {
+      await addAnnouncementScrap(id);
+    }
+
     setLikedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+
+      if (isLiked) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
       return next;
     });
-  };
+  } catch (e) {
+    alert("로그인 후 이용할 수 있습니다.");
+  }
+ };
 
   const filteredCommandItems = searchSuggestions.map((a) => ({
     type: a.recuitmentType || "공고",
@@ -394,7 +432,7 @@ export default function GuideCenterPage() {
                     variant={
                       a.status === "마감"
                         ? "destructive"
-                        : a.status === "정정공고"
+                        : a.status === "접수예정"
                           ? "secondary"
                           : "default"
                     }

@@ -20,6 +20,10 @@ export interface Announcement {
   beginDe: string;
   endDe: string;
   content: string;
+  surlus?: number | null;
+  przwnerPresnatnDe?: string | null;
+  cntrctCnclsBgnde?: string | null;
+  cntrctCnclsEndde?: string | null;
 }
 
 export interface PageResponse<T> {
