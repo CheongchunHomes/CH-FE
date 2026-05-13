@@ -18,6 +18,7 @@ yarn-error.log*
 
 # env files
 .env
+.env.local
 
 # local-only Live2D SDK files
 app/live2d/
