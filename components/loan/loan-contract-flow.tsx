@@ -1,11 +1,13 @@
-"use client";
+﻿"use client";
 
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { FileText, Landmark, PenTool, ShieldCheck, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
 
 type ProductKey =
   | "newborn"
@@ -237,6 +239,26 @@ function todayParts(): DateParts {
   };
 }
 
+function formatKoreanDateStamp(date = new Date()) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(date)
+    .replace(/\D/g, "");
+}
+
+function sanitizeFileNamePart(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 function emptySignatureMap(): Record<SignatureTarget, string | null> {
   return {
     name: null,
@@ -273,19 +295,19 @@ function DateTriplet({
       <input
         value={value.year}
         onChange={(event) => onChange({ ...value, year: event.target.value })}
-        className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        className="h-11 w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
       />
       <span className="text-slate-500">년</span>
       <input
         value={value.month}
         onChange={(event) => onChange({ ...value, month: event.target.value })}
-        className="w-16 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        className="h-11 w-16 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
       />
       <span className="text-slate-500">월</span>
       <input
         value={value.day}
         onChange={(event) => onChange({ ...value, day: event.target.value })}
-        className="w-16 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        className="h-11 w-16 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
       />
       <span className="text-slate-500">일</span>
     </div>
@@ -431,10 +453,13 @@ function SignatureDialog({
 }
 
 export function LoanContractFlow() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [selectedKey, setSelectedKey] = useState<ProductKey>("newborn");
   const [page3Mode, setPage3Mode] = useState<Page3Mode>("basic");
   const [signatureTarget, setSignatureTarget] = useState<SignatureTarget | null>(null);
   const [contractOpen, setContractOpen] = useState(false);
+  const [savingContract, setSavingContract] = useState(false);
   const [signatures, setSignatures] = useState<Record<SignatureTarget, string | null>>(
     emptySignatureMap(),
   );
@@ -448,6 +473,9 @@ export function LoanContractFlow() {
   const [executionDate, setExecutionDate] = useState<DateParts>(todayParts());
   const [maturityDate, setMaturityDate] = useState<DateParts>(todayParts());
   const [interestMode, setInterestMode] = useState<InterestMode>("fixed");
+  const page1Ref = useRef<HTMLElement | null>(null);
+  const page2Ref = useRef<HTMLElement | null>(null);
+  const page3Ref = useRef<HTMLElement | null>(null);
 
   const selected = useMemo(
     () => PRODUCTS.find((product) => product.key === selectedKey) ?? PRODUCTS[0],
@@ -465,6 +493,169 @@ export function LoanContractFlow() {
   };
 
   const page3 = PAGE3_MODE_CONTENT[page3Mode];
+
+  const handleSaveContract = async () => {
+    if (savingContract) return;
+
+    const sections = [page1Ref.current, page2Ref.current, page3Ref.current].filter(Boolean) as HTMLElement[];
+    if (!sections.length) {
+      router.push("/site/map");
+      return;
+    }
+
+    setSavingContract(true);
+    try {
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginX = 8;
+      const marginY = 8;
+      const usableWidth = pageWidth - marginX * 2;
+      const contractId = `loan-contract-${selectedKey}-${Date.now()}`;
+      const userId = user?.id != null ? String(user.id) : "guest";
+      const files: File[] = [];
+
+      for (let index = 0; index < sections.length; index += 1) {
+        const element = sections[index];
+        const captureKey = element.dataset.contractCapture ?? "";
+        const canvas = await html2canvas(element, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          width: element.scrollWidth,
+          height: element.scrollHeight,
+          windowWidth: element.scrollWidth,
+          windowHeight: element.scrollHeight,
+          onclone: (clonedDocument) => {
+            const cloned = clonedDocument.querySelector(
+              `[data-contract-capture="${captureKey}"]`,
+            ) as HTMLElement | null;
+            if (!cloned) return;
+            const captureScale = 0.92;
+            let current: HTMLElement | null = cloned;
+            while (current) {
+              current.style.maxHeight = "none";
+              current.style.height = "auto";
+              current.style.overflow = "visible";
+              current.style.overflowX = "visible";
+              current.style.overflowY = "visible";
+              current.style.transform = "none";
+              current.style.position = "static";
+              current.style.clipPath = "none";
+              current = current.parentElement;
+            }
+            cloned.style.transform = `scale(${captureScale})`;
+            cloned.style.transformOrigin = "top left";
+            cloned.style.width = `${100 / captureScale}%`;
+            cloned.style.paddingTop = "24px";
+            cloned.style.paddingBottom = "24px";
+
+            cloned.querySelectorAll("input, textarea, select").forEach((node) => {
+              const element = node as HTMLElement;
+              const computed = window.getComputedStyle(element);
+              const value = (element as HTMLInputElement).value ?? element.textContent ?? "";
+              const replacement = clonedDocument.createElement("span");
+              replacement.textContent = value;
+              replacement.style.display = "inline-flex";
+              replacement.style.alignItems = "center";
+              replacement.style.minWidth = computed.width;
+              replacement.style.minHeight = computed.height;
+              replacement.style.padding = computed.padding;
+              replacement.style.font = computed.font;
+              replacement.style.lineHeight = computed.lineHeight;
+              replacement.style.color = computed.color;
+              replacement.style.background = computed.backgroundColor;
+              replacement.style.border = computed.border;
+              replacement.style.borderRadius = computed.borderRadius;
+              replacement.style.boxSizing = "border-box";
+              replacement.style.whiteSpace = "nowrap";
+              replacement.style.overflow = "hidden";
+              replacement.style.textOverflow = "clip";
+              replacement.style.verticalAlign = "middle";
+
+              if (element.parentElement) {
+                element.parentElement.replaceChild(replacement, element);
+              }
+            });
+
+            cloned.querySelectorAll("button").forEach((node) => {
+              const element = node as HTMLElement;
+              element.style.lineHeight = "1.2";
+              element.style.overflow = "visible";
+            });
+          },
+        });
+
+        const imageData = canvas.toDataURL("image/png");
+        if (index > 0) {
+          pdf.addPage();
+        }
+        const imgProps = pdf.getImageProperties(imageData);
+        const imgHeight = (imgProps.height * usableWidth) / imgProps.width;
+        const maxHeight = pageHeight - marginY * 2;
+        const fitScale = Math.min(1, maxHeight / imgHeight);
+        const drawWidth = usableWidth * fitScale;
+        const drawHeight = imgHeight * fitScale;
+        const drawX = marginX + (usableWidth - drawWidth) / 2;
+        pdf.addImage(imageData, "PNG", drawX, marginY, drawWidth, drawHeight);
+
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((value) => {
+            if (!value) {
+              reject(new Error("Failed to export contract page"));
+              return;
+            }
+            resolve(value);
+          }, "image/png");
+        });
+        files.push(new File([blob], `page-${index + 1}.png`, { type: "image/png" }));
+      }
+
+      const pdfBlob = pdf.output("blob");
+      files.push(new File([pdfBlob], "contract.pdf", { type: "application/pdf" }));
+
+      const formData = new FormData();
+      formData.append("contractId", contractId);
+      formData.append("userId", userId);
+      formData.append("selectedKey", selectedKey);
+      formData.append("productTitle", selected.title);
+      formData.append("shortTitle", selected.shortTitle);
+      formData.append("name", name);
+      formData.append("address", address);
+      formData.append("amount", amount);
+      formData.append("term", term);
+      formData.append("executionDate", `${executionDate.year}-${executionDate.month}-${executionDate.day}`);
+      formData.append("maturityDate", `${maturityDate.year}-${maturityDate.month}-${maturityDate.day}`);
+      formData.append("page3Mode", page3Mode);
+      files.forEach((file, index) => {
+        formData.append(`file-${index + 1}`, file);
+      });
+
+      await fetch("/api/contracts/local-save", {
+        method: "POST",
+        body: formData,
+      });
+
+      router.push("/site/map");
+    } catch (error) {
+      console.error(error);
+      router.push("/site/map");
+    } finally {
+      setSavingContract(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900">
@@ -650,7 +841,11 @@ export function LoanContractFlow() {
               </Button>
             </div>
 
-            <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+            <section
+              ref={page1Ref}
+              data-contract-capture="page-1"
+              className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+            >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-5xl">
               <p className="text-sm font-semibold tracking-[0.3em] text-blue-600">PAGE 1</p>
@@ -670,7 +865,7 @@ export function LoanContractFlow() {
                 본인
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex min-w-0 flex-nowrap items-center gap-3">
                   <span className="whitespace-nowrap text-sm font-semibold text-slate-900">성명 (인)</span>
                   <input
                     value={name}
@@ -678,10 +873,10 @@ export function LoanContractFlow() {
                       if (name === "홍길동") setName("");
                     }}
                     onChange={(event) => setName(event.target.value)}
-                    className="min-w-[220px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    className="min-w-0 flex-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   />
                   <span className="whitespace-nowrap text-sm font-semibold text-slate-900">자필확인</span>
-                  <div className="flex min-w-max items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <SignatureMark signature={signatures.confirmTop} />
                   </div>
                   <Button type="button" onClick={() => requestSignature("confirmTop")} className="ml-auto">
@@ -697,7 +892,7 @@ export function LoanContractFlow() {
                 본인
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex min-w-0 flex-nowrap items-center gap-3">
                   <span className="whitespace-nowrap text-sm font-semibold text-slate-900">주소</span>
                   <input
                     value={address}
@@ -705,7 +900,7 @@ export function LoanContractFlow() {
                       if (address === "서울시 ...") setAddress("");
                     }}
                     onChange={(event) => setAddress(event.target.value)}
-                    className="min-w-[320px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    className="min-w-0 flex-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
               </div>
@@ -738,7 +933,7 @@ export function LoanContractFlow() {
                     대출금액
                   </th>
                   <td className="border-b border-r border-slate-200 px-4 py-4" colSpan={1}>
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-nowrap items-center gap-3">
                       <span className="whitespace-nowrap font-semibold text-slate-900">금</span>
                       <input
                         value={amount}
@@ -746,7 +941,7 @@ export function LoanContractFlow() {
                           if (amount === "1억원") setAmount("");
                         }}
                         onChange={(event) => setAmount(event.target.value)}
-                        className="min-w-[180px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        className="min-w-0 flex-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                       />
                       <span className="whitespace-nowrap font-semibold text-slate-900">원정</span>
                       <SignatureMark signature={signatures.amount} />
@@ -760,7 +955,7 @@ export function LoanContractFlow() {
                     대출기간
                   </th>
                   <td className="border-b border-slate-200 px-4 py-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="whitespace-nowrap text-slate-500">(</span>
                       <input
                         value={term}
@@ -768,7 +963,7 @@ export function LoanContractFlow() {
                           if (term === "20") setTerm("");
                         }}
                         onChange={(event) => setTerm(event.target.value)}
-                        className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        className="h-11 w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-semibold leading-6 text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                       />
                       <span className="whitespace-nowrap text-slate-500">)년</span>
                     </div>
@@ -890,7 +1085,11 @@ export function LoanContractFlow() {
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          ref={page2Ref}
+          data-contract-capture="page-2"
+          className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <p className="text-sm font-semibold tracking-[0.3em] text-blue-600">PAGE 2</p>
           <h3 className="mt-2 text-2xl font-black text-slate-950">약정 부속조항</h3>
           <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-500">
@@ -918,7 +1117,11 @@ export function LoanContractFlow() {
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          ref={page3Ref}
+          data-contract-capture="page-3"
+          className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="max-w-4xl">
               <p className="text-sm font-semibold tracking-[0.3em] text-blue-600">PAGE 3</p>
@@ -996,18 +1199,18 @@ export function LoanContractFlow() {
 
           <div className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-0 flex-nowrap items-center gap-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <span className="whitespace-nowrap text-sm font-semibold text-slate-900">본인</span>
                 </div>
-                <div className="flex min-w-max flex-nowrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <input
                     value={confirmName}
                     onFocus={() => {
                       if (confirmName === "홍길동") setConfirmName("");
                     }}
                     onChange={(event) => setConfirmName(event.target.value)}
-                    className="min-w-[180px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    className="min-w-0 flex-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   />
                   <span className="whitespace-nowrap text-sm font-semibold text-slate-900">자필서명</span>
                   <SignatureMark signature={signatures.confirmBottom} />
@@ -1022,8 +1225,8 @@ export function LoanContractFlow() {
               </div>
             </div>
             <div className="mt-5 flex justify-end">
-              <Button type="button" asChild>
-                <a href="/site/map">다음 페이지로 이동</a>
+              <Button type="button" onClick={() => void handleSaveContract()} disabled={savingContract}>
+                {savingContract ? "저장 중..." : "다음 페이지로 이동"}
               </Button>
             </div>
           </div>
