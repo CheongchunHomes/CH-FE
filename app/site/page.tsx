@@ -34,7 +34,7 @@ const homeTips = [
   { title: "가계부", desc: "월별 수입과 지출을 기록하고 소비 내역을 관리하는 공간", href: getPageSampleHref("ledger") },
   { title: "동네별 커뮤니티", desc: "지역별 주거 정보와 생활 후기를 함께 공유하는 공간", href: getPageSampleHref("community") },
   { title: "용어 설명", desc: "특공·임대 제도 차이 설명 (어려운 제도 용어 설명)", href: getPageSampleHref("terminology") },
-  { title: "인타렉티브 퀴즈", desc: "퀴즈을 통한 가점 항목(무주택, 부양가족 등) 산정 기준 습득", href: getPageSampleHref("subscription-quiz") },
+  { title: "인터랙티브 퀴즈", desc: "퀴즈을 통한 가점 항목(무주택, 부양가족 등) 산정 기준 습득", href: getPageSampleHref("subscription-quiz") },
   
 ]
 

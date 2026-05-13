@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { get, ApiError } from '@/lib/api';
 
 const REGIONS = {
   seoul: {
@@ -346,6 +347,16 @@ interface CommunityPost {
   createdAt: string;
 }
 
+interface CommunityPageResponse {
+  content: CommunityPost[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
 export default function CommunityPage() {
   const MAIN_COLOR = '#2196F3';
 
@@ -373,19 +384,22 @@ export default function CommunityPage() {
     try {
       setLoading(true);
 
-      const response = await fetch('/api/community/list', {
-        method: 'GET',
-        cache: 'no-store',
+      const data = await get<CommunityPageResponse>('/api/community/list', {
+        query: {
+          page: 0,
+          size: 1000,
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`게시글 조회 실패: ${response.status}`);
+      setPosts(Array.isArray(data.content) ? data.content : []);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error('게시글 조회 실패:', error.message);
+      } else {
+        console.error(error);
       }
 
-      const data = await response.json();
-      setPosts(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -473,6 +487,7 @@ export default function CommunityPage() {
 
       return post.region === `${cityName} ${districtName}`;
     })();
+    
 
     const matchesSearch =
       !keyword ||
@@ -563,10 +578,10 @@ export default function CommunityPage() {
         <select
           value={city}
           onChange={(e) => {
-          setCity(e.target.value as CityKey | '');
-          setDistrict('');
-          setCurrentPage(1);
-        }}
+            setCity(e.target.value as CityKey | '');
+            setDistrict('');
+            setCurrentPage(1);
+          }}
           style={selectStyle}
         >
           <option value="">전체 시/도</option>
@@ -581,9 +596,9 @@ export default function CommunityPage() {
         <select
           value={district}
           onChange={(e) => {
-          setDistrict(e.target.value);
-          setCurrentPage(1);
-        }}
+            setDistrict(e.target.value);
+            setCurrentPage(1);
+          }}
           disabled={!city}
           style={{
             ...selectStyle,
@@ -604,11 +619,11 @@ export default function CommunityPage() {
         {city && (
           <button
             onClick={() => {
-            setCity('');
-            setDistrict('');
-            setSearchKeyword('');
-            setCurrentPage(1);
-          }}
+              setCity('');
+              setDistrict('');
+              setSearchKeyword('');
+              setCurrentPage(1);
+            }}
             style={{
               background: 'none',
               border: 'none',
@@ -839,65 +854,71 @@ export default function CommunityPage() {
               </tbody>
             </table>
           </div>
+
           {totalPages > 1 && (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: '8px',
-      marginBottom: '20px',
-    }}
-  >
-    <button
-      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-      disabled={currentPage === 1}
-      style={{
-        padding: '8px 12px',
-        borderRadius: '6px',
-        border: '1px solid #ddd',
-        backgroundColor: currentPage === 1 ? '#f5f5f5' : '#fff',
-        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-      }}
-    >
-      이전
-    </button>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '20px',
+              }}
+            >
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #ddd',
+                  backgroundColor: currentPage === 1 ? '#f5f5f5' : '#fff',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                이전
+              </button>
 
-    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-      <button
-        key={page}
-        onClick={() => setCurrentPage(page)}
-        style={{
-          padding: '8px 12px',
-          borderRadius: '6px',
-          border: `1px solid ${page === currentPage ? theme.color : '#ddd'}`,
-          backgroundColor: page === currentPage ? theme.color : '#fff',
-          color: page === currentPage ? '#fff' : '#333',
-          cursor: 'pointer',
-          fontWeight: page === currentPage ? 'bold' : 'normal',
-        }}
-      >
-        {page}
-      </button>
-    ))}
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: `1px solid ${
+                        page === currentPage ? theme.color : '#ddd'
+                      }`,
+                      backgroundColor: page === currentPage ? theme.color : '#fff',
+                      color: page === currentPage ? '#fff' : '#333',
+                      cursor: 'pointer',
+                      fontWeight: page === currentPage ? 'bold' : 'normal',
+                    }}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
 
-    <button
-      onClick={() =>
-        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-      }
-      disabled={currentPage === totalPages}
-      style={{
-        padding: '8px 12px',
-        borderRadius: '6px',
-        border: '1px solid #ddd',
-        backgroundColor: currentPage === totalPages ? '#f5f5f5' : '#fff',
-        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-      }}
-    >
-      다음
-    </button>
-  </div>
-)}
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #ddd',
+                  backgroundColor:
+                    currentPage === totalPages ? '#f5f5f5' : '#fff',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                }}
+              >
+                다음
+              </button>
+            </div>
+          )}
 
           <div
             style={{
