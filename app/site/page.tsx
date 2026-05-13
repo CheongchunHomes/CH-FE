@@ -21,7 +21,7 @@ const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
   { icon: Ticket, label: "제도 추천", href: getPageSampleHref("recommend") },
   { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
-  { icon: MapPin, label: "집·공고 확인", href: getPageSampleHref("rent") },
+  { icon: MapPin, label: "집·공고 확인", href: "site/map" },
   { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
 ]
 

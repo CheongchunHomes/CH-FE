@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { getPageSampleHref } from "@/lib/page-samples"
 
 const navItems = [
-  { label: "가이드", href: getPageSampleHref("guide-center") },
+  { label: "공고", href: getPageSampleHref("announcements") },
   { label: "대출", href: "/loan" },
   { label: "지도", href: getPageSampleHref("rent") },
 ]
@@ -45,18 +45,37 @@ export default function Navbar() {
             <GraduationCap size={20} />
           </div>
           <div>
-            <p className="text-sm font-semibold tracking-tight">청년홈즈</p>
+            <p className="text-sm font-semibold tracking-tight">청춘홈즈</p>
             <p className="text-xs text-slate-500">청년 주거 준비를 한 번에</p>
           </div>
         </Link>
 
         <nav className="hidden flex-1 items-center justify-end gap-6 text-sm font-medium text-slate-600 md:flex">
-          {navItems.map((item) => (
-            <Link key={item.label} href={item.href} className="transition hover:text-slate-950">
-              {item.label}
-            </Link>
-          ))}
-          {isAuthenticated ? (
+          {navItems.map((item) => {
+            if (item.label === "공고") {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => router.push(`/site/announcements?reset=${Date.now()}`)}
+                  className="transition hover:text-slate-950"
+                >
+                  {item.label}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="transition hover:text-slate-950"
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+         {isAuthenticated ? (
             <Link href={getPageSampleHref("my-page")} className="transition hover:text-slate-950">
               마이페이지
             </Link>
