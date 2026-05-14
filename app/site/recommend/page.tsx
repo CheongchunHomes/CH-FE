@@ -285,12 +285,22 @@ export default function RecommendPage() {
                   <div className="border-t border-gray-100">
                     {list.map((policy, i) => (
                       <PolicyCard
-                        key={`${policy.name}-${i}`} //나중 실제 데이터 연결 시 key = {policy.id}로 재변경
+                        key={`${policy.name}-${i}`}
                         policy={policy}
-                        isLast={i === list.length - 1}
+                        isLast={i === list.length -1}
                         onDetail={() => setModalPolicy(policy)}
-                      />
+                        />
                     ))}
+                    {/* 전체보기 버튼  : 대출 제외 */}
+                    {cat !== '대출' && (
+                      <div className="flex justify-center border-t border-gray-100 py-3">
+                        <a
+                          href="/site/announcements"
+                          className="text-sm font-medium text-blue-600 hover:underline">
+                          전체 공고 보러가기
+                          </a>
+                        </div>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -329,8 +339,8 @@ export default function RecommendPage() {
           <div className="flex gap-2 pt-2">
             {modalPolicy?.applyUrl && (
               <Button asChild className="flex-1">
-                <a href={modalPolicy.applyUrl} target="_blank" rel="noreferrer">
-                  관련링크 바로가기 →
+                <a href="/site/map">
+                  지도에서 매물 보기 →
                 </a>
               </Button>
             )}
