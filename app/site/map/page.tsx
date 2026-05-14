@@ -7,6 +7,8 @@ import MapSidebar from "@/components/map/mapSiderbar";
 import MapPropertyDetailPanel from "@/components/map/map-utils/mapPropertyDetailPanel";
 import { DEFAULT_MAP_FILTERS, filterMapListings, normalizeMapListings } from "@/lib/map/map-filter";
 import type { MapFilterCategory, MapFilterState, MapListing } from "@/lib/map/map-types";
+import { get, post, request, ApiError } from "@/lib/api"
+
 
 export default function MapPage() {
   const [listings, setListings] = useState<MapListing[]>([]);
@@ -23,34 +25,31 @@ export default function MapPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   // 지도 매물 목록을 불러옵니다.
-  useEffect(() => {
-    const fetchMapListings = async () => {
-      try {
-        setIsLoading(true);
-        setErrorMessage("");
+useEffect(() => {
+  const fetchMapListings = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage("");
 
-        const response = await fetch("/api/properties/map", {
-          method: "GET",
-          cache: "no-store",
-        });
+      const data = await get<MapListing[]>("/api/properties/map");
 
-        if (!response.ok) {
-          throw new Error("매물 목록을 불러오지 못했습니다.");
-        }
+      setListings(normalizeMapListings(data));
+    } catch (error) {
+      console.error(error);
 
-        const data: MapListing[] = await response.json();
-
-        setListings(normalizeMapListings(data));
-      } catch (error) {
-        console.error(error);
-        setErrorMessage("매물 목록을 불러오는 중 문제가 발생했습니다.");
-      } finally {
-        setIsLoading(false);
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message || "매물 목록을 불러오지 못했습니다.");
+        return;
       }
-    };
 
-    fetchMapListings();
-  }, []);
+      setErrorMessage("매물 목록을 불러오는 중 문제가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchMapListings();
+}, []);
 
   // 현재 필터에 맞는 매물 목록을 계산합니다.
   const filteredListings = useMemo(() => {
