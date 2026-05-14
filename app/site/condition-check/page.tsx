@@ -12,6 +12,12 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { DiagnosisForm, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import { useAuth } from "@/lib/auth-context";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ─────────────────────────────────────────────────────────
 // 스텝 네비게이션
@@ -226,12 +232,14 @@ const QuestionHeader = ({ num, title, completed }: { num: number; title: string;
 // ─────────────────────────────────────────────────────────
 const HousingFormPage = () => {
   const router = useRouter();
+  const { status } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<DiagnosisForm>(INITIAL_FORM);
   const [navOpen, setNavOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [pyeongInput, setPyeongInput] = useState(""); // 평수 입력 임시 상태
+  const [validationError, setValidationError] = useState("");
 
   // form 바뀔 때마다 저장
   const update = <K extends keyof DiagnosisForm>(key: K, val: DiagnosisForm[K]) =>
@@ -246,12 +254,13 @@ const HousingFormPage = () => {
 // form 임시저장 복원 (뒤로가기 대응)
   useEffect(() => {
     const saved = sessionStorage.getItem("diagnosisForm");
-    if (saved) {
-      try {
-        setForm(JSON.parse(saved));
-      } catch {
-        setForm(INITIAL_FORM);
-      }
+
+    if (!saved) return;
+
+    try {
+      setForm(JSON.parse(saved));
+    } catch {
+      setForm(INITIAL_FORM);
     }
   }, []);
 
@@ -309,45 +318,70 @@ const HousingFormPage = () => {
   };
   
   const handleSubmit = async () => {
-  // 모든 스텝 완료 여부 체크
-  const incompleteSteps = STEPS.filter(s => !isStepCompleted(s.id, form));
-  if (incompleteSteps.length > 0) {
-    const stepLabels = incompleteSteps.map(s => s.label).join(", ");
-    return alert(`다음 항목을 완료해주세요: ${stepLabels}`);
-  }
+    // 모든 스텝 완료 여부 체크
+    const incompleteSteps = STEPS.filter(s => !isStepCompleted(s.id, form));
+    if (incompleteSteps.length > 0) {
+      setValidationError(`미완료 항목: ${incompleteSteps.map(s => s.label).join(", ")}`);
+      scrollToQuestion(incompleteSteps[0].id);
+      return;
+    }
+    setValidationError("");
 
-  setIsSubmitting(true);
-  try {
-    const result = await post(
-      "/api/diagnosis/profile",
-      {
-        ...sanitizeDiagnosisForm(form),
-        annualIncome: form.annualIncome * 10000,
-        totalAsset: form.totalAsset * 10000,
-        cashAsset: form.cashAsset * 10000,
-      },
-      { suppressGlobalError: true }
-    );
+    // const isLoggedIn = status === "authenticated";
+    // 가상진단으로 사용할 파트 연동 시 simulate 엔드포인트 활성화
+    // const endpoint = isLoggedIn ? "/api/diagnosis/profile" : "/api/diagnosis/simulate";
+    const endpoint = "/api/diagnosis/profile";
 
-    // 성공 시 임시저장 삭제 — 제출 완료 후 찌꺼기 제거
-    sessionStorage.setItem("diagnosisResult", JSON.stringify(result));
-    sessionStorage.setItem("diagnosisForm", JSON.stringify(sanitizeDiagnosisForm(form)));
-    router.push("/site/condition-check/result");
-  } catch {
-    alert("진단 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    setIsSubmitting(true);
+    try {
+      const result = await post(endpoint, {
+          ...sanitizeDiagnosisForm(form),
+          annualIncome: form.annualIncome * 10000,
+          totalAsset: form.totalAsset * 10000,
+          cashAsset: form.cashAsset * 10000,
+        },
+      );
+
+      sessionStorage.removeItem("diagnosisFormTemp");
+      sessionStorage.setItem("diagnosisResult", JSON.stringify(result));
+      sessionStorage.setItem("diagnosisForm", JSON.stringify(sanitizeDiagnosisForm(form)));
+      router.push("/site/condition-check/result");
+    } catch {
+      // 전역 ApiFeedbackModal이 자동 처리
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+if (status === "unauthenticated") return (
+  <AlertDialog open={true}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>로그인이 필요한 서비스입니다</AlertDialogTitle>
+        <AlertDialogDescription>
+          내 조건 진단은 로그인 후 이용할 수 있습니다.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={() => router.push("/site")}>
+          취소
+        </AlertDialogCancel>
+        <AlertDialogAction onClick={() => router.push("/login?redirect=/site/condition-check")}>
+          로그인하기
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
   return (
     <main className="bg-gray-50 min-h-screen">
 
       {/* 헤더 */}
-        <div className="bg-white border-b px-4 md:px-8 py-6">
-          <div className="max-w-7xl mx-auto flex justify-between items-start">
+        <div className="bg-white border-b py-6">
+           <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-between items-start">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">자가진단</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">내 조건 진단</h1>
               <p className="text-sm text-gray-500 mt-1">몇 가지 정보를 입력하고 나에게 맞는 주거자격 진단을 받아보세요</p>
               {/* 모바일 진행률 */}
               <div className="mt-3 md:hidden">
@@ -360,15 +394,15 @@ const HousingFormPage = () => {
                 </div>
               </div>
             </div>
-            {/* 다시 진단하기 버튼 */}
+            {/* 다시 진단 하기 버튼 */}
             <Button
-            variant="outline"
-            onClick={handleReset}
-            className="flex items-center gap-2 text-sm"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">다시 진단하기</span>
-          </Button>
+              variant="outline"
+              onClick={handleReset}
+              className="flex items-center gap-2 text-sm"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">다시 진단하기</span>
+            </Button>
           </div>
         </div>
 
@@ -1015,13 +1049,13 @@ const HousingFormPage = () => {
 
             {/* 제출 버튼 */}
             <div className="flex justify-end pb-8">
-              <button
+              <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto px-10 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto px-6 py-3 font-bold active:scale-95 transition-all"
               >
-                {isSubmitting ? "진단 중..." : "진단 결과 보기 →"}
-              </button>
+                진단 결과 보기
+              </Button>
             </div>
           </section>
 

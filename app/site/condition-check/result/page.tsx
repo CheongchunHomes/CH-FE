@@ -309,28 +309,22 @@ export default function DiagnosisResultPage() {
       <main className="bg-gray-50 min-h-screen">
 
       {/* ── 헤더 ── */}
-      <div className="bg-white border-b px-4 md:px-8 py-6">
-  <div className="max-w-6xl mx-auto">
-    <div className="flex flex-col md:grid md:grid-cols-[1fr_260px] gap-6">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">주거 자격 진단 결과</h1>
-        <p className="text-sm text-gray-500 mt-1">입력하신 정보를 바탕으로 주거 자격 상태와 준비도를 진단했습니다.</p>
+      <div className="bg-white border-b py-6">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">주거 자격 진단 결과</h1>
+            <p className="text-sm text-gray-500 mt-1">입력하신 정보를 바탕으로 주거 자격 상태와 준비도를 진단했습니다.</p>
+          </div>
+          <div className="flex items-center">
+            <Button variant="outline" onClick={handleReset} className="flex items-center gap-2 text-sm">
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">다시 진단하기</span>
+            </Button>
+          </div>
+        </div>
       </div>
-      <div className="flex items-center justify-end">
-        <Button
-          variant="outline"
-          onClick={handleReset}
-          className="flex items-center gap-2 text-sm"
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span className="hidden sm:inline">다시 진단하기</span>
-        </Button>
-      </div>
-    </div>
-  </div>
-</div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
 
         {/* ── 모바일: 나의 체크리스트 확인 드롭다운 ── */}
         <details className="md:hidden mb-4 bg-white border rounded-xl overflow-hidden shadow-sm">
