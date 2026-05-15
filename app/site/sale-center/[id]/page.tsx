@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getAnnouncement, Announcement } from "@/lib/announcements-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ export default function AnnouncementDetail() {
   const router = useRouter();
   const [data, setData] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams()
+  const from = searchParams.get("from")
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +36,15 @@ export default function AnnouncementDetail() {
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(window.location.href);
   };
+
+  const handleClose = () => {
+  if (from === "scraps") {
+    router.push("/site/my-page/info/scraps")
+    return
+  }
+
+  router.push("/site/sale-center")
+  }
 
   if (loading) return <div className="p-8 text-center text-gray-400">불러오는 중...</div>;
   if (!data) return <div className="p-8 text-center text-gray-400">공고를 찾을 수 없습니다.</div>;
@@ -71,7 +82,7 @@ export default function AnnouncementDetail() {
               </HoverCardContent>
             </HoverCard>
 
-            <Button variant="default" size="sm" onClick={() => window.close()}>
+            <Button variant="default" size="sm" onClick={handleClose}>
               ✕ 닫기
             </Button>
           </div>

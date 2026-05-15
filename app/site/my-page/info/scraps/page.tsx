@@ -127,7 +127,7 @@ export default function MyScrapsPage() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {scraps.map((scrap) => (
-                    <Link key={scrap.scrapId} href={getDetailHref(scrap)}>
+                    <Link key={scrap.scrapId} href={`${getDetailHref(scrap)}?from=scraps`}>
                       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge
