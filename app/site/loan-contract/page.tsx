@@ -1,5 +1,5 @@
 import { LoanContractFlow } from "@/components/loan/loan-contract-flow"
 
-export default function LoanPage() {
+export default function LoanContractPage() {
   return <LoanContractFlow />
 }
