@@ -10,15 +10,16 @@ export type AssetCategory =
   | "OTHER"
 
 // DB에서 받아오는 플랜 타입
-export interface AssetPlan {
+export interface AssetPlanData {
   planId: number
   category: AssetCategory
   planName: string
   baseAsset: number | null
   goalAmount: number | null
   monthlySaving: number | null
-  targetDate: string | null
-  planData: Record<string, unknown> | null
+  startDate: string | null
+  endDate: string | null
+  isCompleted: boolean 
   createdAt: string
 }
 
@@ -29,6 +30,7 @@ export interface AssetPlanForm {
   baseAsset: number | null
   goalAmount: number | null
   monthlySaving: number | null
-  targetDate: string | null
-  planData: Record<string, unknown> | null
+  startDate: string | null
+  endDate: string | null
+  isCompleted: boolean
 }

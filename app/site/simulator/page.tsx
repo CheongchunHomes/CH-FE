@@ -9,7 +9,7 @@ import AssetPlan from "@/components/simulator/AssetPlan"
 import HousingCompare from "@/components/simulator/HousingCompare"
 import FinanceFeel from "@/components/simulator/FinanceFeel"
 import Roadmap from "@/components/simulator/Roadmap"
-import { AssetPlan as AssetPlanType, AssetPlanForm } from "@/lib/simulatorTypes"
+import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
 
 // 폼 초기값
 const EMPTY_FORM: AssetPlanForm = {
@@ -18,13 +18,14 @@ const EMPTY_FORM: AssetPlanForm = {
   baseAsset: null,
   goalAmount: null,
   monthlySaving: null,
-  targetDate: null,
-  planData: null,
+  startDate: null,
+  endDate: null,
+  isCompleted: false,
 }
 
 export default function SimulatorPage() {
   // 탭01 저장된 플랜 목록
-  const [plans, setPlans] = useState<AssetPlanType[]>([])
+  const [plans, setPlans] = useState<AssetPlanData[]>([])
   // 탭01 폼 입력값
   const [form, setForm] = useState<AssetPlanForm>(EMPTY_FORM)
   // 수정 중인 플랜 id (null이면 생성 모드)
@@ -41,7 +42,7 @@ export default function SimulatorPage() {
   async function fetchPlans() {
     setIsLoading(true)
     try {
-      const data = await get<AssetPlanType[]>("/api/simulator/asset-plans", { cache: "no-store" })
+      const data = await get<AssetPlanData[]>("/api/simulator/asset-plans", { cache: "no-store" })
       setPlans(data)
     } finally {
       setIsLoading(false)
@@ -56,7 +57,7 @@ export default function SimulatorPage() {
   }
 
   // 수정 버튼 클릭 시 — 해당 플랜 값을 폼에 세팅하고 수정 모드로 전환
-  function handleEditStart(plan: AssetPlanType) {
+  function handleEditStart(plan: AssetPlanData) {
     setEditingPlanId(plan.planId)
     setForm({
       category: plan.category,
@@ -64,8 +65,9 @@ export default function SimulatorPage() {
       baseAsset: plan.baseAsset,
       goalAmount: plan.goalAmount,
       monthlySaving: plan.monthlySaving,
-      targetDate: plan.targetDate,
-      planData: plan.planData,
+      startDate: plan.startDate,
+      endDate: plan.endDate,
+       isCompleted: plan.isCompleted,
     })
   }
 
@@ -77,12 +79,23 @@ export default function SimulatorPage() {
     setForm(EMPTY_FORM)
     fetchPlans()
   }
+      // 달성 여부
+    async function handleToggleComplete(planId: number, isCompleted: boolean) {
+    const plan = plans.find(p => p.planId === planId)
+    if (!plan) return
+    await request("PUT", `/api/simulator/asset-plans/${planId}`, {
+      ...plan,
+      isCompleted
+    })
+    fetchPlans()
+  }
 
   // DELETE /api/simulator/asset-plans/:id — 플랜 삭제
   async function handleDelete(planId: number) {
     await request("DELETE", `/api/simulator/asset-plans/${planId}`)
     fetchPlans()
   }
+
 
   // 수정 취소 — editingPlanId 초기화 + 폼 초기화
   function handleEditCancel() {
@@ -126,7 +139,8 @@ export default function SimulatorPage() {
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               onEditCancel={handleEditCancel}
-            />
+              onToggleComplete={handleToggleComplete} 
+              />
           </TabsContent>
 
           {/* 탭02 주거 비교 */}
