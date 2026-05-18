@@ -1,16 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { useParams } from "next/navigation"
+import { ExternalLink, Printer, Share2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
-import { Share2, Printer } from "lucide-react";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 
 import { getPolicy, PolicyDetail } from "@/lib/policies-api"
 
@@ -24,14 +26,23 @@ function InfoRow({
   if (value === null || value === undefined || value === "") return null
 
   return (
-    <tr className="border-b border-gray-100 last:border-b-0">
-      <td className="w-1/4 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+    <tr className="border-b border-slate-100 last:border-b-0">
+      <td className="w-[280px] bg-slate-50 px-4 py-3 text-sm text-slate-500">
         {label}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-800 whitespace-pre-line">
+      <td className="px-4 py-3 text-sm whitespace-pre-line text-slate-950">
         {String(value)}
       </td>
     </tr>
+  )
+}
+
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-600" />
+      <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
+    </div>
   )
 }
 
@@ -46,34 +57,33 @@ function TextSection({
 
   return (
     <section className="mb-6">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="inline-block h-2 w-2 rounded-full bg-blue-600" />
-        <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
-      </div>
+      <SectionTitle title={title} />
 
-      <Card className="border-gray-200 shadow-sm">
-        <CardContent className="p-4">
-          <p className="whitespace-pre-line text-sm leading-7 text-gray-700">
-            {content}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <p className="whitespace-pre-line text-sm leading-7 text-slate-950">
+          {content}
+        </p>
+      </div>
     </section>
   )
 }
 
 export default function PolicyDetailPage() {
   const params = useParams()
-  const router = useRouter()
 
   const [data, setData] = useState<PolicyDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
   const id = Number(params.id)
 
-  const handleCopyUrl = () => {
-   navigator.clipboard.writeText(window.location.href);
-  };
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      alert("URL이 복사되었습니다.")
+    } catch (e) {
+      alert("URL 복사에 실패했습니다.")
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -95,8 +105,8 @@ export default function PolicyDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-8 py-8">
-        <div className="mx-auto max-w-4xl text-sm text-gray-500">
+      <main className="min-h-screen bg-white px-8 py-8">
+        <div className="mx-auto max-w-6xl text-sm text-slate-500">
           지원제도 정보를 불러오는 중입니다.
         </div>
       </main>
@@ -105,9 +115,9 @@ export default function PolicyDetailPage() {
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-gray-50 px-8 py-8">
-        <div className="mx-auto max-w-4xl">
-          <Card className="p-8 text-center text-sm text-gray-500">
+      <main className="min-h-screen bg-white px-8 py-8">
+        <div className="mx-auto max-w-6xl">
+          <Card className="border-slate-200 p-8 text-center text-sm text-slate-500 shadow-none">
             지원제도 정보를 찾을 수 없습니다.
           </Card>
         </div>
@@ -116,56 +126,56 @@ export default function PolicyDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-8 py-8">
-      <div className="mx-auto max-w-4xl">
-       {/* 상단 버튼 */}
-          <div className="mb-4 flex items-center justify-end">
-            <div className="flex items-center gap-2">
-                <HoverCard>
-                <HoverCardTrigger asChild>
-                    <Button
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={handleCopyUrl}
-                    >
-                    <Share2 className="h-4 w-4 text-gray-500" />
-                    </Button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-auto p-2 text-xs text-gray-600">
-                    해당 URL이 복사됩니다.
-                </HoverCardContent>
-                </HoverCard>
-
-                <HoverCard>
-                <HoverCardTrigger asChild>
-                    <Button
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full"
-                    onClick={() => window.print()}
-                    >
-                    <Printer className="h-4 w-4 text-gray-500" />
-                    </Button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-auto p-2 text-xs text-gray-600">
-                    해당 페이지를 인쇄합니다.
-                </HoverCardContent>
-                </HoverCard>
-
+    <main className="min-h-screen bg-white px-8 py-8">
+      <div className="mx-auto max-w-6xl">
+        {/* 상단 버튼 */}
+        <div className="mb-4 flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <HoverCard>
+              <HoverCardTrigger asChild>
                 <Button
-                variant="default"
-                size="sm"
-                onClick={() => window.close()}
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={handleCopyUrl}
                 >
-                ✕ 닫기
+                  <Share2 className="h-4 w-4 text-slate-500" />
                 </Button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-auto p-2 text-xs text-slate-600">
+                해당 URL이 복사됩니다.
+              </HoverCardContent>
+            </HoverCard>
+
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="h-4 w-4 text-slate-500" />
+                </Button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-auto p-2 text-xs text-slate-600">
+                해당 페이지를 인쇄합니다.
+              </HoverCardContent>
+            </HoverCard>
+
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => window.close()}
+            >
+              ✕ 닫기
+            </Button>
           </div>
         </div>
 
         {/* 헤더 */}
-        <Card className="mb-6 border-gray-200 shadow-sm">
-          <CardHeader>
+        <Card className="mb-6 rounded-lg border border-blue-500 bg-white shadow-none">
+          <CardHeader className="p-5">
             <div className="mb-3 flex flex-wrap gap-2">
               <Badge>{data.mainCategory ?? "지원제도"}</Badge>
 
@@ -186,17 +196,13 @@ export default function PolicyDetailPage() {
                   {data.status}
                 </Badge>
               )}
-
-              {data.sourceType && (
-                <Badge variant="outline">{data.sourceType}</Badge>
-              )}
             </div>
 
-            <CardTitle className="text-2xl font-bold leading-snug text-gray-900">
+            <CardTitle className="text-lg font-bold leading-snug text-slate-950">
               {data.title}
             </CardTitle>
 
-            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-500">
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-500">
               {data.summary || "지원제도 상세 정보를 확인해 주세요."}
             </p>
           </CardHeader>
@@ -204,12 +210,9 @@ export default function PolicyDetailPage() {
 
         {/* 기본 정보 */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600" />
-            <h2 className="text-sm font-semibold text-gray-800">기본 정보</h2>
-          </div>
+          <SectionTitle title="기본 정보" />
 
-          <table className="w-full overflow-hidden rounded-xl border border-gray-200 text-sm">
+          <table className="w-full overflow-hidden rounded-lg border border-slate-200 text-sm">
             <tbody>
               <InfoRow label="지역" value={data.region || "전국/확인 필요"} />
               <InfoRow label="지원유형" value={data.supportType} />
@@ -225,12 +228,9 @@ export default function PolicyDetailPage() {
 
         {/* 대상 조건 */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600" />
-            <h2 className="text-sm font-semibold text-gray-800">대상 조건</h2>
-          </div>
+          <SectionTitle title="대상 조건" />
 
-          <table className="w-full overflow-hidden rounded-xl border border-gray-200 text-sm">
+          <table className="w-full overflow-hidden rounded-lg border border-slate-200 text-sm">
             <tbody>
               <InfoRow
                 label="연령"
@@ -275,57 +275,52 @@ export default function PolicyDetailPage() {
 
         {/* 문의 / 링크 */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600" />
-            <h2 className="text-sm font-semibold text-gray-800">문의 및 링크</h2>
-          </div>
+          <SectionTitle title="문의 및 링크" />
 
-          <Card className="border-gray-200 shadow-sm">
-            <CardContent className="space-y-4 p-4">
-              {data.contact && (
-                <div>
-                  <div className="mb-1 text-xs font-medium text-gray-400">
-                    문의처
-                  </div>
-                  <p className="whitespace-pre-line text-sm leading-6 text-gray-700">
-                    {data.contact}
-                  </p>
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            {data.contact && (
+              <div>
+                <div className="mb-1 text-xs font-medium text-slate-400">
+                  문의처
                 </div>
+                <p className="whitespace-pre-line text-sm leading-6 text-slate-950">
+                  {data.contact}
+                </p>
+              </div>
+            )}
+
+            <Separator className="my-4" />
+
+            <div className="flex flex-wrap gap-2">
+              {data.onlineApplyUrl && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => window.open(data.onlineApplyUrl!, "_blank")}
+                >
+                  온라인 신청
+                  <ExternalLink className="ml-1 h-4 w-4" />
+                </Button>
               )}
 
-              <Separator />
+              {data.sourceUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(data.sourceUrl!, "_blank")}
+                >
+                  원문 보기
+                  <ExternalLink className="ml-1 h-4 w-4" />
+                </Button>
+              )}
 
-              <div className="flex flex-wrap gap-2">
-                {data.onlineApplyUrl && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => window.open(data.onlineApplyUrl!, "_blank")}
-                  >
-                    온라인 신청
-                    <ExternalLink className="ml-1 h-4 w-4" />
-                  </Button>
-                )}
-
-                {data.sourceUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(data.sourceUrl!, "_blank")}
-                  >
-                    원문 보기
-                    <ExternalLink className="ml-1 h-4 w-4" />
-                  </Button>
-                )}
-
-                {!data.onlineApplyUrl && !data.sourceUrl && (
-                  <span className="text-sm text-gray-400">
-                    원문 URL 정보가 없습니다.
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              {!data.onlineApplyUrl && !data.sourceUrl && (
+                <span className="text-sm text-slate-400">
+                  원문 URL 정보가 없습니다.
+                </span>
+              )}
+            </div>
+          </div>
         </section>
       </div>
     </main>

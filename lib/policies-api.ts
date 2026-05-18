@@ -55,6 +55,9 @@ export interface PageResponse<T> {
 export async function getPolicies(params: {
     mainCategory?: string
     subCategory?: string
+    region?: string
+    status?: string
+    supportType?: string
     keyword?: string
     page?: number
     size?: number
@@ -63,6 +66,9 @@ export async function getPolicies(params: {
         query: {
             mainCategory: params.mainCategory,
             subCategory: params.subCategory,
+            region: params.region,
+            status: params.status,
+            supportType: params.supportType,
             keyword: params.keyword,
             page: params.page ?? 0,
             size: params.size ?? 10,
