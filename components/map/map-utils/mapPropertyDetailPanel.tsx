@@ -5,11 +5,15 @@ import type { MapListing } from "@/lib/map/map-types";
 type MapPropertyDetailPanelProps = {
   listing: MapListing | null;
   onClose: () => void;
+  onOpenChat?: (listing: MapListing) => void;
+  isOpeningChat?: boolean;
 };
 
 export default function MapPropertyDetailPanel({
   listing,
   onClose,
+  onOpenChat,
+  isOpeningChat = false,
 }: MapPropertyDetailPanelProps) {
   if (!listing) {
     return null;
@@ -118,23 +122,24 @@ export default function MapPropertyDetailPanel({
             }
           />
         </div>
+          {/* CTA 버튼입니다. */}
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100"
+            >
+              전화문의
+            </button>
 
-        {/* CTA 버튼입니다. */}
-        <div className="mt-6 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100"
-          >
-            전화문의
-          </button>
-
-          <button
-            type="button"
-            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"
-          >
-            거래 요청하기
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => onOpenChat?.(listing)}
+              disabled={isOpeningChat}
+              className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {isOpeningChat ? "채팅방 여는 중..." : "채팅하기"}
+            </button>
+          </div>
 
         {/* 태그입니다. */}
         <DetailSection title="태그">
