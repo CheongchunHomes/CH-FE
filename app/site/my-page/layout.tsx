@@ -1,4 +1,7 @@
+"use client"
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -8,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 const menuItems = [
   { label: "내 정보", href: "/site/my-page/info" },
   { label: "결제한 서류" },
-  { label: "내 스크랩" },
+  { label: "내 스크랩", href: "/site/my-page/info/scraps"},
   { label: "일정 캘린더" },
 ]
 
@@ -17,6 +20,8 @@ export default function MyPageLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const pathname = usePathname()
+
   return (
     <main className="min-h-[calc(100vh-7rem)] bg-[#f4f7fb] px-4 pb-8 text-slate-900 md:px-6">
       <div className="mx-auto max-w-7xl">
@@ -33,12 +38,19 @@ export default function MyPageLayout({
               </CardHeader>
               <CardContent className="space-y-3">
                 <Separator />
-                {menuItems.map((item) =>
-                  item.href ? (
+
+                {menuItems.map((item) => {
+                  const isActive = item.href === pathname
+
+                  return item.href ? (
                     <Button
                       key={item.label}
                       asChild
-                      className="h-12 w-full justify-start rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+                      className={`h-12 w-full justify-start rounded-lg ${
+                        isActive
+                        ? "bg-sky-600 text-white hover:bg-sky-700"
+                        : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                      }`}
                     >
                       <Link href={item.href}>{item.label}</Link>
                     </Button>
@@ -50,8 +62,8 @@ export default function MyPageLayout({
                     >
                       {item.label}
                     </Button>
-                  ),
-                )}
+                  )
+                })}
               </CardContent>
             </Card>
           </aside>
