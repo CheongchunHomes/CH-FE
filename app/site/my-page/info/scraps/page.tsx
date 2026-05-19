@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2, Lock } from "lucide-react"
 
 import { ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
@@ -101,6 +101,165 @@ export default function MyScrapsPage() {
     return `/site/announcements/${scrap.announcementId}`
   }
 
+  const renderAnnouncementCard = (scrap: AnnouncementScrap) => {
+    const isVisible = scrap.announcementVisible !== false
+
+    const cardContent = (
+      <div
+        className={
+          isVisible
+            ? "rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400"
+            : "rounded-xl border border-slate-200 bg-slate-50 p-5 opacity-75"
+        }
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <Badge
+            variant={
+              scrap.status === "마감"
+                ? "destructive"
+                : scrap.status === "정정공고"
+                  ? "secondary"
+                  : "default"
+            }
+          >
+            {scrap.status ?? "-"}
+          </Badge>
+
+          {!isVisible && (
+            <Badge variant="outline" className="gap-1 text-slate-500">
+              <Lock size={12} />
+              비공개
+            </Badge>
+          )}
+
+          <span className="text-xs text-slate-400">
+            {scrap.region ?? "-"} · {scrap.recuitmentType ?? "-"} ·{" "}
+            {scrap.supplyInstitution ?? "-"}
+          </span>
+        </div>
+
+        <div className="mb-2 text-sm font-semibold text-slate-950">
+          {scrap.title}
+        </div>
+
+        {!isVisible && (
+          <p className="mb-3 rounded-lg bg-white px-3 py-2 text-xs leading-5 text-slate-500">
+            현재 비공개 처리된 공고입니다. 스크랩 기록은 유지되지만 상세페이지는
+            확인할 수 없습니다.
+          </p>
+        )}
+
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>
+            {scrap.applyStartDate && scrap.applyEndDate
+              ? `${scrap.applyStartDate} ~ ${scrap.applyEndDate}`
+              : "-"}
+          </span>
+          <span className="text-rose-400">♥ 스크랩</span>
+        </div>
+      </div>
+    )
+
+    if (!isVisible) {
+      return (
+        <div key={scrap.scrapId} aria-disabled="true">
+          {cardContent}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        key={scrap.scrapId}
+        href={`${getAnnouncementDetailHref(scrap)}?from=scraps`}
+      >
+        {cardContent}
+      </Link>
+    )
+  }
+
+  const renderPolicyCard = (scrap: PolicyScrap) => {
+    const isVisible = scrap.policyVisible !== false
+
+    const cardContent = (
+      <div
+        className={
+          isVisible
+            ? "rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400"
+            : "rounded-xl border border-slate-200 bg-slate-50 p-5 opacity-75"
+        }
+      >
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge>{scrap.mainCategory ?? "지원제도"}</Badge>
+
+          {scrap.subCategory && (
+            <Badge variant="secondary">{scrap.subCategory}</Badge>
+          )}
+
+          {!isVisible && (
+            <Badge variant="outline" className="gap-1 text-slate-500">
+              <Lock size={12} />
+              비공개
+            </Badge>
+          )}
+
+          <span className="text-xs text-slate-400">
+            {[
+              scrap.region,
+              scrap.supportType,
+              scrap.supervisingInstitution,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+
+        <div className="mb-2 text-sm font-semibold text-slate-950">
+          {scrap.title}
+        </div>
+
+        {!isVisible ? (
+          <p className="mb-3 rounded-lg bg-white px-3 py-2 text-xs leading-5 text-slate-500">
+            현재 비공개 처리된 제도입니다. 스크랩 기록은 유지되지만 상세페이지는
+            확인할 수 없습니다.
+          </p>
+        ) : (
+          <div className="mb-2 line-clamp-2 text-xs leading-5 text-slate-500">
+            {scrap.summary ||
+              scrap.targetDesc ||
+              "상세 내용을 확인해 주세요."}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>
+            신청기간: {scrap.applyPeriod || "확인 필요"}
+            {scrap.status ? ` · ${scrap.status}` : ""}
+          </span>
+          <span className="text-rose-400">♥ 스크랩</span>
+        </div>
+      </div>
+    )
+
+    if (!isVisible) {
+      return (
+        <div key={scrap.scrapId} aria-disabled="true">
+          {cardContent}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        key={scrap.scrapId}
+        href={`/site/policies/${scrap.policyId}?from=scraps`}
+        target="_blank"
+      >
+        {cardContent}
+      </Link>
+    )
+  }
+
   if (!isAuthenticated && !isLoading) {
     return (
       <Card className="border-slate-200/80 bg-white shadow-sm">
@@ -193,47 +352,9 @@ export default function MyScrapsPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {announcementScraps.map((scrap) => (
-                      <Link
-                        key={scrap.scrapId}
-                        href={`${getAnnouncementDetailHref(scrap)}?from=scraps`}
-                      >
-                        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400">
-                          <div className="mb-2 flex items-center gap-2">
-                            <Badge
-                              variant={
-                                scrap.status === "마감"
-                                  ? "destructive"
-                                  : scrap.status === "정정공고"
-                                    ? "secondary"
-                                    : "default"
-                              }
-                            >
-                              {scrap.status ?? "-"}
-                            </Badge>
-
-                            <span className="text-xs text-slate-400">
-                              {scrap.region ?? "-"} ·{" "}
-                              {scrap.recuitmentType ?? "-"} ·{" "}
-                              {scrap.supplyInstitution ?? "-"}
-                            </span>
-                          </div>
-
-                          <div className="mb-2 text-sm font-semibold text-slate-950">
-                            {scrap.title}
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs text-slate-500">
-                            <span>
-                              {scrap.applyStartDate && scrap.applyEndDate
-                                ? `${scrap.applyStartDate} ~ ${scrap.applyEndDate}`
-                                : "-"}
-                            </span>
-                            <span className="text-rose-400">♥ 스크랩</span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
+                    {announcementScraps.map((scrap) =>
+                      renderAnnouncementCard(scrap),
+                    )}
                   </div>
                 )
               ) : policyScraps.length === 0 ? (
@@ -242,53 +363,7 @@ export default function MyScrapsPage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {policyScraps.map((scrap) => (
-                    <Link
-                      key={scrap.scrapId}
-                      href={`/site/policies/${scrap.policyId}?from=scraps`}
-                      target="_blank"
-                    >
-                      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400">
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <Badge>{scrap.mainCategory ?? "지원제도"}</Badge>
-
-                          {scrap.subCategory && (
-                            <Badge variant="secondary">
-                              {scrap.subCategory}
-                            </Badge>
-                          )}
-
-                          <span className="text-xs text-slate-400">
-                            {[
-                              scrap.region,
-                              scrap.supportType,
-                              scrap.supervisingInstitution,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        </div>
-
-                        <div className="mb-2 text-sm font-semibold text-slate-950">
-                          {scrap.title}
-                        </div>
-
-                        <div className="mb-2 line-clamp-2 text-xs leading-5 text-slate-500">
-                          {scrap.summary ||
-                            scrap.targetDesc ||
-                            "상세 내용을 확인해 주세요."}
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <span>
-                            신청기간: {scrap.applyPeriod || "확인 필요"}
-                            {scrap.status ? ` · ${scrap.status}` : ""}
-                          </span>
-                          <span className="text-rose-400">♥ 스크랩</span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+                  {policyScraps.map((scrap) => renderPolicyCard(scrap))}
                 </div>
               )}
             </div>
