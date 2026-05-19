@@ -40,6 +40,7 @@ export interface Recoentity {
   description: string;
   applyUrl: string;
   active: boolean;
+  announcementId: number;
 }
 
 export interface UserProfile {
@@ -277,8 +278,8 @@ export default function RecommendPage() {
           <div className="flex gap-2 pt-2">
             {modalPolicy?.applyUrl && (
               <Button asChild className="flex-1">
-                <a href="/site/map">
-                  지도에서 매물 보기 →
+                <a href={`/site/announcements/${modalPolicy.announcementId}`}>
+                  관련 공고 보러가기 →
                 </a>
               </Button>
             )}
