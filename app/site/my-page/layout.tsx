@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
   { label: "내 정보", href: "/site/my-page/info" },
-  { label: "결제한 서류" },
+  { label: "결제 서류", href: "/site/my-page/sign" },
   { label: "내 스크랩", href: "/site/my-page/info/scraps"},
   { label: "일정 캘린더" },
 ]
