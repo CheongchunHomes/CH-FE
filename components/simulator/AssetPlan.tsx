@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, Trash2, ChevronDown, ChevronUp, CheckCircle2, Circle } from "lucide-react"
+import { HourglassIcon, Layers, TrendingUp, Pencil, Trash2, ChevronDown, ChevronUp, CheckCircle2, Circle, PiggyBank } from "lucide-react"
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
@@ -9,6 +9,26 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+// 시뮬레이터 공통 스타일 상수
+const cls = {
+  label:     "text-sm text-gray-600",
+  value:     "text-sm font-semibold text-gray-800",
+  hint:      "text-xs text-gray-400",
+  valueLg:   "text-lg font-bold text-gray-900",
+  valueBlue: "text-lg font-bold text-blue-600",
+}
 
 // 카테고리 목록
 const CATEGORIES = [
@@ -100,6 +120,15 @@ function calcDday(endDate: string | null): string {
   return `D-${diff}`
 }
 
+// 을/를 판별 함수
+function getEulReul(word: string): string {
+  if (!word) return "을"
+  const lastChar = word[word.length - 1]
+  const code = lastChar.charCodeAt(0)
+  if (code < 0xAC00 || code > 0xD7A3) return "을"
+  return (code - 0xAC00) % 28 > 0 ? "을" : "를"
+}
+
 interface Props {
   plans: AssetPlanData[]
   form: AssetPlanForm
@@ -129,6 +158,7 @@ export default function AssetPlan({
 }: Props) {
   // 금액 가리기 토글
   const [hideAmount, setHideAmount] = useState(false)
+  const [sortBy, setSortBy] = useState<"date" | "status">("status")
   // 아코디언 열린 planId
   const [openPlanId, setOpenPlanId] = useState<number | null>(null)
 
@@ -320,7 +350,7 @@ export default function AssetPlan({
         </div>
 
         {/* 저축 기간 안내 문구 */}
-        {form.startDate && form.endDate && (
+        {form.startDate && form.endDate && form.planName && form.goalAmount && (
         (() => {
             const start = new Date(form.startDate)
             const end = new Date(form.endDate)
@@ -328,10 +358,11 @@ export default function AssetPlan({
             const months = Math.floor(totalDays / 30)
             const days = totalDays % 30
             return (
-            <div className="flex items-center gap-2">
-                <div className="w-20 shrink-0" />  {/* ← 라벨 너비만큼 빈 공간 */}
-                <p className="text-xs text-blue-500">
-                {months > 0 ? `${months}개월 ` : ""}{days > 0 ? `${days}일` : ""} 동안의 저축 계획이에요!
+            <div className="flex items-center gap-2 mt-0.5">
+                <div className="w-20 shrink-0" />
+                <p className="text-sm text-blue-500 font-medium">
+                {form.planName}{getEulReul(form.planName)} 목표로{" "}
+                {formatCurrency(form.goalAmount)} {months > 0 ? `${months}개월 ` : ""}{days > 0 ? `${days}일` : ""} 저축 계획이에요!
                 </p>
             </div>
             )
@@ -351,10 +382,11 @@ export default function AssetPlan({
           )}
           <button
             onClick={handleSubmit}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
+            disabled={!form.planName || !form.goalAmount}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
             {editingPlanId ? "수정 완료" : "플랜 저장"}
-          </button>
+            </button>
         </div>
       </div>
 
@@ -364,16 +396,39 @@ export default function AssetPlan({
         {/* 플랜 목록 카드 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
 
-            {/* 카드 헤더 — 스위치 항상 표시 */}
+           {/* 카드 헤더 */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <p className="text-sm font-bold text-gray-800">저장된 플랜</p>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">금액 가리기</span>
-                    <Switch
-                    checked={hideAmount}
-                    onCheckedChange={setHideAmount}
-                    />
+            <div className="flex items-center gap-3">
+                <Layers size={16} className="text-blue-500" />
+                <p className="text-sm font-bold text-gray-800">저축 플랜</p>
+                {/* 정렬 버튼 */}
+                <div className="flex gap-1">
+               <button
+                onClick={() => setSortBy("date")}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                    sortBy === "date"
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                }`}
+                >
+                날짜순
+                </button>
+                <button
+                onClick={() => setSortBy("status")}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                    sortBy === "status"
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                }`}
+                >
+                진행상태
+                </button>
                 </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">금액 가리기</span>
+                <Switch checked={hideAmount} onCheckedChange={setHideAmount} />
+            </div>
             </div>
 
         {/* 카드 내용 */}
@@ -385,57 +440,63 @@ export default function AssetPlan({
         </div>
         ) : (
         <div className="p-5 space-y-3">
-            {plans.map((plan) => {
-             const progress = calcProgress(plan.baseAsset ?? 0, plan.goalAmount ?? 0)
-             const isOpen = openPlanId === plan.planId
-             const categoryLabel = CATEGORIES.find((c) => c.value === plan.category)?.label ?? plan.category
-             const completed = plan.isCompleted || isOverdue(plan.endDate)   // ← endDate
-             const dday = calcDday(plan.endDate)                              // ← endDate
-             const breakdown = plan.endDate && plan.goalAmount                // ← endDate
-                 ? calcSavingBreakdown(plan.baseAsset ?? 0, plan.goalAmount, plan.endDate)
-                 : null
+            {[...plans].sort((a, b) => {
+            if (sortBy === "status") {
+                const aCompleted = a.isCompleted || isOverdue(a.endDate)
+                const bCompleted = b.isCompleted || isOverdue(b.endDate)
+                return aCompleted === bCompleted ? 0 : aCompleted ? 1 : -1
+            } else {
+                // 날짜순 (최신순)
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            }
+            }).map((plan) => {
+            const progress = calcProgress(plan.baseAsset ?? 0, plan.goalAmount ?? 0)
+            const isOpen = openPlanId === plan.planId
+            const categoryLabel = CATEGORIES.find((c) => c.value === plan.category)?.label ?? plan.category
+            const completed = plan.isCompleted || isOverdue(plan.endDate)
+            const dday = calcDday(plan.endDate)
+            const breakdown = plan.endDate && plan.goalAmount
+                ? calcSavingBreakdown(plan.baseAsset ?? 0, plan.goalAmount, plan.endDate)
+                : null
 
           return (
                 <div key={plan.planId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
 
-                  {/* 아코디언 헤더 */}
-                  <div
-                    className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => setOpenPlanId(isOpen ? null : plan.planId)}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* 달성 여부 아이콘 */}
-                      {completed
-                        ? <CheckCircle2 size={18} className="text-blue-500 shrink-0" />
-                        : <Circle size={18} className="text-gray-300 shrink-0" />
-                      }
-                      <div>
-                        <p className={`font-medium text-sm ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>
-                          {plan.planName}
-                        </p>
-                        <p className="text-xs text-gray-400">{categoryLabel}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {hideAmount ? "••••••" : formatCurrency(plan.goalAmount ?? 0)}
-                        </p>
-                        <p className="text-xs text-blue-500">{dday}</p>
-                      </div>
-                      {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </div>
-                  </div>
+                 {/* 아코디언 헤더 */}
+                <div
+                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setOpenPlanId(isOpen ? null : plan.planId)}
+                >
+                <div className="flex items-center gap-1">
+                    {/* 달성 여부 아이콘 */}
+                    {completed
+                    ? <div className="w-4 h-4 rounded-full bg-blue-500 shrink-0" />
+                    : <div className="w-4 h-4 rounded-full bg-destructive shrink-0" />
+                    }
+                    {/* 플랜명 + 카테고리 + D-day */}
+                    <p className={`font-medium text-sm ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                    {plan.planName}
+                    </p>
+                    <p className="text-xs text-gray-400">{categoryLabel}</p>
+                    {dday && <span className="text-xs text-blue-500 font-medium ml-1">{dday}</span>}
+                </div>
 
+                <div className="flex items-center gap-3">
+                    <p className="text-sm font-semibold text-gray-900">
+                    {hideAmount ? "•••••원" : formatCurrency(plan.goalAmount ?? 0)}
+                    </p>
+                    {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                </div>
+                </div>
                   {/* 아코디언 상세 */}
                   {isOpen && (
                     <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
 
                       {/* 달성률 프로그레스바 */}
                       <div>
-                        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                          <span>현재 {hideAmount ? "••••••" : formatCurrency(plan.baseAsset ?? 0)}</span>
-                          <span>{progress}%</span>
+                        <div className="flex justify-between text-xs mb-1.5">
+                            <span className="text-gray-600 font-medium">현재 {hideAmount ? "••••••" : formatCurrency(plan.baseAsset ?? 0)}</span>
+                            <span className="text-gray-600 font-medium">{progress}%</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                           <div
@@ -458,33 +519,53 @@ export default function AssetPlan({
                       {/* 달성 체크 + 수정/삭제 */}
                       <div className="flex items-center justify-between pt-1">
                         <button
-                          onClick={() => onToggleComplete(plan.planId, !plan.isCompleted)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        onClick={() => onToggleComplete(plan.planId, !plan.isCompleted)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                             completed
-                              ? "bg-blue-50 text-blue-600 border border-blue-200"
-                              : "border border-gray-200 text-gray-600 hover:bg-gray-50"
-                          }`}
+                            ? "bg-primary text-primary-foreground hover:bg-primary/80"
+                            : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
                         >
-                          <CheckCircle2 size={13} />
-                          {completed ? "달성 완료" : "달성 체크"}
-                        </button>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => onEditStart(plan)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                          >
-                            <Pencil size={13} />
-                            수정
+                        {completed 
+                            ? <CheckCircle2 size={13} />
+                            : <HourglassIcon size={13} />
+                        }
+                        {completed ? "해냈다!" : "진행중"}
                           </button>
-                          <button
-                            onClick={() => onDelete(plan.planId)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-100 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 size={13} />
-                            삭제
-                          </button>
-                        </div>
-                      </div>
+                            <div className="flex gap-2">
+                                {!completed && (  // ← 완료 아니면 수정 버튼 보임
+                                <button
+                                    onClick={() => onEditStart(plan)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                                >
+                                    <Pencil size={13} />
+                                    수정
+                                </button>
+                                )}
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+                                    <Trash2 size={13} />
+                                    삭제
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>플랜을 삭제할까요?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        삭제된 플랜은 복구할 수 없어요.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>취소</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDelete(plan.planId)}>
+                                        삭제
+                                    </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                            </div>
 
                     </div>
                   )}
@@ -495,40 +576,71 @@ export default function AssetPlan({
         )}
         </div>
 
-        {/* 저축 분석 */}
-        {plans.length > 0 && (
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 space-y-3">
-            <p className="text-sm font-bold text-gray-800">📊 나의 저축 분석</p>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-900">{plans.length}개</span> 플랜 중{" "}
-                <span className="font-semibold text-blue-600">{completedPlans.length}개</span> 달성
-              </p>
-              <p className="text-sm text-gray-600">
-                총 모은 금액{" "}
-                <span className="font-semibold text-gray-900">
-                  {hideAmount ? "••••••" : formatCurrency(totalSaved)}
-                </span>
-              </p>
-              <p className="text-sm text-gray-600">
-                달성률{" "}
-                <span className="font-semibold text-blue-600">
-                  {plans.length > 0 ? Math.round((completedPlans.length / plans.length) * 100) : 0}%
-                </span>
-              </p>
-              {totalMonths > 0 && (
-                <p className="text-sm text-gray-600">
-                  총 <span className="font-semibold text-gray-900">{totalMonths}개월</span> 동안{" "}
-                  일 평균{" "}
-                  <span className="font-semibold text-gray-900">
-                    {hideAmount ? "••••••" : formatCurrency(dailyAvg)}
-                  </span>{" "}
-                  저축
-                </p>
-              )}
-            </div>
-          </div>
-        )}
+       {/* 저축 리포트 */}
+{plans.length > 0 && (
+  <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 space-y-4">
+    <div className="flex items-center gap-2">
+      <TrendingUp size={16} className="text-blue-500" />
+      <p className="text-sm font-bold text-gray-800">저축 리포트</p>
+    </div>
+
+    {/* 메트릭 카드 3개 */}
+    <div className="grid grid-cols-3 gap-3">
+      <div className="bg-gray-50 rounded-xl p-3 text-center">
+        <p className="text-lg font-bold text-gray-900">{completedPlans.length}/{plans.length}</p>
+        <p className="text-xs text-gray-400 mt-1">달성</p>
+      </div>
+      <div className="bg-gray-50 rounded-xl p-3 text-center">
+        <p className="text-lg font-bold text-gray-900">
+          {hideAmount ? "•••" : formatCurrency(totalSaved)}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">총 모은 금액</p>
+      </div>
+      <div className="bg-gray-50 rounded-xl p-3 text-center">
+        <p className="text-lg font-bold text-blue-600">
+          {plans.length > 0 ? Math.round((completedPlans.length / plans.length) * 100) : 0}%
+        </p>
+        <p className="text-xs text-gray-400 mt-1">달성률</p>
+      </div>
+    </div>
+
+    {/* A) 달성률 프로그레스바 */}
+    <div>
+      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-blue-500 rounded-full transition-all"
+          style={{ width: `${plans.length > 0 ? Math.round((completedPlans.length / plans.length) * 100) : 0}%` }}
+        />
+      </div>
+    </div>
+
+    {/* B) 달성 금액 vs 진행중 금액 */}
+    <div className="flex justify-between text-xs">
+      <span className="text-gray-500 font-medium">달성 <span className="text-blue-500 font-bold">{hideAmount ? "•••" : formatCurrency(totalSaved)}</span></span>
+      <span className="text-gray-500 font-medium">진행중 <span className="text-gray-700 font-bold">{hideAmount ? "•••" : formatCurrency(plans.filter(p => !p.isCompleted && !isOverdue(p.endDate)).reduce((sum, p) => sum + (p.goalAmount ?? 0), 0))}</span></span>
+    </div>
+
+    {/* C) 가장 가까운 목표 D-day */}
+    {(() => {
+      const upcoming = plans
+        .filter(p => !p.isCompleted && !isOverdue(p.endDate) && p.endDate)
+        .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime())[0]
+      if (!upcoming) return null
+      return (
+        <p className="text-xs text-gray-500 font-medium text-center">
+         다음 목표 <span className="font-bold text-gray-800">{upcoming.planName}</span> · <span className="text-blue-500 font-bold">{calcDday(upcoming.endDate)}</span>
+        </p>
+      )
+    })()}
+
+    {/* 일 평균 */}
+    {totalMonths > 0 && (
+      <p className="text-xs text-gray-400 text-center">
+        총 {totalMonths}개월 · 일 평균 {hideAmount ? "•••" : formatCurrency(dailyAvg)}
+      </p>
+    )}
+  </div>
+)}
 
       </div>
     </div>

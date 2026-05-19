@@ -74,21 +74,29 @@ export default function SimulatorPage() {
   // PUT /api/simulator/asset-plans/:id — 플랜 수정
   async function handleUpdate() {
     if (!editingPlanId) return
-    await request("PUT", `/api/simulator/asset-plans/${editingPlanId}`, form)
+    await request("PUT", `/api/simulator/asset-plans/${editingPlanId}`, {
+      body: form
+    })
     setEditingPlanId(null)
     setForm(EMPTY_FORM)
     fetchPlans()
   }
       // 달성 여부
     async function handleToggleComplete(planId: number, isCompleted: boolean) {
-    const plan = plans.find(p => p.planId === planId)
-    if (!plan) return
-    await request("PUT", `/api/simulator/asset-plans/${planId}`, {
-      ...plan,
-      isCompleted
-    })
-    fetchPlans()
-  }
+      const plan = plans.find(p => p.planId === planId)
+      if (!plan) return
+      
+      // 로컬 state 먼저 업데이트
+      setPlans(prev => prev.map(p => 
+        p.planId === planId ? { ...p, isCompleted } : p
+      ))
+      
+      // 백엔드 업데이트
+      const { planId: _, createdAt: __, ...planForm } = plan
+      await request("PUT", `/api/simulator/asset-plans/${planId}`, {
+        body: { ...planForm, isCompleted }
+      })
+    }
 
   // DELETE /api/simulator/asset-plans/:id — 플랜 삭제
   async function handleDelete(planId: number) {
