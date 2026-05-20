@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { MapListing } from "@/lib/map/map-types";
 
 type MapPropertyDetailPanelProps = {
@@ -9,12 +10,23 @@ type MapPropertyDetailPanelProps = {
   isOpeningChat?: boolean;
 };
 
+type ContractRequestPayload = {
+  type: "주택계약";
+  providerId: number | null;
+  consumerId: number | null;
+  amount: number | null;
+  productId: number;
+};
+
 export default function MapPropertyDetailPanel({
   listing,
   onClose,
   onOpenChat,
   isOpeningChat = false,
 }: MapPropertyDetailPanelProps) {
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isContractRequesting, setIsContractRequesting] = useState(false);
+
   if (!listing) {
     return null;
   }
@@ -25,110 +37,145 @@ export default function MapPropertyDetailPanel({
     ? listing.securityFacilities
     : [];
 
+  const handleConfirmContractRequest = async () => {
+    try {
+      setIsContractRequesting(true);
+
+      const payload: ContractRequestPayload = {
+        type: "주택계약",
+        providerId: getOptionalNumber(listing, "landlordUserId"),
+        consumerId: getOptionalNumber(listing, "currentUserId"),
+        amount: getOptionalNumber(listing, "depositAmount"),
+        productId: listing.id,
+      };
+
+      console.log("계약 요청 payload:", payload);
+
+      // TODO: 백엔드 계약 API 완성 후 이 부분에서 POST 요청 연결
+      // await post("/contracts", payload);
+
+      alert("계약 요청 정보가 준비되었습니다.");
+      setIsContractModalOpen(false);
+    } catch (error) {
+      console.error("계약 요청 실패:", error);
+      alert("계약 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsContractRequesting(false);
+    }
+  };
+
   return (
-    <aside className="h-full w-[430px] shrink-0 overflow-y-auto border-r border-slate-200 bg-white shadow-sm">
-      {/* 상세 패널 상단입니다. */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-        <div>
-          <p className="text-xs font-semibold text-blue-600">
-            {getCategoryLabel(listing.category)}
-          </p>
-          <h2 className="mt-1 text-lg font-bold text-slate-900">
-            매물 {listing.id}
-          </h2>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
-        >
-          ×
-        </button>
-      </div>
-
-      {/* 대표 이미지 영역입니다. */}
-      <div className="h-64 bg-slate-200">
-        {listing.thumbnailUrl ? (
-          <img
-            src={listing.thumbnailUrl}
-            alt={listing.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
-            이미지 준비중
+    <>
+      <aside className="h-full w-[430px] shrink-0 overflow-y-auto border-r border-slate-200 bg-white shadow-sm">
+        {/* 상세 패널 상단입니다. */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold text-blue-600">
+              {getCategoryLabel(listing.category)}
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">
+              매물 {listing.id}
+            </h2>
           </div>
-        )}
-      </div>
 
-      <div className="p-5">
-        {/* 매물 제목과 가격입니다. */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400">
-            매물번호 {listing.id}
-          </p>
-
-          <h1 className="mt-3 text-2xl font-bold text-slate-900">
-            {listing.depositLabel}
-            {listing.monthlyRentLabel ? ` / ${listing.monthlyRentLabel}` : ""}
-          </h1>
-
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            {listing.address}
-          </p>
-
-          {listing.maintenanceFee !== null &&
-            listing.maintenanceFee !== undefined && (
-              <p className="mt-2 text-sm font-semibold text-slate-700">
-                관리비 {listing.maintenanceFee}만 원
-              </p>
-            )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
+            ×
+          </button>
         </div>
 
-        {/* 핵심 정보입니다. */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <InfoItem label="방종류" value={listing.roomType} />
-          <InfoItem label="전용면적" value={formatArea(listing.exclusiveAreaM2)} />
-          <InfoItem
-            label="층수"
-            value={`${listing.floor ?? "-"}층 / ${listing.totalFloor ?? "-"}층`}
-          />
-          <InfoItem
-            label="방/욕실"
-            value={`${listing.roomCount ?? "-"}개 / ${
-              listing.bathroomCount ?? "-"
-            }개`}
-          />
-          <InfoItem label="방향" value={listing.direction} />
-          <InfoItem label="난방" value={listing.heatingType} />
-          <InfoItem
-            label="엘리베이터"
-            value={
-              listing.elevatorAvailable === true
-                ? "있음"
-                : listing.elevatorAvailable === false
-                  ? "없음"
+        {/* 대표 이미지 영역입니다. */}
+        <div className="h-64 bg-slate-200">
+          {listing.thumbnailUrl ? (
+            <img
+              src={listing.thumbnailUrl}
+              alt={listing.title}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
+              이미지 준비중
+            </div>
+          )}
+        </div>
+
+        <div className="p-5">
+          {/* 매물 제목과 가격입니다. */}
+          <div>
+            <p className="text-xs font-semibold text-slate-400">
+              매물번호 {listing.id}
+            </p>
+
+            <h1 className="mt-3 text-2xl font-bold text-slate-900">
+              {listing.depositLabel}
+              {listing.monthlyRentLabel ? ` / ${listing.monthlyRentLabel}` : ""}
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              {listing.address}
+            </p>
+
+            {listing.maintenanceFee !== null &&
+              listing.maintenanceFee !== undefined && (
+                <p className="mt-2 text-sm font-semibold text-slate-700">
+                  관리비 {listing.maintenanceFee}만 원
+                </p>
+              )}
+          </div>
+
+          {/* 핵심 정보입니다. */}
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <InfoItem label="방종류" value={listing.roomType} />
+            <InfoItem
+              label="전용면적"
+              value={formatArea(listing.exclusiveAreaM2)}
+            />
+            <InfoItem
+              label="층수"
+              value={`${listing.floor ?? "-"}층 / ${
+                listing.totalFloor ?? "-"
+              }층`}
+            />
+            <InfoItem
+              label="방/욕실"
+              value={`${listing.roomCount ?? "-"}개 / ${
+                listing.bathroomCount ?? "-"
+              }개`}
+            />
+            <InfoItem label="방향" value={listing.direction} />
+            <InfoItem label="난방" value={listing.heatingType} />
+            <InfoItem
+              label="엘리베이터"
+              value={
+                listing.elevatorAvailable === true
+                  ? "있음"
+                  : listing.elevatorAvailable === false
+                    ? "없음"
+                    : "-"
+              }
+            />
+            <InfoItem
+              label="주차"
+              value={
+                listing.totalParkingCount !== null &&
+                listing.totalParkingCount !== undefined
+                  ? `${listing.totalParkingCount}대`
                   : "-"
-            }
-          />
-          <InfoItem
-            label="주차"
-            value={
-              listing.totalParkingCount !== null &&
-              listing.totalParkingCount !== undefined
-                ? `${listing.totalParkingCount}대`
-                : "-"
-            }
-          />
-        </div>
+              }
+            />
+          </div>
+
           {/* CTA 버튼입니다. */}
           <div className="mt-6 grid grid-cols-2 gap-2">
             <button
               type="button"
+              onClick={() => setIsContractModalOpen(true)}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100"
             >
-              전화문의
+              계약 요청하기
             </button>
 
             <button
@@ -141,43 +188,158 @@ export default function MapPropertyDetailPanel({
             </button>
           </div>
 
-        {/* 태그입니다. */}
-        <DetailSection title="태그">
-          <BadgeList items={tags} emptyText="등록된 태그가 없습니다." />
-        </DetailSection>
+          {/* 태그입니다. */}
+          <DetailSection title="태그">
+            <BadgeList items={tags} emptyText="등록된 태그가 없습니다." />
+          </DetailSection>
 
-        {/* 옵션입니다. */}
-        <DetailSection title="옵션">
-          <BadgeList items={options} emptyText="등록된 옵션이 없습니다." />
-        </DetailSection>
+          {/* 옵션입니다. */}
+          <DetailSection title="옵션">
+            <BadgeList items={options} emptyText="등록된 옵션이 없습니다." />
+          </DetailSection>
 
-        {/* 보안시설입니다. */}
-        <DetailSection title="보안시설">
-          <BadgeList
-            items={securityFacilities}
-            emptyText="등록된 보안시설이 없습니다."
+          {/* 보안시설입니다. */}
+          <DetailSection title="보안시설">
+            <BadgeList
+              items={securityFacilities}
+              emptyText="등록된 보안시설이 없습니다."
+            />
+          </DetailSection>
+
+          {/* 입주 정보입니다. */}
+          <DetailSection title="입주 및 건물 정보">
+            <div className="space-y-2 text-sm text-slate-600">
+              <InfoLine label="입주 유형" value={listing.moveInType} />
+              <InfoLine label="입주 가능일" value={listing.moveInDate} />
+              <InfoLine label="사용승인일" value={listing.approvalDate} />
+              <InfoLine
+                label="최초등록일"
+                value={listing.firstRegistrationDate}
+              />
+              <InfoLine label="건축물 용도" value={listing.buildingUse} />
+            </div>
+          </DetailSection>
+
+          {/* 설명입니다. */}
+          <DetailSection title="매물 설명">
+            <p className="text-sm leading-7 text-slate-600">
+              {listing.description || "등록된 매물 설명이 없습니다."}
+            </p>
+          </DetailSection>
+        </div>
+      </aside>
+
+      {isContractModalOpen && (
+        <ContractRequestModal
+          listing={listing}
+          isLoading={isContractRequesting}
+          onClose={() => setIsContractModalOpen(false)}
+          onConfirm={handleConfirmContractRequest}
+        />
+      )}
+    </>
+  );
+}
+
+type ContractRequestModalProps = {
+  listing: MapListing;
+  isLoading: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+function ContractRequestModal({
+  listing,
+  isLoading,
+  onClose,
+  onConfirm,
+}: ContractRequestModalProps) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[430px] rounded-2xl bg-white p-6 shadow-xl">
+        <h2 className="text-lg font-bold text-slate-900">
+          계약 요청 전 확인
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          아래 매물 정보를 마지막으로 확인해주세요. 확인 버튼을 누르면 해당
+          매물에 대한 계약 요청이 진행됩니다.
+        </p>
+
+        <div className="mt-5 space-y-3 rounded-xl bg-slate-50 p-4 text-sm">
+          <InfoLine label="매물번호" value={listing.id} />
+          <InfoLine label="계약유형" value="주택계약" />
+          <InfoLine label="주소" value={listing.address} />
+          <InfoLine
+            label="보증금/월세"
+            value={`${listing.depositLabel}${
+              listing.monthlyRentLabel ? ` / ${listing.monthlyRentLabel}` : ""
+            }`}
           />
-        </DetailSection>
+          <InfoLine
+            label="관리비"
+            value={
+              listing.maintenanceFee !== null &&
+              listing.maintenanceFee !== undefined
+                ? `${listing.maintenanceFee}만 원`
+                : "-"
+            }
+          />
+          <InfoLine label="방종류" value={listing.roomType} />
+          <InfoLine label="전용면적" value={formatArea(listing.exclusiveAreaM2)} />
+          <InfoLine
+            label="층수"
+            value={`${listing.floor ?? "-"}층 / ${
+              listing.totalFloor ?? "-"
+            }층`}
+          />
+          <InfoLine
+            label="방/욕실"
+            value={`${listing.roomCount ?? "-"}개 / ${
+              listing.bathroomCount ?? "-"
+            }개`}
+          />
+          <InfoLine label="방향" value={listing.direction} />
+          <InfoLine label="난방" value={listing.heatingType} />
+          <InfoLine
+            label="주차"
+            value={
+              listing.totalParkingCount !== null &&
+              listing.totalParkingCount !== undefined
+                ? `${listing.totalParkingCount}대`
+                : "-"
+            }
+          />
+          <InfoLine label="입주 유형" value={listing.moveInType} />
+          <InfoLine label="입주 가능일" value={listing.moveInDate} />
+        </div>
 
-        {/* 입주 정보입니다. */}
-        <DetailSection title="입주 및 건물 정보">
-          <div className="space-y-2 text-sm text-slate-600">
-            <InfoLine label="입주 유형" value={listing.moveInType} />
-            <InfoLine label="입주 가능일" value={listing.moveInDate} />
-            <InfoLine label="사용승인일" value={listing.approvalDate} />
-            <InfoLine label="최초등록일" value={listing.firstRegistrationDate} />
-            <InfoLine label="건축물 용도" value={listing.buildingUse} />
-          </div>
-        </DetailSection>
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          실제 계약 진행은 임대인 확인 후 별도 절차로 진행됩니다. 현재는
+          백엔드 계약 API가 완성되기 전이므로 요청 데이터만 준비됩니다.
+        </p>
 
-        {/* 설명입니다. */}
-        <DetailSection title="매물 설명">
-          <p className="text-sm leading-7 text-slate-600">
-            {listing.description || "등록된 매물 설명이 없습니다."}
-          </p>
-        </DetailSection>
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            취소
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {isLoading ? "요청 중..." : "확인"}
+          </button>
+        </div>
       </div>
-    </aside>
+    </div>
   );
 }
 
@@ -203,8 +365,10 @@ type InfoLineProps = {
 function InfoLine({ label, value }: InfoLineProps) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-slate-400">{label}</span>
-      <span className="font-semibold text-slate-700">{value || "-"}</span>
+      <span className="shrink-0 text-slate-400">{label}</span>
+      <span className="text-right font-semibold text-slate-700">
+        {value || "-"}
+      </span>
     </div>
   );
 }
@@ -272,4 +436,14 @@ function formatArea(area?: number | null) {
   }
 
   return `${area}㎡`;
+}
+
+function getOptionalNumber(source: unknown, key: string) {
+  const value = (source as Record<string, unknown>)[key];
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  return null;
 }
