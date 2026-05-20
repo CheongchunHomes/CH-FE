@@ -3,12 +3,14 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { AuthProvider } from '@/lib/auth-context'
 import { ApiFeedbackModal } from '@/components/api-feedback-modal'
+import MiniChatWidget from '@/components/chat/MiniChatWidget'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Ai agent landing page',
-  description: 'Automate complex workflows, make data-driven decisions, and solve challenging problems effortlessly with our agentic AI platform. Empower your business with intelligent automation and streamlined processes designed for modern enterprises.',
-  generator: 'v0.app',
+  title: "Ai agent landing page",
+  description:
+    "Automate complex workflows, make data-driven decisions, and solve challenging problems effortlessly with our agentic AI platform. Empower your business with intelligent automation and streamlined processes designed for modern enterprises.",
+  generator: "v0.app",
 }
 
 export default function RootLayout({
@@ -31,6 +33,7 @@ html {
         <AuthProvider>
           <ApiFeedbackModal />
           {children}
+          <MiniChatWidget />
         </AuthProvider>
       </body>
     </html>
