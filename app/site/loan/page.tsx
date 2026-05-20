@@ -1,12 +1,5 @@
-import { PageSampleView } from "@/components/page-sample-view"
-import { getPageSample } from "@/lib/page-samples"
+import { LoanContractFlow } from "@/components/loan/loan-contract-flow"
 
 export default function LoanPage() {
-  const sample = getPageSample("loan")
-
-  if (!sample) {
-    return null
-  }
-
-  return <PageSampleView image={sample.image} label={sample.label} />
+  return <LoanContractFlow />
 }
