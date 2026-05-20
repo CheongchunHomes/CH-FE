@@ -4,6 +4,7 @@ import type { Policy } from "@/lib/policies-api"
 export interface PolicyScrap extends Policy {
     scrapId: number
     scrapedAt: string
+    policyVisible?: boolean
 }
 
 // 내가 스크랩한 제도 ID 목록 조회
