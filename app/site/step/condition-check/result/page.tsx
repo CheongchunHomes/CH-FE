@@ -181,7 +181,7 @@ export default function DiagnosisResultPage() {
         loadRecommendation(profile);
       } catch {
         // 프로필 없으면 진단 폼으로 이동
-        router.push("/site/condition-check");
+        router.push("/site/step/condition-check");
       } finally {
         setIsLoading(false);
       }
@@ -191,12 +191,12 @@ export default function DiagnosisResultPage() {
 
   // 다시 진단하기 - 폼으로 이동 (DB 프로필은 유지, 폼에서 덮어쓰기)
   const handleReset = () => {
-    router.push("/site/condition-check");
+    router.push("/site/step/condition-check");
   };
 
   // 이전 진단 불러오기 - 진단 폼으로 이동 (DB에서 자동 복원)
   const handleLoadPrev = () => {
-    router.push("/site/condition-check");
+    router.push("/site/step/condition-check");
   };
 
   if (isLoading) return (
@@ -288,7 +288,7 @@ export default function DiagnosisResultPage() {
               <RotateCcw className="w-4 h-4" />
               <span className="hidden sm:inline">다시 진단하기</span>
             </Button>
-          </div>
+          </div>handleReset
         </div>
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -466,7 +466,7 @@ export default function DiagnosisResultPage() {
                         </div>
                         <Button
                           className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto font-bold shrink-0"
-                          onClick={() => router.push("/site/recommend")}
+                          onClick={() => router.push("/site/step/recommend")}
                         >
                           제도 상세 보러가기
                           <ChevronRight className="w-4 h-4" />

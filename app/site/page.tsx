@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getPageSampleHref } from "@/lib/page-samples"
 
 const quickMenus = [
-  { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
+  { icon: House, label: "내 조건 진단", href: getPageSampleHref("step/condition-check") },
   { icon: Ticket, label: "제도 추천", href: getPageSampleHref("step/recommend") },
   { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
   { icon: MapPin, label: "집·공고 확인", href: "site/map" },

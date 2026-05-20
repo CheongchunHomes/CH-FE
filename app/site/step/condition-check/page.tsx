@@ -3,6 +3,7 @@
 import { post, get } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useStepBar } from "@/app/site/step/components/StepLayoutShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, ChevronDown, ChevronUp, HelpCircle, Home, Users, BookOpen, Wallet, Heart, Building2, RotateCcw } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -120,7 +121,7 @@ const isStepCompleted = (stepId: number, form: DiagnosisForm): boolean => {
       if (form.married === null) return false;
       if (!form.employmentStatus) return false;
       if ((form.employmentStatus === "NEWCOMER" || form.employmentStatus === "EMPLOYED")
-          && !form.employmentPeriod) return false;
+        && !form.employmentPeriod) return false;
       if (form.married === true && !form.marriagePeriod) return false;
       return true;
     }
@@ -203,6 +204,7 @@ const QuestionHeader = ({ num, title, completed }: { num: number; title: string;
 // 메인 페이지
 // ─────────────────────────────────────────────────────────
 const HousingFormPage = () => {
+  useStepBar(1);
   const router = useRouter();
   const { status } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -220,19 +222,19 @@ const HousingFormPage = () => {
 
   // 페이지 진입 시 DB에서 프로필 불러오기 (저장된 진단 복원)
   useEffect(() => {
-  get<any>("/api/diagnosis/profile")
-    .then((profile) => setForm({
-      ...profile,
-      birthDate: profile.birthDate ? String(profile.birthDate) : "",
-      annualIncome: profile.annualIncome ? Math.floor(profile.annualIncome / 10000) : 0,
-      totalAsset:   profile.totalAsset   ? Math.floor(profile.totalAsset   / 10000) : 0,
-      cashAsset:    profile.cashAsset    ? Math.floor(profile.cashAsset    / 10000) : 0,
-      employmentStatus: profile.employmentStatus ?? "",
-      employmentPeriod: profile.employmentPeriod ?? "",
-      marriagePeriod:   profile.marriagePeriod   ?? "",
-    }))
-    .catch(() => {});
-}, []);
+    get<any>("/api/diagnosis/profile")
+      .then((profile) => setForm({
+        ...profile,
+        birthDate: profile.birthDate ? String(profile.birthDate) : "",
+        annualIncome: profile.annualIncome ? Math.floor(profile.annualIncome / 10000) : 0,
+        totalAsset:   profile.totalAsset   ? Math.floor(profile.totalAsset   / 10000) : 0,
+        cashAsset:    profile.cashAsset    ? Math.floor(profile.cashAsset    / 10000) : 0,
+        employmentStatus: profile.employmentStatus ?? "",
+        employmentPeriod: profile.employmentPeriod ?? "",
+        marriagePeriod:   profile.marriagePeriod   ?? "",
+      }))
+      .catch(() => {});
+  }, []);
 
   // 스크롤 위치 기반 현재 스텝 업데이트
   useEffect(() => {
@@ -296,7 +298,7 @@ const HousingFormPage = () => {
         totalAsset: form.totalAsset * 10000,
         cashAsset: form.cashAsset * 10000,
       });
-      router.push("/site/condition-check/result");
+      router.push("/site/step/condition-check/result");
     } catch {
       // 전역 ApiFeedbackModal이 자동 처리
     } finally {
@@ -315,7 +317,7 @@ const HousingFormPage = () => {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => router.push("/site")}>취소</AlertDialogCancel>
-          <AlertDialogAction onClick={() => router.push("/login?redirect=/site/condition-check")}>
+          <AlertDialogAction onClick={() => router.push("/login?redirect=/site/step/condition-check")}>
             로그인하기
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -443,9 +445,9 @@ const HousingFormPage = () => {
                       >
                         <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 ${
                           completed && isActive ? "bg-white text-blue-600" :
-                          completed            ? "bg-blue-600 text-white" :
-                          isActive             ? "bg-white text-blue-600" :
-                                                 "bg-gray-200 text-gray-600"
+                            completed            ? "bg-blue-600 text-white" :
+                              isActive             ? "bg-white text-blue-600" :
+                                "bg-gray-200 text-gray-600"
                         }`}>
                           {completed
                             ? <Check className={`w-3 h-3 stroke-[3] ${isActive ? "text-blue-600" : "text-white"}`} />
@@ -649,13 +651,13 @@ const HousingFormPage = () => {
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2 mt-2">
                             <span className={`text-sm font-semibold ${
                               form.subscriptionMonths >= 24 ? "text-green-600" :
-                              form.subscriptionMonths > 0 ? "text-amber-600" : "text-gray-500"
+                                form.subscriptionMonths > 0 ? "text-amber-600" : "text-gray-500"
                             }`}>
                               {form.subscriptionMonths >= 24
                                 ? "✅ 1순위 충족"
                                 : form.subscriptionMonths > 0
-                                ? `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`
-                                : "* 24개월 이상 → 1순위"}
+                                  ? `⚠️ 1순위까지 ${24 - form.subscriptionMonths}개월 남음`
+                                  : "* 24개월 이상 → 1순위"}
                             </span>
                             <div className="flex items-center gap-2 justify-end">
                               <input
@@ -812,7 +814,19 @@ const HousingFormPage = () => {
                       <p className="text-sm font-medium text-gray-700">
                         희망 지역구 <span className="text-blue-600 font-bold">({form.desiredCity})</span>
                       </p>
+
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto p-1 border rounded-lg bg-gray-50">
+                        <button
+                          type="button"
+                          onClick={() => update("desiredDistrict", "전체")}
+                          className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors text-left ${
+                            form.desiredDistrict === "전체"
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-gray-700 border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                          }`}
+                        >
+                          {form.desiredCity} 전체
+                        </button>
                         {DISTRICT_MAP[form.desiredCity].map((district) => (
                           <button
                             key={district}
