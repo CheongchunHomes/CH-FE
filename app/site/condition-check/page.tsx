@@ -4,7 +4,7 @@ import { post } from "@/lib/api";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, ChevronDown, ChevronUp, HelpCircle, Home, Users, BookOpen, Wallet, Heart, Building2 } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, ChevronUp, HelpCircle, Home, Users, BookOpen, Wallet, Heart, Building2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -71,7 +71,6 @@ const pyeongToSqm = (pyeong: number): number => Math.round(pyeong * 3.3058);
 
 // ㎡ → 평
 const sqmToPyeong = (sqm: number): number => Math.round((sqm / 3.3058) * 10) / 10;
-
 
 
 const INITIAL_FORM: DiagnosisForm = {
@@ -246,8 +245,14 @@ const HousingFormPage = () => {
 
 // form 임시저장 복원 (뒤로가기 대응)
   useEffect(() => {
-    const saved = sessionStorage.getItem("diagnosisFormTemp");
-    if (saved) setForm(JSON.parse(saved));
+    const saved = sessionStorage.getItem("diagnosisForm");
+    if (saved) {
+      try {
+        setForm(JSON.parse(saved));
+      } catch {
+        setForm(INITIAL_FORM);
+      }
+    }
   }, []);
 
   // 스크롤 위치 기반 현재 스텝 업데이트
@@ -293,6 +298,16 @@ const HousingFormPage = () => {
     setForm((prev) => ({ ...prev, desiredCity: city, desiredDistrict: "" }));
   };
 
+  // 다시 진단하기 - sessionStorage 초기화 후 폼 리셋
+  const handleReset = () => {
+    sessionStorage.removeItem("diagnosisForm");
+    sessionStorage.removeItem("diagnosisFormTemp");
+    sessionStorage.removeItem("diagnosisResult");
+    sessionStorage.removeItem("recommendationResult");
+    setForm(INITIAL_FORM);
+    window.scrollTo(0, 0);
+  };
+  
   const handleSubmit = async () => {
   // 모든 스텝 완료 여부 체크
   const incompleteSteps = STEPS.filter(s => !isStepCompleted(s.id, form));
@@ -329,22 +344,33 @@ const HousingFormPage = () => {
     <main className="bg-gray-50 min-h-screen">
 
       {/* 헤더 */}
-      <div className="bg-white border-b px-4 md:px-8 py-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">자가진단</h1>
-          <p className="text-sm text-gray-500 mt-1">몇 가지 정보를 입력하고 나에게 맞는 주거자격 진단을 받아보세요</p>
-          {/* 모바일 진행률 */}
-          <div className="mt-3 md:hidden">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>진행률</span>
-              <span className="font-bold text-blue-600">{dataProgress}%</span>
+        <div className="bg-white border-b px-4 md:px-8 py-6">
+          <div className="max-w-7xl mx-auto flex justify-between items-start">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">자가진단</h1>
+              <p className="text-sm text-gray-500 mt-1">몇 가지 정보를 입력하고 나에게 맞는 주거자격 진단을 받아보세요</p>
+              {/* 모바일 진행률 */}
+              <div className="mt-3 md:hidden">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>진행률</span>
+                  <span className="font-bold text-blue-600">{dataProgress}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${dataProgress}%` }} />
+                </div>
+              </div>
             </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${dataProgress}%` }} />
-            </div>
+            {/* 다시 진단하기 버튼 */}
+            <Button
+            variant="outline"
+            onClick={handleReset}
+            className="flex items-center gap-2 text-sm"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="hidden sm:inline">다시 진단하기</span>
+          </Button>
           </div>
         </div>
-      </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
 

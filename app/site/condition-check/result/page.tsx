@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
-import { Check, AlertTriangle, RotateCcw, ChevronRight, MapPin, Lightbulb,
+import { Check, AlertTriangle, RotateCcw, History, ChevronRight, MapPin, Lightbulb,
          ThumbsUp, ClipboardList } from "lucide-react";
 import { DiagnosisForm, DiagnosisResult, PolicyResult, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
 import React from "react";
@@ -182,30 +182,35 @@ export default function DiagnosisResultPage() {
   };
 
   // 다시 진단하기 => 리셋버튼
-  const handleReset = () => {
-  sessionStorage.removeItem("diagnosisFormTemp");
-  router.push("/site/condition-check");
-};
-
-  useEffect(() => {
-    // sessionStorage에서 결과 읽기
-    const savedResult = sessionStorage.getItem("diagnosisResult");
-    const savedForm = sessionStorage.getItem("diagnosisForm");
-    if (!savedResult) {
+    const handleReset = () => {
+      sessionStorage.removeItem("diagnosisFormTemp");
+      sessionStorage.removeItem("diagnosisForm");
+      sessionStorage.removeItem("diagnosisResult");
+      sessionStorage.removeItem("recommendationResult");
       router.push("/site/condition-check");
-      return;
-    }
-    setResult(JSON.parse(savedResult));
-    if (savedForm) {
-      const parsedForm = JSON.parse(savedForm);
-      setForm(parsedForm);
-      // ── 제도추천 API 호출 ──
-      loadRecommendation(parsedForm);
-    }
-  }, [router]);
+    };
 
-  // ── null 가드: 이 아래부터 result non-null 보장 ──
-  if (!result) return null;
+    // 이전 진단 불러오기 - formTemp 유지하고 이동
+    const handleLoadPrev = () => {
+      router.push("/site/condition-check");
+    };
+
+      useEffect(() => {
+      const savedResult = sessionStorage.getItem("diagnosisResult");
+      const savedForm = sessionStorage.getItem("diagnosisForm");
+      if (!savedResult) {
+        router.push("/site/condition-check");
+        return;
+      }
+      setResult(JSON.parse(savedResult));
+      if (savedForm) {
+        const parsedForm = JSON.parse(savedForm);
+        setForm(parsedForm);
+        loadRecommendation(parsedForm);
+      }
+    }, [router]);
+
+    if (!result) return null;
 
   // 6개 자격 상태 목록
   const statusItems = [
@@ -305,21 +310,25 @@ export default function DiagnosisResultPage() {
 
       {/* ── 헤더 ── */}
       <div className="bg-white border-b px-4 md:px-8 py-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">주거 자격 진단 결과</h1>
-            <p className="text-sm text-gray-500 mt-1">입력하신 정보를 바탕으로 주거 자격 상태와 준비도를 진단했습니다.</p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            className="flex items-center gap-2 text-sm"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">다시 진단하기</span>
-          </Button>
-        </div>
+  <div className="max-w-6xl mx-auto">
+    <div className="flex flex-col md:grid md:grid-cols-[1fr_260px] gap-6">
+      <div>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">주거 자격 진단 결과</h1>
+        <p className="text-sm text-gray-500 mt-1">입력하신 정보를 바탕으로 주거 자격 상태와 준비도를 진단했습니다.</p>
       </div>
+      <div className="flex items-center justify-end">
+        <Button
+          variant="outline"
+          onClick={handleReset}
+          className="flex items-center gap-2 text-sm"
+        >
+          <RotateCcw className="w-4 h-4" />
+          <span className="hidden sm:inline">다시 진단하기</span>
+        </Button>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8">
 
@@ -530,7 +539,7 @@ export default function DiagnosisResultPage() {
                       </div>
                       <Button
                         className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto font-bold shrink-0"
-                        onClick={() => router.push("/site/recommend")}
+                        onClick={() => router.push("/site/step/recommend")}
                       >
                         제도 상세 보러가기
                         <ChevronRight className="w-4 h-4" />
@@ -565,14 +574,15 @@ export default function DiagnosisResultPage() {
                   ))}
                 </ul>
 
-                {/* 다시하기 버튼 */}
-                <button
-                  onClick={handleReset}
-                  className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  다시 진단하기
-                </button>
+                {/* 이전 진단 불러오기 */}
+                <Button
+                    variant="outline"
+                    onClick={handleLoadPrev}
+                    className="mt-5 w-full flex items-center justify-center gap-2 text-sm"
+                  >
+                    <History className="w-4 h-4" />
+                    이전 진단 불러오기
+                  </Button>
               </CardContent>
             </Card>
           </aside>

@@ -7,19 +7,23 @@ import MapSiderCategoryMenu from "./mapSiderCategoryMenu";
 type MapSidebarProps = {
   listings: MapListing[];
   activeCategory: MapFilterCategory;
-  isSelectionMode?: boolean;
+  isSelectionMode: boolean;
   onChangeCategory: (category: MapFilterCategory) => void;
-  onClearSelection?: () => void;
+  onClearSelection: () => void;
   onSelectListing?: (listing: MapListing) => void;
+  chatUnreadCount?: number;
+  onOpenChatList?: () => void;
 };
 
 export default function MapSidebar({
   listings,
   activeCategory,
-  isSelectionMode = false,
+  isSelectionMode,
   onChangeCategory,
   onClearSelection,
   onSelectListing,
+  chatUnreadCount = 0,
+  onOpenChatList,
 }: MapSidebarProps) {
   return (
     <aside className="h-full w-[380px] shrink-0 border-r border-slate-200 bg-white">
@@ -32,10 +36,12 @@ export default function MapSidebar({
       </div>
 
       <div className="flex h-[calc(100%-73px)]">
-        {/* 매물 카테고리 메뉴입니다. */}
+        {/* 왼쪽 카테고리 메뉴입니다. */}
         <MapSiderCategoryMenu
           activeCategory={activeCategory}
           onChangeCategory={onChangeCategory}
+          chatUnreadCount={chatUnreadCount}
+          onOpenChatList={onOpenChatList}
         />
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -79,6 +85,7 @@ export default function MapSidebar({
   );
 }
 
+// 현재 카테고리명을 화면용 문구로 변환합니다.
 function getCategoryTitle(category: MapFilterCategory) {
   switch (category) {
     case "all":

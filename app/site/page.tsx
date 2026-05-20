@@ -19,7 +19,7 @@ import { getPageSampleHref } from "@/lib/page-samples"
 
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("condition-check") },
-  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("recommend") },
+  { icon: Ticket, label: "제도 추천", href: getPageSampleHref("step/recommend") },
   { icon: Coins, label: "대출 계산", href: getPageSampleHref("loan") },
   { icon: MapPin, label: "집·공고 확인", href: "site/map" },
   { icon: Building2, label: "계약", href: getPageSampleHref("contract") },
@@ -35,8 +35,7 @@ const homeTips = [
   { title: "동네별 커뮤니티", desc: "지역별 주거 정보와 생활 후기를 함께 공유하는 공간", href: getPageSampleHref("community") },
   { title: "용어 설명", desc: "특공·임대 제도 차이 설명 (어려운 제도 용어 설명)", href: getPageSampleHref("terminology") },
   { title: "청약 가점 학습 퀴즈", desc: "퀴즈을 통한 가점 항목(무주택, 부양가족 등) 산정 기준 습득", href: getPageSampleHref("subscription-quiz") },
-  
-]
+  ]
 
 export default function SitePage() {
   return (

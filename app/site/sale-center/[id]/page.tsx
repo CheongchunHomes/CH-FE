@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getAnnouncement, Announcement } from "@/lib/announcements-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,17 +37,17 @@ export default function AnnouncementDetail() {
     navigator.clipboard.writeText(window.location.href);
   };
 
+  const handleClose = () => {
+  if (from === "scraps") {
+    router.push("/site/my-page/info/scraps")
+    return
+  }
+
+  router.push("/site/sale-center")
+  }
+
   if (loading) return <div className="p-8 text-center text-gray-400">불러오는 중...</div>;
   if (!data) return <div className="p-8 text-center text-gray-400">공고를 찾을 수 없습니다.</div>;
-
-  const handleClose = () => {
-    if (from === "scraps") {
-      router.push("/site/my-page/info/scraps")
-      return
-    }
-
-    router.push("/site/announcements")
-  }
 
   return (
     <div className="flex min-h-screen">
@@ -58,7 +58,7 @@ export default function AnnouncementDetail() {
 
         {/* 상단 타이틀 + 아이콘 */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-gray-900">입주 모집공고</h1>
+          <h1 className="text-xl font-bold text-gray-900">분양 모집공고</h1>
           <div className="flex items-center gap-2">
             <HoverCard>
               <HoverCardTrigger asChild>
@@ -106,26 +106,31 @@ export default function AnnouncementDetail() {
 
         {/* 단지 기본정보 */}
         <section className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
             <h2 className="text-sm font-semibold text-gray-800">단지 기본정보</h2>
-          </div>
-          <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+        </div>
+
+        <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
             <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">총 세대수</td>
+            <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">총 공급세대수</td>
                 <td className="px-4 py-3 text-gray-800">{dash(data.totHshldCo)}</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="bg-gray-50 px-4 py-3 text-gray-500">난방방식</td>
-                <td className="px-4 py-3 text-gray-800">{dash(data.heatMthdNm)}</td>
-              </tr>
-              <tr>
+            </tr>
+            <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500">주택유형</td>
+                <td className="px-4 py-3 text-gray-800">{dash(data.recuitmentType)}</td>
+            </tr>
+            <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500">공급기관</td>
+                <td className="px-4 py-3 text-gray-800">{dash(data.supplyInstitution)}</td>
+            </tr>
+            <tr>
                 <td className="bg-gray-50 px-4 py-3 text-gray-500">주소</td>
                 <td className="px-4 py-3 text-gray-800">{dash(data.address)}</td>
-              </tr>
+            </tr>
             </tbody>
-          </table>
+        </table>
         </section>
 
         {/* 공급 정보 */}
@@ -137,15 +142,21 @@ export default function AnnouncementDetail() {
           <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
             <tbody>
               <tr className="border-b border-gray-100">
-                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">임대보증금</td>
+                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">계약금</td>
                 <td className="px-4 py-3 text-blue-600 font-medium">
-                  {data.rentGtn ? `${data.rentGtn.toLocaleString()}원` : "-"}
+                  {data.rentGtn != null ? `${data.rentGtn.toLocaleString()}원` : "-"}
                 </td>
               </tr>
-              <tr>
-                <td className="bg-gray-50 px-4 py-3 text-gray-500">월 임대료</td>
+              <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">중도금</td>
                 <td className="px-4 py-3 text-blue-600 font-medium">
-                  {data.mtRntchrg ? `${data.mtRntchrg.toLocaleString()}원` : "-"}
+                  {data.mtRntchrg != null ? `${data.mtRntchrg.toLocaleString()}원` : "-"}
+                </td>
+              </tr>
+              <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">잔금</td>
+                <td className="px-4 py-3 text-blue-600 font-medium">
+                  {data.surlus != null ? `${data.surlus.toLocaleString()}원` : "-"}
                 </td>
               </tr>
             </tbody>
@@ -154,39 +165,68 @@ export default function AnnouncementDetail() {
 
         {/* 일정 정보 */}
         <section className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
             <h2 className="text-sm font-semibold text-gray-800">일정 정보</h2>
-          </div>
-          <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+        </div>
+
+        <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
             <tbody>
-              <tr className="border-b border-gray-100">
+            <tr className="border-b border-gray-100">
                 <td className="bg-gray-50 px-4 py-3 text-gray-500 w-1/4">모집공고일</td>
                 <td className="px-4 py-3 text-gray-800">{dash(data.beginDe)}</td>
-              </tr>
-              <tr className="border-b border-gray-100">
+            </tr>
+            <tr className="border-b border-gray-100">
                 <td className="bg-gray-50 px-4 py-3 text-gray-500">접수 기간</td>
                 <td className="px-4 py-3 text-gray-800">
-                  {data.applyStartDate && data.applyEndDate ? `${data.applyStartDate} ~ ${data.applyEndDate}` : "-"}
+                {data.applyStartDate && data.applyEndDate
+                    ? `${data.applyStartDate} ~ ${data.applyEndDate}`
+                    : "-"}
                 </td>
-              </tr>
-              <tr>
-                <td className="bg-gray-50 px-4 py-3 text-gray-500">공고 종료일</td>
-                <td className="px-4 py-3 text-gray-800">{dash(data.endDe)}</td>
-              </tr>
+            </tr>
+            <tr className="border-b border-gray-100">
+                <td className="bg-gray-50 px-4 py-3 text-gray-500">당첨자 발표일</td>
+                <td className="px-4 py-3 text-gray-800">{dash(data.przwnerPresnatnDe)}</td>
+            </tr>
+            <tr>
+                <td className="bg-gray-50 px-4 py-3 text-gray-500">계약 기간</td>
+                <td className="px-4 py-3 text-gray-800">
+                {data.cntrctCnclsBgnde && data.cntrctCnclsEndde
+                    ? `${data.cntrctCnclsBgnde} ~ ${data.cntrctCnclsEndde}`
+                    : "-"}
+                </td>
+            </tr>
             </tbody>
-          </table>
+        </table>
         </section>
 
-        {/* 공고 내용 */}
+        {/* 안내사항 */}
         <section className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
-            <h2 className="text-sm font-semibold text-gray-800">공고 내용</h2>
-          </div>
-          <div className="border border-gray-200 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-            {dash(data.content)}
-          </div>
+            <h2 className="text-sm font-semibold text-gray-800">안내사항</h2>
+        </div>
+
+        <div className="border border-gray-200 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {data.content ? (
+            <div className="mb-4">{data.content}</div>
+            ) : (
+            <p className="mb-4">
+                상세 신청자격, 제출서류, 유의사항은 원문 공고문에서 확인해 주세요.
+            </p>
+            )}
+
+            {data.sourceUrl ? (
+            <Button
+                size="sm"
+                onClick={() => window.open(data.sourceUrl, "_blank")}
+            >
+                원문 공고문 보기
+            </Button>
+            ) : (
+            <span className="text-gray-400">원문 URL 정보가 없습니다.</span>
+            )}
+        </div>
         </section>
       </main>
     </div>
