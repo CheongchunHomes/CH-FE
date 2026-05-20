@@ -238,8 +238,9 @@ interface NoticeDetailPageProps {
   };
 }
 
-export default function NoticeDetailPage({ params }: NoticeDetailPageProps) {
-  const noticeId = Number(params.id);
+export default async function NoticeDetailPage({ params }: NoticeDetailPageProps) {
+  const { id } = await params;
+  const noticeId = Number(id);
   const notice = notices.find((item) => item.id === noticeId);
 
   if (!notice) {

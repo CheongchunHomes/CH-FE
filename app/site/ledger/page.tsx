@@ -10,28 +10,46 @@ import {
   Wallet,
 } from 'lucide-react';
 
+import { get, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 interface Transaction {
-  expenditure_id?: number;
+  expenditureId?: number;
+  userId?: number;
   category: string;
   amount: number;
   method: string;
   memo: string;
-  spent_at: string;
-  created_at?: string;
+  spentAt: string;
 }
 
-const CATEGORIES = ['전체', '식비', '교통', '기타'] as const;
+const CATEGORIES = ['전체', '식비', '교통', '저축', '기타'] as const;
 const METHODS = ['카드', '현금', '쿠폰'] as const;
 
+const isSavingCategory = (category: string) => category === '저축';
+
+const getSignedAmount = (transaction: Transaction) => {
+  const amount = Number(transaction.amount);
+
+  if (isSavingCategory(transaction.category)) {
+    return amount;
+  }
+
+  return -amount;
+};
+
+const formatSignedAmount = (amount: number) => {
+  const sign = amount >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(amount).toLocaleString()}원`;
+};
+
 export default function LedgerPage() {
-  const [activeTab, setActiveTab] = useState<'지출조회' | '지출입력' | '월별조회'>(
-    '지출조회'
-  );
+  const [activeTab, setActiveTab] = useState<
+    '지출조회' | '지출입력' | '월별조회'
+  >('지출조회');
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -42,7 +60,7 @@ export default function LedgerPage() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
 
   const [formData, setFormData] = useState({
-    spent_at: new Date().toISOString().split('T')[0],
+    spentAt: new Date().toISOString().split('T')[0],
     amount: '',
     category: '',
     method: '카드',
@@ -55,26 +73,13 @@ export default function LedgerPage() {
 
   const fetchLedgers = async () => {
     try {
-      const response = await fetch('/api/ledger/list', {
-        method: 'GET',
+      const data = await get<Transaction[]>('/api/ledger', {
+        cache: 'no-store',
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('조회 실패:', response.status, errorText);
-
-        if (response.status === 401 || response.status === 403) {
-          alert('로그인이 필요합니다.');
-        }
-
-        return;
-      }
-
-      const data = await response.json();
       setTransactions(data);
     } catch (error) {
       console.error('데이터 로드 실패:', error);
-      alert('데이터를 불러오지 못했습니다.');
     }
   };
 
@@ -92,50 +97,36 @@ export default function LedgerPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!formData.amount || !formData.category) {
+    const amount = Number(formData.amount);
+
+    if (formData.amount === '' || !formData.category) {
       alert('금액과 카테고리를 입력하세요.');
+      return;
+    }
+
+    if (amount < 0) {
+      alert('금액은 0원 이상부터 입력할 수 있습니다.');
       return;
     }
 
     const newEntry = {
       category: formData.category,
-      amount: Number(formData.amount),
+      amount,
       method: formData.method,
       memo: formData.memo,
-      spent_at: formData.spent_at,
+      spentAt: formData.spentAt,
     };
 
     try {
-      const response = await fetch('/api/ledger/add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newEntry),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('저장 실패:', response.status, errorText);
-
-        if (response.status === 401 || response.status === 403) {
-          alert('로그인이 필요합니다.');
-          return;
-        }
-
-        alert(`저장 실패: ${response.status}`);
-        return;
-      }
-
-      const savedData = await response.json();
+      const savedData = await post<Transaction>('/api/ledger', newEntry);
 
       setTransactions((prev) => [savedData, ...prev]);
-      setViewMonth(formData.spent_at.slice(0, 7));
+      setViewMonth(formData.spentAt.slice(0, 7));
       setSelectedCategory('전체');
       setActiveTab('지출조회');
 
       setFormData({
-        spent_at: new Date().toISOString().split('T')[0],
+        spentAt: new Date().toISOString().split('T')[0],
         amount: '',
         category: '',
         method: '카드',
@@ -145,14 +136,13 @@ export default function LedgerPage() {
       alert('저장 완료');
     } catch (error) {
       console.error('저장 실패:', error);
-      alert('서버 연결 실패');
     }
   };
 
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(
       (transaction) =>
-        transaction.spent_at && transaction.spent_at.startsWith(viewMonth)
+        transaction.spentAt && transaction.spentAt.startsWith(viewMonth)
     );
   }, [transactions, viewMonth]);
 
@@ -167,10 +157,9 @@ export default function LedgerPage() {
   }, [monthlyTransactions, selectedCategory]);
 
   const displayTotal = useMemo(() => {
-    return filteredTransactions.reduce(
-      (acc, cur) => acc + Number(cur.amount),
-      0
-    );
+    return filteredTransactions.reduce((acc, cur) => {
+      return acc + getSignedAmount(cur);
+    }, 0);
   }, [filteredTransactions]);
 
   const monthlySummary = useMemo(() => {
@@ -182,15 +171,15 @@ export default function LedgerPage() {
           );
 
     return summaryTargetTransactions.reduce((acc, cur) => {
-      if (!cur.spent_at) return acc;
+      if (!cur.spentAt) return acc;
 
-      const month = cur.spent_at.slice(0, 7);
+      const month = cur.spentAt.slice(0, 7);
 
       if (!acc[month]) {
         acc[month] = 0;
       }
 
-      acc[month] += Number(cur.amount);
+      acc[month] += getSignedAmount(cur);
 
       return acc;
     }, {} as Record<string, number>);
@@ -275,22 +264,23 @@ export default function LedgerPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">지출 일자</label>
                     <Input
-                      name="spent_at"
+                      name="spentAt"
                       type="date"
-                      value={formData.spent_at}
+                      value={formData.spentAt}
                       onChange={handleInputChange}
                       className="focus-visible:ring-[#2196F3]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">지출 금액</label>
+                    <label className="text-sm font-medium">금액</label>
                     <Input
                       name="amount"
                       type="number"
+                      min={0}
                       value={formData.amount}
                       onChange={handleInputChange}
-                      placeholder="예: 12000"
+                      placeholder="예: 0"
                       className="focus-visible:ring-[#2196F3]"
                     />
                   </div>
@@ -336,7 +326,7 @@ export default function LedgerPage() {
                       name="memo"
                       value={formData.memo}
                       onChange={handleInputChange}
-                      placeholder="예: 점심 식사"
+                      placeholder="예: 점심 식사 / 적금"
                       className="focus-visible:ring-[#2196F3]"
                     />
                   </div>
@@ -359,7 +349,7 @@ export default function LedgerPage() {
               <CardHeader className="flex flex-row items-center justify-between border-b">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <FileText className="h-5 w-5 text-[#2196F3]" />
-                  상세 지출 내역
+                  상세 내역
                 </CardTitle>
 
                 <Input
@@ -392,38 +382,49 @@ export default function LedgerPage() {
                             colSpan={5}
                             className="px-6 py-16 text-center text-muted-foreground"
                           >
-                            지출 내역이 없습니다.
+                            내역이 없습니다.
                           </td>
                         </tr>
                       ) : (
-                        monthlyTransactions.map((transaction, index) => (
-                          <tr
-                            key={transaction.expenditure_id ?? index}
-                            className="border-b transition hover:bg-[#2196F3]/5"
-                          >
-                            <td className="px-6 py-4">
-                              {transaction.spent_at}
-                            </td>
+                        monthlyTransactions.map((transaction, index) => {
+                          const signedAmount = getSignedAmount(transaction);
+                          const isPositive = signedAmount >= 0;
 
-                            <td className="px-6 py-4">
-                              <Badge className="bg-[#2196F3]/10 text-[#2196F3] hover:bg-[#2196F3]/10">
-                                {transaction.category}
-                              </Badge>
-                            </td>
+                          return (
+                            <tr
+                              key={transaction.expenditureId ?? index}
+                              className="border-b transition hover:bg-[#2196F3]/5"
+                            >
+                              <td className="px-6 py-4">
+                                {transaction.spentAt}
+                              </td>
 
-                            <td className="px-6 py-4">
-                              {transaction.method}
-                            </td>
+                              <td className="px-6 py-4">
+                                <Badge className="bg-[#2196F3]/10 text-[#2196F3] hover:bg-[#2196F3]/10">
+                                  {transaction.category}
+                                </Badge>
+                              </td>
 
-                            <td className="px-6 py-4">
-                              {transaction.memo || '-'}
-                            </td>
+                              <td className="px-6 py-4">
+                                {transaction.method}
+                              </td>
 
-                            <td className="px-6 py-4 text-right font-bold text-red-500">
-                              -{Number(transaction.amount).toLocaleString()}원
-                            </td>
-                          </tr>
-                        ))
+                              <td className="px-6 py-4">
+                                {transaction.memo || '-'}
+                              </td>
+
+                              <td
+                                className={
+                                  isPositive
+                                    ? 'px-6 py-4 text-right font-bold text-blue-500'
+                                    : 'px-6 py-4 text-right font-bold text-red-500'
+                                }
+                              >
+                                {formatSignedAmount(signedAmount)}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -454,11 +455,11 @@ export default function LedgerPage() {
                     <Card className="border-[#2196F3]/20 bg-[#2196F3] text-white">
                       <CardContent className="p-6">
                         <Badge className="mb-4 bg-white/20 text-white hover:bg-white/20">
-                          {selectedCategory} 지출 합계
+                          {selectedCategory} 합계
                         </Badge>
 
                         <p className="text-3xl font-bold">
-                          {displayTotal.toLocaleString()}원
+                          {formatSignedAmount(displayTotal)}
                         </p>
                       </CardContent>
                     </Card>
@@ -511,8 +512,8 @@ export default function LedgerPage() {
                 <CardHeader className="border-b">
                   <CardTitle className="text-lg text-[#2196F3]">
                     {selectedCategory === '전체'
-                      ? '전체 월별 총 지출'
-                      : `${selectedCategory} 월별 지출`}
+                      ? '전체 월별 합계'
+                      : `${selectedCategory} 월별 합계`}
                   </CardTitle>
                 </CardHeader>
 
@@ -524,8 +525,8 @@ export default function LedgerPage() {
                           <th className="px-6 py-3 font-medium">월</th>
                           <th className="px-6 py-3 text-right font-medium">
                             {selectedCategory === '전체'
-                              ? '총 지출액'
-                              : `${selectedCategory} 지출액`}
+                              ? '총 합계'
+                              : `${selectedCategory} 합계`}
                           </th>
                         </tr>
                       </thead>
@@ -537,23 +538,33 @@ export default function LedgerPage() {
                               colSpan={2}
                               className="px-6 py-16 text-center text-muted-foreground"
                             >
-                              지출 내역이 없습니다.
+                              내역이 없습니다.
                             </td>
                           </tr>
                         ) : (
                           Object.entries(monthlySummary)
                             .sort((a, b) => b[0].localeCompare(a[0]))
-                            .map(([month, total]) => (
-                              <tr
-                                key={month}
-                                className="border-b transition hover:bg-[#2196F3]/5"
-                              >
-                                <td className="px-6 py-4">{month}</td>
-                                <td className="px-6 py-4 text-right font-bold text-red-500">
-                                  {total.toLocaleString()}원
-                                </td>
-                              </tr>
-                            ))
+                            .map(([month, total]) => {
+                              const isPositive = total >= 0;
+
+                              return (
+                                <tr
+                                  key={month}
+                                  className="border-b transition hover:bg-[#2196F3]/5"
+                                >
+                                  <td className="px-6 py-4">{month}</td>
+                                  <td
+                                    className={
+                                      isPositive
+                                        ? 'px-6 py-4 text-right font-bold text-blue-500'
+                                        : 'px-6 py-4 text-right font-bold text-red-500'
+                                    }
+                                  >
+                                    {formatSignedAmount(total)}
+                                  </td>
+                                </tr>
+                              );
+                            })
                         )}
                       </tbody>
                     </table>

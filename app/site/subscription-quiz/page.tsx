@@ -478,7 +478,7 @@ export default function SubscriptionQuizPage() {
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              인터랙티브 퀴즈 결과
+              청약 가점 퀴즈 결과
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
@@ -585,7 +585,7 @@ export default function SubscriptionQuizPage() {
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            인터랙티브 청약 가점 퀴즈
+             청약 가점 퀴즈
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">

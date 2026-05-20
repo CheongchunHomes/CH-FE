@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get, ApiError } from '@/lib/api';
+import { get, post, ApiError } from '@/lib/api';
 
 const REGIONS = {
   seoul: {
@@ -439,20 +439,7 @@ export default function CommunityPage() {
     };
 
     try {
-      const response = await fetch('/api/community/add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('저장 실패:', response.status, errorText);
-        alert(`DB 저장 실패: ${response.status}`);
-        return;
-      }
+      await post('/api/community/add', postData);
 
       alert('글이 저장되었습니다.');
 
@@ -464,8 +451,11 @@ export default function CommunityPage() {
       setIsWriting(false);
       fetchPosts();
     } catch (error) {
-      console.error(error);
-      alert('서버 연결 실패');
+      if (error instanceof ApiError) {
+        console.error('저장 실패:', error.message);
+      } else {
+        console.error(error);
+      }
     }
   };
 
@@ -487,7 +477,6 @@ export default function CommunityPage() {
 
       return post.region === `${cityName} ${districtName}`;
     })();
-    
 
     const matchesSearch =
       !keyword ||
@@ -766,7 +755,7 @@ export default function CommunityPage() {
                   <th style={{ width: '150px' }}>지역</th>
                   <th>제목</th>
                   <th style={{ width: '80px' }}>조회수</th>
-                  <th style={{ width: '120px' }}>날짜</th>
+                  {/*<th style={{ width: '120px' }}>날짜</th>*/}
                 </tr>
               </thead>
 
@@ -890,7 +879,8 @@ export default function CommunityPage() {
                       border: `1px solid ${
                         page === currentPage ? theme.color : '#ddd'
                       }`,
-                      backgroundColor: page === currentPage ? theme.color : '#fff',
+                      backgroundColor:
+                        page === currentPage ? theme.color : '#fff',
                       color: page === currentPage ? '#fff' : '#333',
                       cursor: 'pointer',
                       fontWeight: page === currentPage ? 'bold' : 'normal',
