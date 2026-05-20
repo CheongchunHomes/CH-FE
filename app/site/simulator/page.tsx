@@ -85,12 +85,12 @@ export default function SimulatorPage() {
     async function handleToggleComplete(planId: number, isCompleted: boolean) {
       const plan = plans.find(p => p.planId === planId)
       if (!plan) return
-      
+
       // 로컬 state 먼저 업데이트
-      setPlans(prev => prev.map(p => 
+      setPlans(prev => prev.map(p =>
         p.planId === planId ? { ...p, isCompleted } : p
       ))
-      
+
       // 백엔드 업데이트
       const { planId: _, createdAt: __, ...planForm } = plan
       await request("PUT", `/api/simulator/asset-plans/${planId}`, {
@@ -117,8 +117,8 @@ export default function SimulatorPage() {
       {/* 헤더 */}
       <div className="bg-white border-b py-6">
         <div className="max-w-5xl mx-auto px-4 md:px-8">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">청년 주거 전략 시뮬레이터</h1>
-          <p className="text-sm text-gray-500 mt-1">자산·주거·금융을 한눈에 시뮬레이션해보세요</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">청년 플랜 · 시뮬레이터</h1>
+          <p className="text-sm text-gray-500 mt-1">모으고, 비교하고, 계산하고, 결국 내 집까지</p>
         </div>
       </div>
 
@@ -147,7 +147,7 @@ export default function SimulatorPage() {
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               onEditCancel={handleEditCancel}
-              onToggleComplete={handleToggleComplete} 
+              onToggleComplete={handleToggleComplete}
               />
           </TabsContent>
 
