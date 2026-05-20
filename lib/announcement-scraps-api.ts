@@ -12,6 +12,7 @@ export interface AnnouncementScrap {
   applyStartDate: string;
   applyEndDate: string;
   scrapedAt: string;
+  announcementVisible?: boolean
 }
 
 // 내 스크랩 공고 목록 조회

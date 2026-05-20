@@ -36,7 +36,6 @@ export default function CommunityWritePage() {
 
   const handleSubmit = async () => {
     if (!selectedCity || !selectedDistrict || !title || !content) {
-      alert('모든 항목을 입력해주세요.');
       return;
     }
 
@@ -61,12 +60,9 @@ export default function CommunityWritePage() {
       if (!response.ok) {
         throw new Error('등록 실패');
       }
-
-      alert('게시글이 등록되었습니다.');
       router.push('/site/community');
     } catch (error) {
       console.error(error);
-      alert('DB 저장 실패');
     } finally {
       setLoading(false);
     }
