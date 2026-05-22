@@ -43,6 +43,12 @@ export async function getAnnouncements(params: {
   sourceType?: string;
   targetType?: string;
   deadlineSoon?: boolean;
+
+  // 내 위치 기반 필터용
+  latitude?: number;
+  longitude?: number;
+  locationFilter?: string;
+
   page?: number;
   size?: number;
 }): Promise<PageResponse<Announcement>> {
@@ -54,6 +60,12 @@ export async function getAnnouncements(params: {
       sourceType: params.sourceType,
       targetType: params.targetType,
       deadlineSoon: params.deadlineSoon,
+
+      // 내 위치 기반 필터용
+      latitude: params.latitude,
+      longitude: params.longitude,
+      locationFilter: params.locationFilter,
+
       page: params.page ?? 0,
       size: params.size ?? 10,
     },
