@@ -117,7 +117,6 @@ export default function MiniChatWidget() {
     setIsSending(true)
 
     try {
-      // 현재 페이지 URL 읽기
       const pathname = window.location.pathname
 
       let userContext: string | undefined
@@ -141,21 +140,32 @@ export default function MiniChatWidget() {
       - 장애여부: ${p.disabilityYn ? '해당' : '해당없음'}
       - 한부모가정: ${p.singleParent ? '해당' : '해당없음'}
       - 영유아 자녀: ${p.hasYoungChild ? '있음' : '없음'}
-      - 결혼계획: ${p.marriagePlan ? '있음' : '없음'} `.trim()
+      - 결혼계획: ${p.marriagePlan ? '있음' : '없음'}`.trim()
         }
-      }catch{}
+      } catch {}
 
-      // 공고 , 지원제도 상세페이지 페이지 컨텍스트 추가
+      try {
+        const recRes = await fetch('/api/recommendation/calculate/profile')
+        if (recRes.ok) {
+          const rec = await recRes.json()
+          const topResults = (rec.results ?? [])
+            .slice(0, 5)
+            .map((r: any, i: number) => `${i + 1}순위: ${r.policyName} (${r.score}점, ${r.grade})`)
+            .join('\n')
+          userContext = (userContext ?? '') + `\n\n[제도 추천 우선순위]\n${topResults}`
+        }
+      } catch {}
+
       let pageContext = ''
       const announcementMatch = pathname.match(/\/site\/announcements\/(\d+)/)
       const policyMatch = pathname.match(/\/site\/policies\/(\d+)/)
 
-      if(announcementMatch) {
+      if (announcementMatch) {
         try {
           const annRes = await fetch(`/api/announcements/${announcementMatch[1]}`)
           if (annRes.ok) {
             const ann = await annRes.json()
-            pageContext = ` 사용자가 현재 아래 공고 상세페이지를 보고 있습니다.
+            pageContext = `사용자가 현재 아래 공고 상세페이지를 보고 있습니다.
       공고명: ${ann.title}
       지역: ${ann.region}
       상태: ${ann.status}
@@ -167,20 +177,20 @@ export default function MiniChatWidget() {
       } else if (policyMatch) {
         try {
           const polRes = await fetch(`/api/policies/${policyMatch[1]}`)
-          if(polRes.ok) {
+          if (polRes.ok) {
             const pol = await polRes.json()
             pageContext = `사용자가 현재 아래 지원제도 상세페이지를 보고 있습니다.
       제도명: ${pol.name ?? pol.title}
       내용: ${pol.content ?? pol.description ?? ''}`
           }
-        }catch{}
+        } catch {}
       }
-        
-      const response = await fetch (`${process.env.NEXT_PUBLIC_AI_BASE_URL}/api/chat`, {
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_AI_BASE_URL}/api/chat`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(({sender, content}) => ({
+          messages: [...messages, userMessage].map(({ sender, content }) => ({
             role: sender === 'USER' ? 'user' : 'assistant',
             content,
           })),
@@ -199,9 +209,6 @@ export default function MiniChatWidget() {
 
       setMessages((prev) => [...prev, aiMessage])
     } catch {
-      /**
-       * Python AI API 호출 실패 시 보여줄 기본 에러 메시지
-       */
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         sender: "AI",
