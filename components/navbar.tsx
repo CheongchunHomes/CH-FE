@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Bell, GraduationCap } from "lucide-react"
+import Image from "next/image"
+import { Bell } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { logoutAndRedirect } from "@/lib/logout-client"
 import { Button } from "@/components/ui/button"
@@ -42,12 +43,11 @@ export default function Navbar() {
     <header className="mb-4 rounded-3xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <Link href="/site" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
-            <GraduationCap size={20} />
+          <div className="flex h-10 w-10 items-center justify-center">
+            <Image src="/logo_only.png" alt="" width={40} height={40} className="h-10 w-10 object-contain" />
           </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight">청춘홈즈</p>
-            <p className="text-xs text-slate-500">청년 주거 준비를 한 번에</p>
+          <div className="flex h-10 items-center">
+            <Image src="/logo_text.png" alt="청춘홈즈" width={100} height={30} className="h-8 object-contain" />
           </div>
         </Link>
 

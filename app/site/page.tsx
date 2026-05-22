@@ -26,8 +26,6 @@ const quickMenus = [
 ]
 
 const homeTips = [
-  { title: "청약 자격 진단", desc: "내 조건에 맞는 청약을 한 번에 확인", href: getPageSampleHref("subscription") },
-  { title: "대출 가능 금액 계산", desc: "전세·구매 대출 한도를 간단히 계산", href: "/loan" },
   { title: "시뮬레이션", desc: "가상의 조건으로 계산해 보기", href: getPageSampleHref("simulator") },
   { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
   { title: "공지사항", desc: "공지사항", href: "/notice" },
