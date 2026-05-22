@@ -34,8 +34,7 @@ export type SubscriptionApplyDraft = {
 
 const applyTypeLabelMap: Record<string, string> = {
   SPECIAL: "특별공급",
-  FIRST: "1순위",
-  SECOND: "2순위",
+  GENERAL: "1순위/2순위",
   REMAIN: "잔여세대",
 };
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError, get } from "@/lib/api";
 
-type ApplyType = "SPECIAL" | "FIRST" | "SECOND" | "REMAIN";
+type ApplyType = "SPECIAL" | "GENERAL" | "REMAIN";
 
 type AnnouncementDetail = {
   announcementId: number;
@@ -53,14 +53,9 @@ const applyTypeOptions: {
     description: "생애최초, 신혼부부, 다자녀 등 특별공급 유형",
   },
   {
-    value: "FIRST",
-    label: "1순위",
-    description: "청약통장 및 지역 조건 등을 기준으로 신청",
-  },
-  {
-    value: "SECOND",
-    label: "2순위",
-    description: "1순위 외 일반 신청 유형",
+    value: "GENERAL",
+    label: "1순위/2순위",
+    description: "특별공급 외 일반공급 신청 유형",
   },
   {
     value: "REMAIN",
@@ -339,7 +334,7 @@ export default function SubscriptionDetailPage() {
             신청하기 전에 본인이 신청할 타입을 선택해 주세요.
           </p>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
             {applyTypeOptions.map((option) => {
               const isSelected = selectedApplyType === option.value;
 
