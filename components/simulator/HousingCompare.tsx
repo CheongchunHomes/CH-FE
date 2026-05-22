@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, TrendingDown, AlertCircle } from "lucide-react"
 import { get } from "@/lib/api";
 import { useRouter } from "next/navigation"
+import { DiagnosisForm } from "@/lib/diagnosisUtils";
 
 // 정책 목록 API 응답 타입 (GET /api/policies)
 interface PolicyListDTO {
@@ -154,13 +155,34 @@ export default function HousingCompare() {
   // 정책 제도
   useEffect(() => {
     const subCategory = selectedType === "jeonse" ? "보증금지원" : "월세지원"
-    get<{ content: PolicyListDTO[] }>("/api/policies", {
-      query: { subCategory, size: 100 }
-    })
-      .then((res) => setTipPolicies((res.content ?? []).slice(0, 3)))
+
+    // 프로필 조회 시도 — 비로그인이면 지역 필터 없이
+    get<DiagnosisForm>("/api/diagnosis/profile")
+      .catch(() => null)
+      .then((profile) => {
+        return get<{ content: PolicyListDTO[] }>("/api/policies", {
+          query: {
+            subCategory,
+            size: 100,
+            region: profile?.desiredCity ?? undefined
+          }
+        })
+      })
+      .then((res) => setTipPolicies(
+        (res.content ?? [])
+          .filter(p =>
+            (p.title.includes("월세") ||
+              p.title.includes("전세") ||
+              p.title.includes("보증금") ||
+              p.summary?.includes("월세") ||
+              p.summary?.includes("전세")) &&
+            (p.title.includes("청년") ||
+              p.summary?.includes("청년"))
+          )
+          .slice(0, 3)
+      ))
       .catch(() => {})
   }, [selectedType])
-
 
   // 현재 선택된 월 실질 비용
   const currentMonthly = calcMonthly(selectedType, costs)
