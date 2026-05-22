@@ -214,7 +214,7 @@ export default function MiniChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]">
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
       {/* 채팅창 영역 */}
       {isOpen && (
         <div className="mb-3 flex h-[520px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
@@ -235,14 +235,14 @@ export default function MiniChatWidget() {
               </div>
             </div>
 
-            <button
+            {/* <button
               type="button"
               onClick={() => setIsOpen(false)}
               className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               aria-label="채팅 닫기"
             >
               <X size={18} />
-            </button>
+            </button> */}
           </div>
 
           {/* 메시지 목록 영역 */}
@@ -343,7 +343,7 @@ export default function MiniChatWidget() {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl transition hover:bg-blue-700"
-        aria-label="미니채팅 열기"
+        aria-label={isOpen ? "미니채팅 닫기" : "미니채팅 열기"}
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={25} />}
       </button>
