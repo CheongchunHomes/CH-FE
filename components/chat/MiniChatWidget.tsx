@@ -117,38 +117,84 @@ export default function MiniChatWidget() {
     setIsSending(true)
 
     try {
-      /**
-       * TODO: AI 챗봇 담당자 연결 영역
-       *
-       * 예시 흐름:
-       *
-       * const response = await fetch("Python AI API 주소", {
-       *   method: "POST",
-       *   headers: { "Content-Type": "application/json" },
-       *   body: JSON.stringify({
-       *     message: content,
-       *   }),
-       * })
-       *
-       * const data = await response.json()
-       *
-       * const aiMessage: ChatMessage = {
-       *   id: `ai-${Date.now()}`,
-       *   sender: "AI",
-       *   content: data.answer,
-       * }
-       *
-       * setMessages((prev) => [...prev, aiMessage])
-       *
-       * 현재는 API 연결 전이므로 더미 응답만 표시함.
-       */
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // 현재 페이지 URL 읽기
+      const pathname = window.location.pathname
+
+      let userContext: string | undefined
+      try {
+        const profileRes = await fetch('/api/diagnosis/profile')
+        if (profileRes.ok) {
+          const p = await profileRes.json()
+          const age = p.birthDate
+            ? new Date().getFullYear() - new Date(p.birthDate).getFullYear()
+            : null
+          userContext = `
+      - 나이: ${age ? age + '세' : '-'}
+      - 연소득: ${p.annualIncome ? p.annualIncome.toLocaleString() + '원' : '-'}
+      - 총자산: ${p.totalAsset ? p.totalAsset.toLocaleString() + '원' : '-'}
+      - 혼인여부: ${p.married ? '기혼' : '미혼'}
+      - 무주택여부: ${p.houseless ? '무주택' : '유주택'}
+      - 부양가족 수: ${p.dependentCount ?? 0}명
+      - 청약통장 가입기간: ${p.subscriptionMonths ?? 0}개월
+      - 희망지역: ${p.desiredCity ?? '-'}
+      - 고용형태: ${p.employmentStatus ?? '-'}
+      - 장애여부: ${p.disabilityYn ? '해당' : '해당없음'}
+      - 한부모가정: ${p.singleParent ? '해당' : '해당없음'}
+      - 영유아 자녀: ${p.hasYoungChild ? '있음' : '없음'}
+      - 결혼계획: ${p.marriagePlan ? '있음' : '없음'} `.trim()
+        }
+      }catch{}
+
+      // 공고 , 지원제도 상세페이지 페이지 컨텍스트 추가
+      let pageContext = ''
+      const announcementMatch = pathname.match(/\/site\/announcements\/(\d+)/)
+      const policyMatch = pathname.match(/\/site\/policies\/(\d+)/)
+
+      if(announcementMatch) {
+        try {
+          const annRes = await fetch(`/api/announcements/${announcementMatch[1]}`)
+          if (annRes.ok) {
+            const ann = await annRes.json()
+            pageContext = ` 사용자가 현재 아래 공고 상세페이지를 보고 있습니다.
+      공고명: ${ann.title}
+      지역: ${ann.region}
+      상태: ${ann.status}
+      신청기간: ${ann.applyStartDate} ~ ${ann.applyEndDate}
+      내용: ${ann.content ?? ''}
+      출처: ${ann.sourceUrl ?? ''}`
+          }
+        } catch {}
+      } else if (policyMatch) {
+        try {
+          const polRes = await fetch(`/api/policies/${policyMatch[1]}`)
+          if(polRes.ok) {
+            const pol = await polRes.json()
+            pageContext = `사용자가 현재 아래 지원제도 상세페이지를 보고 있습니다.
+      제도명: ${pol.name ?? pol.title}
+      내용: ${pol.content ?? pol.description ?? ''}`
+          }
+        }catch{}
+      }
+        
+      const response = await fetch (`${process.env.NEXT_PUBLIC_AI_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(({sender, content}) => ({
+            role: sender === 'USER' ? 'user' : 'assistant',
+            content,
+          })),
+          pageContext: pageContext || undefined,
+          userContext: userContext || undefined,
+        }),
+      })
+
+      const data = await response.json()
 
       const aiMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
-        sender: "AI",
-        content:
-          "현재는 미니채팅 UI 테스트 답변입니다. AI 챗봇 API 연결 후 실제 답변으로 교체됩니다.",
+        sender: 'AI',
+        content: data.reply ?? '답변을 받아오지 못했습니다.',
       }
 
       setMessages((prev) => [...prev, aiMessage])
@@ -161,7 +207,6 @@ export default function MiniChatWidget() {
         sender: "AI",
         content: "답변을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
       }
-
       setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsSending(false)
@@ -224,7 +269,7 @@ export default function MiniChatWidget() {
 
                   {/* 말풍선 */}
                   <div
-                    className={`max-w-[76%] rounded-2xl px-3 py-2 text-sm leading-6 ${
+                    className={`max-w-[76%] rounded-2xl px-3 py-2 text-sm leading-6 whitespace-pre-wrap ${
                       isUser
                         ? "rounded-tr-sm bg-blue-600 text-white"
                         : "rounded-tl-sm bg-white text-slate-800 shadow-sm"
