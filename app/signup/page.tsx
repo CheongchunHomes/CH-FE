@@ -1,11 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ChevronRight, LockKeyhole, Sparkles, UserRound, ShieldCheck } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
-import { post } from "@/lib/api"
+import { get, post } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,11 +19,36 @@ type RegisterRequest = {
   password: string
 }
 
+type LoginRequest = {
+  email: string
+  password: string
+}
+
+type NicknameCheckResponse = {
+  available?: boolean
+  isAvailable?: boolean
+  duplicated?: boolean
+  duplicate?: boolean
+}
+
+type NicknameStatus = "idle" | "checking" | "available" | "unavailable"
+
+function isNicknameAvailable(response: NicknameCheckResponse) {
+  if (typeof response.available === "boolean") return response.available
+  if (typeof response.isAvailable === "boolean") return response.isAvailable
+  if (typeof response.duplicated === "boolean") return !response.duplicated
+  if (typeof response.duplicate === "boolean") return !response.duplicate
+  return true
+}
+
 export default function SignupPage() {
   const router = useRouter()
+  const { refresh } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirm, setPasswordConfirm] = useState("")
+  const [nickname, setNickname] = useState("")
+  const [nicknameStatus, setNicknameStatus] = useState<NicknameStatus>("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -33,11 +60,36 @@ export default function SignupPage() {
     return password !== passwordConfirm
   }, [password, passwordConfirm])
 
+  async function handleNicknameCheck() {
+    const value = nickname.trim()
+
+    if (!value) {
+      setErrorMessage("닉네임을 입력해 주세요.")
+      return
+    }
+
+    setNicknameStatus("checking")
+    setErrorMessage("")
+
+    try {
+      const response = await get<NicknameCheckResponse>("/api/users/nickname/check", {
+        query: { nickname: value },
+        auth: false,
+        retryOnUnauthorized: false,
+      })
+
+      setNicknameStatus(isNicknameAvailable(response) ? "available" : "unavailable")
+    } catch (error) {
+      setNicknameStatus("unavailable")
+      setErrorMessage(error instanceof Error ? error.message : "닉네임 중복 확인에 실패했습니다.")
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!email.trim() || !password.trim()) {
-      setErrorMessage("이메일과 비밀번호를 입력해 주세요.")
+    if (!email.trim() || !password.trim() || !passwordConfirm.trim() || !nickname.trim()) {
+      setErrorMessage("이메일, 비밀번호, 닉네임을 모두 입력해 주세요.")
       return
     }
 
@@ -46,15 +98,22 @@ export default function SignupPage() {
       return
     }
 
+    if (nicknameStatus !== "available") {
+      setErrorMessage("닉네임 중복 확인을 완료해 주세요.")
+      return
+    }
+
     setIsSubmitting(true)
     setErrorMessage("")
 
     try {
+      const trimmedEmail = email.trim()
+
       await post<unknown, RegisterRequest>(
         "/api/users/register",
         {
-          email: email.trim(),
-          nickname: "test nickname",
+          email: trimmedEmail,
+          nickname: nickname.trim(),
           password,
         },
         {
@@ -63,8 +122,20 @@ export default function SignupPage() {
         },
       )
 
-      router.push("/login?registered=1")
-      router.refresh()
+      await post<never, LoginRequest>(
+        "/api/auth/login",
+        {
+          email: trimmedEmail,
+          password,
+        },
+        {
+          auth: false,
+          retryOnUnauthorized: false,
+        },
+      )
+
+      await refresh()
+      router.push("/personal")
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "회원가입에 실패했습니다.")
     } finally {
@@ -73,142 +144,97 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#e0f2fe_0%,_#f8fbff_40%,_#eef4ff_100%)] text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 md:px-6">
-        <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur md:p-10">
-            <div className="space-y-6">
-              <Button asChild variant="ghost" className="-ml-3 w-fit rounded-full px-3 text-slate-600 hover:bg-slate-100">
-                <Link href="/login">
-                  <ArrowLeft className="mr-2" size={16} />
-                  로그인으로 돌아가기
-                </Link>
-              </Button>
-
-              <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
-                <Sparkles size={14} />
-                청년홈즈 회원가입
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-8">
+        <Link href="/site" className="mx-auto mb-10 block w-fit " aria-label="메인으로 돌아가기">
+          <Image src="/logo_transparent.png" alt="청춘홈즈" width={150} height={150} priority />
+        </Link>
+        <Card className="w-full border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl tracking-tight">회원가입</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">이메일</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
               </div>
 
-              <div className="space-y-4">
-                <h1 className="max-w-xl text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                  계정 하나로
-                  <span className="block text-sky-600">청약과 대출을 바로 시작</span>
-                </h1>
-                <p className="max-w-lg text-base leading-7 text-slate-600 md:text-lg">
-                  아이디와 비밀번호만 있으면 청약 알림과 맞춤 정보를 더 편하게 받아볼 수 있어요.
-                </p>
+              <div className="space-y-2">
+                <Label htmlFor="signup-password">비밀번호</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  placeholder="비밀번호"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
               </div>
-            </div>
 
-            <div className="mt-10 grid gap-3 sm:grid-cols-2">
-              {["맞춤 청약 알림", "대출 가능 금액 확인", "계약 준비 체크리스트", "AI 질문 기록 저장"].map((text) => (
-                <div key={text} className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <ShieldCheck className="text-sky-600" size={18} />
-                  <span className="text-sm font-medium text-slate-800">{text}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+              <div className="space-y-2">
+                <Label htmlFor="signup-password-confirm">비밀번호 확인</Label>
+                <Input
+                  id="signup-password-confirm"
+                  type="password"
+                  placeholder="비밀번호 확인"
+                  value={passwordConfirm}
+                  onChange={(event) => setPasswordConfirm(event.target.value)}
+                />
+                {passwordMismatch ? <p className="text-sm font-medium text-rose-600">비밀번호가 다릅니다.</p> : null}
+              </div>
 
-          <section className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.12)] md:p-8">
-            <Card className="border-0 bg-transparent shadow-none">
-              <CardHeader className="px-0">
-                <CardTitle className="text-2xl tracking-tight text-slate-950">회원가입</CardTitle>
-                <CardDescription className="text-slate-500">
-                  아이디와 비밀번호만 입력해서 간단하게 계정을 만들어요.
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-5 px-0 pb-0">
-                <form className="space-y-5" onSubmit={handleSubmit}>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">이메일</Label>
-                    <div className="relative">
-                      <UserRound className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="로그인에 사용할 이메일"
-                        className="h-12 rounded-2xl pl-10"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">비밀번호</Label>
-                    <div className="relative">
-                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="비밀번호"
-                        className="h-12 rounded-2xl pl-10"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                    </div>
-                    <p className="text-xs text-slate-500">비밀번호는 입력 중에도 보이지 않도록 설정했어요.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password-confirm">비밀번호 확인</Label>
-                    <div className="relative">
-                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <Input
-                        id="signup-password-confirm"
-                        type="password"
-                        placeholder="비밀번호를 다시 입력하세요"
-                        className="h-12 rounded-2xl pl-10"
-                        value={passwordConfirm}
-                        onChange={(event) => setPasswordConfirm(event.target.value)}
-                      />
-                    </div>
-                    {passwordMismatch ? <p className="text-sm font-medium text-rose-600">비밀번호가 다릅니다</p> : null}
-                  </div>
-
-                  <label className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                    />
-                    <span>서비스 이용약관과 개인정보 처리방침에 동의합니다.</span>
-                  </label>
-
-                  {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
-
+              <div className="space-y-2">
+                <Label htmlFor="signup-nickname">닉네임</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="signup-nickname"
+                    placeholder="닉네임"
+                    value={nickname}
+                    onChange={(event) => {
+                      setNickname(event.target.value)
+                      setNicknameStatus("idle")
+                    }}
+                  />
                   <Button
-                    type="submit"
-                    disabled={isSubmitting || passwordMismatch}
-                    className="h-12 w-full rounded-2xl bg-sky-600 text-white hover:bg-sky-700"
-                  >
-                    {isSubmitting ? "회원가입 중..." : "회원가입"}
-                    <ChevronRight className="ml-2" size={16} />
-                  </Button>
-                </form>
-
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">이미 계정이 있나요?</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    회원가입을 마치면 로그인 화면으로 바로 이동할 수 있어요.
-                  </p>
-                  <Button
-                    asChild
+                    type="button"
                     variant="outline"
-                    className="mt-4 h-11 rounded-2xl border-sky-200 bg-white text-sky-700 hover:bg-sky-50"
+                    disabled={nicknameStatus === "checking"}
+                    onClick={handleNicknameCheck}
+                    className="shrink-0"
                   >
-                    <Link href="/login">
-                      로그인
-                      <ChevronRight className="ml-2" size={16} />
-                    </Link>
+                    {nicknameStatus === "checking" ? "확인 중" : "중복 확인"}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </section>
-        </div>
+                {nicknameStatus === "available" ? (
+                  <p className="text-sm font-medium text-sky-700">사용 가능한 닉네임입니다.</p>
+                ) : null}
+                {nicknameStatus === "unavailable" ? (
+                  <p className="text-sm font-medium text-rose-600">사용할 수 없는 닉네임입니다.</p>
+                ) : null}
+              </div>
+
+              {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
+
+              <Button type="submit" disabled={isSubmitting || passwordMismatch} className="w-full">
+                {isSubmitting ? "회원가입 중..." : "회원가입"}
+                <ChevronRight className="ml-2" size={16} />
+              </Button>
+            </form>
+
+            <p className="mt-5 text-center text-sm text-slate-600">
+              이미 계정이 있나요?{" "}
+              <Link href="/login" className="font-medium text-sky-700 hover:text-sky-800">
+                로그인
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   )

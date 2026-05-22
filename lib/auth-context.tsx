@@ -10,12 +10,13 @@ export type AuthUser = {
   email: string
   nickname: string
   role: string
+  hasPersonalInfo: boolean
 }
 
 type AuthContextValue = {
   status: AuthStatus
   user: AuthUser | null
-  refresh: () => Promise<void>
+  refresh: () => Promise<AuthUser | null>
   clear: () => void
 }
 
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       setUser(data)
       setStatus("authenticated")
+      return data
     } catch (error: unknown) {
       setUser(null)
       const code =
@@ -58,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setStatus("unauthenticated")
       }
+      return null
     }
   }, [])
 
