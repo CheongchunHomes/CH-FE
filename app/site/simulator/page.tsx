@@ -10,6 +10,7 @@ import HousingCompare from "@/components/simulator/HousingCompare"
 import FinanceFeel from "@/components/simulator/FinanceFeel"
 import Roadmap from "@/components/simulator/Roadmap"
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
+import { useSearchParams, useRouter } from "next/navigation"
 
 // 폼 초기값
 const EMPTY_FORM: AssetPlanForm = {
@@ -22,6 +23,7 @@ const EMPTY_FORM: AssetPlanForm = {
   endDate: null,
   isCompleted: false,
 }
+
 
 export default function SimulatorPage() {
   // 탭01 저장된 플랜 목록
@@ -37,6 +39,11 @@ export default function SimulatorPage() {
   useEffect(() => {
     fetchPlans()
   }, [])
+
+  // 탭 상태 URL 쿼리로 관리 (?tab=assetPlan)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get("tab") ?? "assetPlan"
 
   // GET /api/simulator/asset-plans — 유저 플랜 전체 목록
   async function fetchPlans() {
@@ -124,7 +131,10 @@ export default function SimulatorPage() {
 
       {/* 탭 전체 */}
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
-        <Tabs defaultValue="assetPlan">
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => router.push(`/site/simulator?tab=${tab}`)}
+        >
 
           {/* 탭바 */}
           <TabsList className="w-full">

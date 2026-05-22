@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react";
 import { HourglassIcon, Layers, TrendingUp, Pencil, Trash2, ChevronDown, ChevronUp, CheckCircle2, PiggyBank } from "lucide-react"
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
 import { Switch } from "@/components/ui/switch"
@@ -21,6 +21,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
+import { get, post } from "@/lib/api";
+import { useRouter} from "next/navigation";
+import { DiagnosisForm, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
 
 // ─ 카테고리 목록
 const CATEGORIES = [
@@ -52,95 +55,54 @@ const CATEGORY_CONTENT: Record<string, {
   sub: string
   placeholder: { planName: string; baseAsset: string; goalAmount: string }
   dailyUnit: string
-  methods: { tag: string; name: string; desc: string; highlight: boolean }[]
 }> = {
   HOUSING: {
     shock: "드디어 내 공간, 현실로 만들어봐요",
     sub: "보증금 한 발짝씩 모으면 어느새 내 집 앞이에요",
     placeholder: { planName: "전세 보증금 마련", baseAsset: "5,000,000", goalAmount: "50,000,000" },
     dailyUnit: "아메리카노",
-    methods: [
-      { tag: "강력추천", name: "청약통장", desc: "매달 넣으면\n내 집 당첨 확률 올라가요", highlight: true },
-      { tag: "추천", name: "청년도약계좌", desc: "5년 후\n정부 지원금까지 챙겨요", highlight: false },
-      { tag: "참고", name: "주택청약저축", desc: "공공임대\n신청 자격 생겨요", highlight: false },
-    ],
   },
   TRAVEL: {
     shock: "이번 여행 참으면 월세 한 달 아껴요",
     sub: "근데 그래도 가고 싶죠? 그럼 목표부터 세워봐요",
     placeholder: { planName: "여름 유럽 여행", baseAsset: "500,000", goalAmount: "3,000,000" },
     dailyUnit: "편의점 도시락",
-    methods: [
-      { tag: "강력추천", name: "자유적금", desc: "매달 자유롭게 넣고\n이자까지 챙겨요", highlight: true },
-      { tag: "추천", name: "파킹통장", desc: "언제든 빼도 되는\n유동성 저축", highlight: false },
-      { tag: "참고", name: "체크카드 캐시백", desc: "쓰면서 모으는\n소소한 적립", highlight: false },
-    ],
   },
   CAR: {
     shock: "이 차 값이면 서울 전세 보증금이에요",
     sub: "그래도 핸들 잡고 싶죠? 목표 세우면 현실이 달라져요",
     placeholder: { planName: "첫 차 구입", baseAsset: "2,000,000", goalAmount: "15,000,000" },
     dailyUnit: "주유비",
-    methods: [
-      { tag: "강력추천", name: "정기적금", desc: "목돈 만들기엔\n정기적금이 제일 빨라요", highlight: true },
-      { tag: "추천", name: "자유적금", desc: "수입 들쑥날쑥해도\n OK예요", highlight: false },
-      { tag: "참고", name: "청년도약계좌", desc: "차 값 모으면서\n나라 지원도 받아요", highlight: false },
-    ],
   },
   ELECTRONICS: {
     shock: "최신폰 한 번 참으면 청약통장 2년치예요",
     sub: "그래도 갖고 싶죠? 일단 모아보면 생각이 바뀔 수도 있어요",
     placeholder: { planName: "맥북 구입", baseAsset: "300,000", goalAmount: "2,500,000" },
     dailyUnit: "카페 라떼",
-    methods: [
-      { tag: "강력추천", name: "파킹통장", desc: "단기 목표엔\n파킹통장이 딱이에요", highlight: true },
-      { tag: "추천", name: "자유적금", desc: "3~6개월 단기로\n모으기 좋아요", highlight: false },
-      { tag: "참고", name: "체크카드 캐시백", desc: "구매 시\n일부 돌려받아요", highlight: false },
-    ],
   },
   WEDDING: {
     shock: "결혼 준비, 미리 모으면 신혼집이 달라져요",
     sub: "웨딩 비용보다 신혼집이 더 중요하다는 거 알잖아요",
     placeholder: { planName: "결혼 준비 자금", baseAsset: "3,000,000", goalAmount: "30,000,000" },
     dailyUnit: "외식비",
-    methods: [
-      { tag: "강력추천", name: "청년도약계좌", desc: "5년 장기 + 정부 지원\n결혼 자금에 딱이에요", highlight: true },
-      { tag: "추천", name: "정기적금", desc: "결혼 날짜 맞춰\n딱 떨어지게 모아요", highlight: false },
-      { tag: "참고", name: "청약통장", desc: "신혼부부 특별공급\n자격 생겨요", highlight: false },
-    ],
   },
   FASHION: {
     shock: "옷값 아끼면 관리비 걱정 없는 집 살 수 있어요",
     sub: "스타일은 유지하면서 목표도 세워봐요",
     placeholder: { planName: "시즌 쇼핑 예산", baseAsset: "100,000", goalAmount: "500,000" },
     dailyUnit: "택시비",
-    methods: [
-      { tag: "강력추천", name: "파킹통장", desc: "필요할 때 바로 꺼내는\n유동성 저축", highlight: true },
-      { tag: "추천", name: "체크카드 캐시백", desc: "쇼핑하면서\n포인트 쌓아요", highlight: false },
-      { tag: "참고", name: "자유적금", desc: "시즌별로\n예산 따로 관리해요", highlight: false },
-    ],
   },
   EDUCATION: {
     shock: "자격증 하나가 연봉을 바꾸고 집을 바꿔요",
     sub: "배움에 투자하는 돈은 아깝지 않아요",
     placeholder: { planName: "자격증 취득 비용", baseAsset: "200,000", goalAmount: "1,000,000" },
     dailyUnit: "구독 서비스",
-    methods: [
-      { tag: "강력추천", name: "자유적금", desc: "수강료 일정 맞춰\n자유롭게 넣어요", highlight: true },
-      { tag: "추천", name: "파킹통장", desc: "단기 수강료\n모으기 적합해요", highlight: false },
-      { tag: "참고", name: "청년도약계좌", desc: "교육비 모으면서\n미래도 준비해요", highlight: false },
-    ],
   },
   OTHER: {
     shock: "작은 절약이 쌓이면 내 집이 돼요",
     sub: "목표가 생기면 소비가 달라져요",
     placeholder: { planName: "나만의 목표", baseAsset: "100,000", goalAmount: "1,000,000" },
     dailyUnit: "커피",
-    methods: [
-      { tag: "강력추천", name: "자유적금", desc: "목표 금액 맞춰\n자유롭게 모아요", highlight: true },
-      { tag: "추천", name: "파킹통장", desc: "언제든 유동적으로\n쓸 수 있어요", highlight: false },
-      { tag: "참고", name: "정기적금", desc: "금액 확실하면\n이자 더 챙겨요", highlight: false },
-    ],
   },
 }
 
@@ -156,6 +118,7 @@ function formatCurrency(value: number): string {
   if (cheon > 0) result += `${cheon}천`
   return result.trim() + "원"
 }
+
 
 function calcProgress(baseAsset: number, goalAmount: number): number {
   if (!goalAmount) return 0
@@ -212,6 +175,18 @@ interface Props {
   onToggleComplete: (planId: number, isCompleted: boolean) => void
 }
 
+// 정책 목록 API 응답 타입 (GET /api/policies)
+interface PolicyListDTO {
+  policyId: number;
+  title: string;
+  summary: string;
+  mainCategory: string;
+  subCategory: string;
+  status: string;
+  applyPeriod: string;
+  supervisingInstitution: string;
+}
+
 export default function AssetPlan({
                                     plans, form, setForm, editingPlanId, isLoading,
                                     onCreate, onEditStart, onUpdate, onDelete, onEditCancel, onToggleComplete,
@@ -230,6 +205,20 @@ export default function AssetPlan({
   function handleSubmit() {
     editingPlanId ? onUpdate() : onCreate()
   }
+
+  /* 플랜 tip */
+  const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
+
+// 정책 상세 페이지로 이동
+  const router = useRouter()
+
+  useEffect(() => {
+    get<{ content: PolicyListDTO[] }>("/api/policies", {
+      query: { keyword: "저축,적금,통장", size: 100 }
+    })
+      .then((res) => setTipPolicies((res.content ?? []).slice(0, 3)))
+      .catch(() => {})
+  }, [])
 
   // 저축 분석
   const completedPlans = plans.filter((p) => p.isCompleted || isOverdue(p.endDate))
@@ -463,43 +452,6 @@ export default function AssetPlan({
               <p className="text-xs text-gray-400">목표 금액과 기간을 입력하면 저축 플랜이 나와요</p>
             </div>
           )}
-        </div>
-
-        {/* step4: 이런 방법도 있어요 — 항상 표시 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 4</p>
-          <div>
-            <p className="text-base font-bold text-gray-900">이런 방법도 있어요</p>
-            <p className="text-xs text-gray-400 mt-0.5">목표에 맞는 저축 방법을 골라봐요</p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            {content.methods.map((m) => (
-              <div
-                key={m.name}
-                className={`rounded-xl p-3 border ${
-                  m.highlight
-                    ? "border-blue-300 bg-blue-50"
-                    : "border-gray-100 bg-gray-50"
-                }`}
-              >
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block mb-2 ${
-                  m.highlight ? "bg-blue-100 text-blue-600" : "bg-gray-200 text-gray-500"
-                }`}>
-                  {m.tag}
-                </span>
-                <p className={`text-xs font-bold mb-1 ${m.highlight ? "text-blue-700" : "text-gray-800"}`}>
-                  {m.name}
-                </p>
-                <p className={`text-[10px] leading-relaxed whitespace-pre-line ${
-                  m.highlight ? "text-blue-500" : "text-gray-400"
-                }`}>
-                  {m.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-
           {/* 저장 버튼 */}
           <div className="flex gap-2 pt-1">
             {editingPlanId && (
@@ -519,6 +471,8 @@ export default function AssetPlan({
             </button>
           </div>
         </div>
+
+
       </div>
 
       {/* ── 우측: 플랜 목록 + 분석 ── */}
@@ -764,6 +718,33 @@ export default function AssetPlan({
             )}
           </div>
         )}
+
+        {/* 플랜 tip. 이런 제도도 있어요 */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <p className="text-xs text-gray-400 font-medium tracking-wide">플랜 Tip</p>
+          <p className="text-base font-bold text-gray-900">이런 제도도 있어요</p>
+          {tipPolicies.length === 0 ? (
+            <p className="text-xs text-gray-400">불러오는 중...</p>
+          ) : (
+            <div className="space-y-2">
+              {tipPolicies.map((p, i) => (
+                // 카드 클릭 시 정책 상세 페이지로 이동
+                <div
+                  key={p.policyId}
+                  // 카드 클릭 시 정책 상세 페이지로 이동
+                  onClick={() => router.push(`/site/policies/${p.policyId}`)}
+                  className={`rounded-xl p-3 border cursor-pointer hover:opacity-80 ${i === 0 ? "border-blue-300 bg-blue-50" : "border-gray-100 bg-gray-50"}`}
+                >
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block mb-1 ${i === 0 ? "bg-blue-100 text-blue-600" : "bg-gray-200 text-gray-500"}`}>
+                    {i === 0 ? "추천" : "참고"}
+                  </span>
+                  <p className={`text-xs font-bold ${i === 0 ? "text-blue-700" : "text-gray-800"}`}>{p.title}</p>
+                  <p className={`text-[10px] leading-relaxed line-clamp-2 mt-0.5 ${i === 0 ? "text-blue-500" : "text-gray-400"}`}>{p.summary}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
