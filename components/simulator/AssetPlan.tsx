@@ -747,13 +747,15 @@ export default function AssetPlan({
                   key={p.policyId}
                   // 카드 클릭 시 정책 상세 페이지로 이동
                   onClick={() => router.push(`/site/policies/${p.policyId}`)}
-                  className={`rounded-xl p-3 border cursor-pointer hover:opacity-80 ${i === 0 ? "border-blue-300 bg-blue-50" : "border-gray-100 bg-gray-50"}`}
+                  className="rounded-xl p-3 border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 >
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block mb-1 ${i === 0 ? "bg-blue-100 text-blue-600" : "bg-gray-200 text-gray-500"}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block mb-1 ${
+                    i === 0 ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-500"
+                  }`}>
                     {i === 0 ? "추천" : "참고"}
                   </span>
-                  <p className={`text-xs font-bold ${i === 0 ? "text-blue-700" : "text-gray-800"}`}>{p.title}</p>
-                  <p className={`text-[10px] leading-relaxed line-clamp-2 mt-0.5 ${i === 0 ? "text-blue-500" : "text-gray-400"}`}>{p.summary}</p>
+                  <p className="text-xs font-bold text-gray-900 line-clamp-1">{p.title}</p>
+                  <p className="text-[10px] leading-relaxed line-clamp-2 mt-0.5 text-gray-500">{p.summary}</p>
                 </div>
               ))}
             </div>
