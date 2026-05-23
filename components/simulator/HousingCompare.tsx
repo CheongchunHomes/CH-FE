@@ -1,88 +1,55 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
-import { TrendingUp, TrendingDown, AlertCircle } from "lucide-react"
-import { get } from "@/lib/api";
+import { useState, useEffect } from "react"
+import { get } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { DiagnosisForm } from "@/lib/diagnosisUtils";
+import { DiagnosisForm } from "@/lib/diagnosisUtils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { MapPin, Home, TrendingDown, Target, Lightbulb } from "lucide-react"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { Slider } from "@/components/ui/slider"
 
-// 정책 목록 API 응답 타입 (GET /api/policies)
 interface PolicyListDTO {
-  policyId: number;
-  title: string;
-  summary: string;
-  mainCategory: string;
-  subCategory: string;
-  status: string;
-  applyPeriod: string;
-  supervisingInstitution: string;
+  policyId: number
+  title: string
+  summary: string
+  mainCategory: string
+  subCategory: string
+  status: string
+  applyPeriod: string
+  supervisingInstitution: string
 }
 
-interface CostForm {
-  monthly: { deposit: number; rent: number }
-  jeonse: { deposit: number }
-  purchase: { price: number; loan: number; rate: number; period: number }
-}
-
-
-// ─ 상수
-const JEONWOLSE_RATE = 0.055  // 전월세전환율 5.5%
-const EXPECTED_RETURN = 0.035 // 기대수익률 3.5%
-const YEARS = 10              // 비교 기간 고정 10년
-
-// ─ 평수 목록
 const SIZES = [
-  { value: 20, label: "20㎡", name: "원룸",  img: "/images/simulator/housing/oneroom.png" },
-  { value: 33, label: "33㎡", name: "투룸",  img: "/images/simulator/housing/tworoom.png" },
-  { value: 59, label: "59㎡", name: "빌라",  img: "/images/simulator/housing/villa.png" },
-  { value: 84, label: "84㎡", name: "아파트", img: "/images/simulator/housing/apartment.png" },
+  { value: 20, label: "원룸",   sqm: "20㎡", img: "/images/simulator/housing/oneroom.png" },
+  { value: 33, label: "투룸",   sqm: "33㎡", img: "/images/simulator/housing/tworoom.png" },
+  { value: 59, label: "빌라",   sqm: "59㎡", img: "/images/simulator/housing/villa.png" },
+  { value: 84, label: "아파트", sqm: "84㎡", img: "/images/simulator/housing/apartment.png" },
 ]
 
-// ─ 평수별 이미지 크기
-const SIZE_PX: Record<number, number> = {
-  20: 320,
-  33: 340,
-  59: 380,
-  84: 450,
+type Region = "서울" | "경기" | "광역시" | "기타"
+
+const MONTHLY_RENT_BY_REGION: Record<Region, Record<number, number>> = {
+  서울:   { 20: 60,  33: 80,  59: 110, 84: 150 },
+  경기:   { 20: 45,  33: 60,  59: 80,  84: 110 },
+  광역시: { 20: 35,  33: 48,  59: 65,  84: 90  },
+  기타:   { 20: 25,  33: 35,  59: 50,  84: 70  },
 }
 
-// ─ 평수별 서울 기준 기본값 (단위: 만원)
-const DEFAULT_COSTS: Record<number, {
-  monthly: { deposit: number; rent: number }      // 월세: 보증금, 월세
-  jeonse: { deposit: number }                      // 전세: 보증금
-  purchase: { price: number; loan: number; rate: number; period: number } // 자가: 매매가, 대출, 금리, 기간
-}> = {
-  20: {
-    monthly:  { deposit: 1000,  rent: 55 },
-    jeonse:   { deposit: 15000 },
-    purchase: { price: 25000, loan: 15000, rate: 4.0, period: 30 },
-  },
-  33: {
-    monthly:  { deposit: 2000,  rent: 75 },
-    jeonse:   { deposit: 25000 },
-    purchase: { price: 45000, loan: 27000, rate: 4.0, period: 30 },
-  },
-  59: {
-    monthly:  { deposit: 3000,  rent: 100 },
-    jeonse:   { deposit: 40000 },
-    purchase: { price: 70000, loan: 42000, rate: 4.0, period: 30 },
-  },
-  84: {
-    monthly:  { deposit: 5000,  rent: 130 },
-    jeonse:   { deposit: 60000 },
-    purchase: { price: 100000, loan: 60000, rate: 4.0, period: 30 },
-  },
+const JEONSE_DEPOSIT_BY_REGION: Record<Region, Record<number, number>> = {
+  서울:   { 20: 15000, 33: 25000, 59: 40000, 84: 60000 },
+  경기:   { 20: 10000, 33: 16000, 59: 28000, 84: 42000 },
+  광역시: { 20: 7000,  33: 12000, 59: 20000, 84: 32000 },
+  기타:   { 20: 5000,  33: 8000,  59: 14000, 84: 22000 },
 }
 
-// ─ 주거형태
-const TYPES = [
-  { value: "monthly",  label: "월세" },
-  { value: "jeonse",   label: "전세" },
-  { value: "purchase", label: "자가" },
-]
+const SIZE_COPY: Record<number, { title: string; sub: string }> = {
+  20: { title: "지금은 베이스캠프",      sub: "좁아도 괜찮아. 여기서 시작하는 거야" },
+  33: { title: "드디어 거실이 생겼다",   sub: "침실과 공간이 분리되는 순간 삶이 달라져요" },
+  59: { title: "이제 초대할 수 있는 집", sub: "내 힘으로 일궈낸 공간, 당당해도 돼요" },
+  84: { title: "도시를 내려다보는 저녁", sub: "언젠가 반드시. 그날을 위해 지금 시작해요" },
+}
 
-// ─ 숫자 포맷
 function fmt(value: number): string {
   if (!value) return "0원"
   const eok = Math.floor(value / 10000)
@@ -92,407 +59,456 @@ function fmt(value: number): string {
   return `${value}만원`
 }
 
-// ─ 월 실질 비용 계산
-function calcMonthly(type: string, costs: typeof DEFAULT_COSTS[20]): number {
-  if (type === "monthly") {
-    const { deposit, rent } = costs.monthly
-    return Math.round(deposit * JEONWOLSE_RATE / 12 + rent)
-  }
-  if (type === "jeonse") {
-    return Math.round(costs.jeonse.deposit * EXPECTED_RETURN / 12)
-  }
-  // 자가: 원리금균등상환 월상환액 - 원금상환분 (이자만)
-  const { loan, rate, period } = costs.purchase
-  const monthlyRate = rate / 100 / 12
-  const months = period * 12
-  const payment = Math.round(loan * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1))
-  const interest = Math.round(loan * monthlyRate)
-  return interest
+function CompareBar({ label, value, max, color, sub }: {
+  label: string; value: number; max: number; color: string; sub: string
+}) {
+  const pct = Math.min(Math.round((value / max) * 100), 100)
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-baseline">
+        <span className="text-xs font-medium text-gray-500">{label}</span>
+        <span className="text-sm font-bold text-gray-900">{fmt(value)}</span>
+      </div>
+      <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs font-medium text-gray-500">{sub}</p>
+    </div>
+  )
 }
 
-// ─ 10년 후 자산 계산 (만원)
-function calcAsset10(type: string, costs: typeof DEFAULT_COSTS[20], monthlyOut: number): number {
-  const years = YEARS
-  if (type === "monthly") {
-    const { deposit, rent } = costs.monthly
-    const totalRent = rent * 12 * years
-    const opportunityCost = Math.round(deposit * JEONWOLSE_RATE * years)
-    // 보증금 돌려받고 월세+기회비용 차감, 최소 -totalRent
-    return deposit - totalRent - opportunityCost
-  }
-  if (type === "jeonse") {
-    // 전세: 보증금 전액 돌려받음
-    return costs.jeonse.deposit
-  }
-  // 자가: 매매가 상승 가정 (연 3%) + 대출 원금 일부 상환
-  const { price, loan, rate, period } = costs.purchase
-  const appreciated = Math.round(price * Math.pow(1.03, years))
-  const monthlyRate = rate / 100 / 12
-  const months = period * 12
-  const payment = Math.round(loan * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1))
-  // 10년간 상환된 원금
-  let remaining = loan
-  for (let i = 0; i < years * 12; i++) {
-    const interest = Math.round(remaining * monthlyRate)
-    const principal = payment - interest
-    remaining = Math.max(remaining - principal, 0)
-  }
-  return appreciated - remaining
+interface HousingCompareProps {
+  userProfile: DiagnosisForm | null
 }
 
-export default function HousingCompare() {
-  const [selectedSize, setSelectedSize] = useState(20)
-  const [selectedType, setSelectedType] = useState("monthly")
-  const [costs, setCosts] = useState<CostForm>(DEFAULT_COSTS[20])
-
-  // 슬라이드 방향
-  const [slideDir, setSlideDir] = useState<"animate-slide-left" | "animate-slide-right">("animate-slide-left")
+export default function HousingCompare({ userProfile }: HousingCompareProps) {
+  const [region, setRegion]                     = useState<Region>("서울")
+  const [currentSize, setCurrentSize]           = useState(20)
+  const [currentRentInput, setCurrentRentInput] = useState(String(MONTHLY_RENT_BY_REGION["서울"][20]))
+  const currentRent = Number(currentRentInput) || 0
+  const [targetSize, setTargetSize] = useState(84)
+  const [imgVisible, setImgVisible] = useState(true)
   const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
+  const [loanAmount, setLoanAmount]   = useState(20000) // 2억 기본값
 
-  // 정책 상세 페이지로 이동
   const router = useRouter()
 
-  // 정책 제도
-  useEffect(() => {
-    const subCategory = selectedType === "jeonse" ? "보증금지원" : "월세지원"
-
-    // 프로필 조회 시도 — 비로그인이면 지역 필터 없이
-    get<DiagnosisForm>("/api/diagnosis/profile")
-      .catch(() => null)
-      .then((profile) => {
-        return get<{ content: PolicyListDTO[] }>("/api/policies", {
-          query: {
-            subCategory,
-            size: 100,
-            region: profile?.desiredCity ?? undefined
-          }
-        })
-      })
-      .then((res) => setTipPolicies(
-        (res.content ?? [])
-          .filter(p =>
-            (p.title.includes("월세") ||
-              p.title.includes("전세") ||
-              p.title.includes("보증금") ||
-              p.summary?.includes("월세") ||
-              p.summary?.includes("전세")) &&
-            (p.title.includes("청년") ||
-              p.summary?.includes("청년"))
-          )
-          .slice(0, 3)
-      ))
-      .catch(() => {})
-  }, [selectedType])
-
-  // 현재 선택된 월 실질 비용
-  const currentMonthly = calcMonthly(selectedType, costs)
-
-  // 3가지 형태 비교
-  const comparison = TYPES.map((t) => ({
-    label: t.label,
-    monthly: calcMonthly(t.value, costs),
-    asset10: calcAsset10(t.value, costs, calcMonthly(t.value, costs)),
-  }))
-
-  // 바차트 데이터
-  const chartData = [
-    {
-      name: "10년 후 자산",
-      월세: comparison[0].asset10,
-      전세: comparison[1].asset10,
-      자가: comparison[2].asset10,
-    }
-  ]
-
-  // 각성 문구
-  const monthlyWaste = currentMonthly * 12 * YEARS
-  const bestAsset = Math.max(...comparison.map(c => c.asset10))
-  const currentAsset = comparison.find(t => t.label === TYPES.find(t => t.value === selectedType)?.label)?.asset10 ?? 0
-
-  // 평수 변경 시 기본값 업데이트
-  function handleSizeChange(size: number) {
-    setSlideDir(size > selectedSize ? "animate-slide-left" : "animate-slide-right")
-    setSelectedSize(size)
-    setCosts(DEFAULT_COSTS[size])
+  function handleCurrentSizeChange(size: number) {
+    setCurrentSize(size)
+    setCurrentRentInput(String(MONTHLY_RENT_BY_REGION[region][size]))
   }
 
+  function handleRegionChange(r: Region) {
+    setRegion(r)
+  }
+
+  function handleTargetSizeChange(size: number) {
+    setImgVisible(false)
+    setTimeout(() => { setTargetSize(size); setImgVisible(true) }, 180)
+  }
+
+  useEffect(() => {
+    get<{ content: PolicyListDTO[] }>("/api/policies", {
+      query: { subCategory: "월세지원", size: 100, region: userProfile?.desiredCity ?? undefined }
+    })
+      .then((res) =>
+        setTipPolicies(
+          (res.content ?? [])
+            .filter((p) =>
+              (p.title.includes("월세") || p.title.includes("전세") || p.title.includes("보증금") ||
+                p.summary?.includes("월세") || p.summary?.includes("전세")) &&
+              (p.title.includes("청년") || p.summary?.includes("청년"))
+            )
+            .slice(0, 3)
+        )
+      )
+      .catch(() => {})
+  }, [userProfile])
+
+  // 계산
+  const targetDeposit = JEONSE_DEPOSIT_BY_REGION[region][targetSize]
+  const targetRent    = MONTHLY_RENT_BY_REGION[region][targetSize]
+  const tenYearWaste  = currentRent * 12 * 10
+  const depositPct    = Math.min(Math.round((tenYearWaste / targetDeposit) * 100), 100)
+  const yearsToGoal   = currentRent > 0 ? Math.ceil(targetDeposit / (currentRent * 12)) : 0
+  const yearsWithLoan = Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (currentRent * 12))
+  const loanCoversAll = targetDeposit <= loanAmount
+  const monthlyGap     = targetRent - currentRent
+  const isSameOrBigger = currentSize >= targetSize
+  const barMax        = Math.max(tenYearWaste, targetDeposit)
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+    <TooltipProvider>
+      <div className="space-y-4 pt-6">
 
-      {/* ── 좌측: 선택 흐름 ── */}
-      <div className="space-y-4">
+        {/* ── 상단: 현재 나 vs 목표 집 ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        {/* STEP 1: 평수 선택 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 1</p>
-          <div>
-            <p className="text-base font-bold text-gray-900">어떤 집에 살고 싶어요?</p>
-            <p className="text-xs text-gray-400 mt-0.5">평수가 달라지면 비용도 달라져요</p>
-          </div>
-
-          {/* 집 이미지 */}
-          <div className="flex justify-center items-center bg-gray-50 rounded-2xl overflow-hidden" style={{ height: 320 }}>
-            <img
-              key={selectedSize}
-              src={SIZES.find(s => s.value === selectedSize)?.img}
-              alt={SIZES.find(s => s.value === selectedSize)?.name}
-              style={{ width: SIZE_PX[selectedSize], height: SIZE_PX[selectedSize] }}
-              className={`object-contain ${slideDir}`}
-            />
-          </div>
-
-          {/* 평수 버튼 */}
-          <div className="grid grid-cols-4 gap-2">
-            {SIZES.map((s) => (
-              <button
-                key={s.value}
-                onClick={() => handleSizeChange(s.value)}
-                className={`py-2.5 rounded-xl border text-xs font-medium transition-all ${
-                  selectedSize === s.value
-                    ? "bg-blue-600 text-white border-blue-600 scale-105"
-                    : "border-gray-200 text-gray-600 hover:border-blue-300"
-                }`}
-              >
-                <p>{s.label}</p>
-                <p className={`text-[10px] mt-0.5 ${selectedSize === s.value ? "text-blue-200" : "text-gray-400"}`}>{s.name}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* STEP 2: 주거형태 선택 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 2</p>
-          <div>
-            <p className="text-base font-bold text-gray-900">어떤 방식으로 살 거예요?</p>
-            <p className="text-xs text-gray-400 mt-0.5">같은 집도 방식에 따라 10년 후가 달라져요</p>
-          </div>
-
-          {/* 주거형태 버튼 */}
-          <div className="grid grid-cols-3 gap-2">
-            {TYPES.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => setSelectedType(t.value)}
-                className={`py-3 rounded-xl border text-sm font-medium transition-all ${
-                  selectedType === t.value
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-gray-200 text-gray-600 hover:border-blue-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 비용 입력 */}
-          <div className="space-y-3">
-            <p className="text-xs text-gray-400 flex items-center gap-1">
-              <AlertCircle size={11} />
-              서울 기준 평균값 적용 · 직접 수정 가능해요
-            </p>
-
-            {selectedType === "monthly" && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 shrink-0 w-20">보증금</label>
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      value={costs.monthly.deposit}
-                      onChange={(e) => setCosts({ ...costs, monthly: { ...costs.monthly, deposit: Number(e.target.value) } })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
-                  </div>
+            {/* 좌: 지금 사는 곳 */}
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-blue-500" />
+                  <p className="text-sm font-bold text-gray-900">지금 사는 곳</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 shrink-0 w-20">월세</label>
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      value={costs.monthly.rent}
-                      onChange={(e) => setCosts({ ...costs, monthly: { ...costs.monthly, rent: Number(e.target.value) } })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
-                  </div>
-                </div>
-              </>
-            )}
+                <p className="text-xs font-medium text-gray-500 mt-0.5">현재 평수와 월세를 알려줘요</p>
+              </div>
 
-            {selectedType === "jeonse" && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600 shrink-0 w-20">전세금</label>
-                <div className="relative flex-1">
+              {/* 현재 평수 버튼 */}
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {SIZES.map((s) => (
+                  <Tooltip key={s.value}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleCurrentSizeChange(s.value)}
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          currentSize === s.value
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">{s.sqm}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+
+              {/* 현재 월세 입력 */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500">현재 월세</label>
+                <div className="relative">
                   <input
                     type="number"
-                    value={costs.jeonse.deposit}
-                    onChange={(e) => setCosts({ ...costs, jeonse: { deposit: Number(e.target.value) } })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
+                    value={currentRentInput}
+                    onChange={(e) => setCurrentRentInput(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-medium text-gray-500">{currentSize}㎡ 기준 자동입력 · 직접 수정 가능</p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-gray-300 cursor-default text-xs">ⓘ</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">전세라면 보증금 × 3.5% ÷ 12 로<br/>월 기회비용을 입력해보세요</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
-            )}
 
-            {selectedType === "purchase" && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 shrink-0 w-20">매매가</label>
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      value={costs.purchase.price}
-                      onChange={(e) => setCosts({ ...costs, purchase: { ...costs.purchase, price: Number(e.target.value) } })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
+              {/* 현재 상태 요약 + A/B 스탯 */}
+              <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">매달 나가는 돈</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{currentRent}만원</p>
+                </div>
+                <div className="border-t border-gray-200 pt-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-medium text-gray-500">1년이면</p>
+                    <p className="text-xs font-bold text-gray-900">{(currentRent * 12).toLocaleString()}만원이 나가요</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-medium text-gray-500">하루로 나누면</p>
+                    <p className="text-xs font-bold text-gray-900">
+                      {Math.round((currentRent * 10000) / 30).toLocaleString()}원씩 쓰고 있어요
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                    <p className="text-xs font-medium text-gray-500">10년이면</p>
+                    <p className="text-xs font-bold text-gray-900">
+                      {currentRent}만원 × 120개월 = {(currentRent * 120).toLocaleString()}만원 소멸
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 shrink-0 w-20">대출금</label>
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      value={costs.purchase.loan}
-                      onChange={(e) => setCosts({ ...costs, purchase: { ...costs.purchase, loan: Number(e.target.value) } })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* STEP 3: 각성 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 3</p>
-          <div>
-            <p className="text-base font-bold text-gray-900">이게 맞는 선택이야?</p>
-            <p className="text-xs text-gray-400 mt-0.5">같은 돈으로 선택이 달라지면 자산이 달라져요</p>
-          </div>
-
-          <div className="bg-blue-500 text-white px-4 py-3 rounded-2xl">
-            <p className="text-sm font-semibold">
-              {YEARS}년간 실질 주거비 {fmt(monthlyWaste)}
-            </p>
-            <p className="text-xs text-blue-200 mt-1">
-              매달 {fmt(currentMonthly)} × {YEARS * 12}개월
-            </p>
-          </div>
-
-          {/* 일상 환산 */}
-          <p className="text-xs text-gray-400 text-center">
-            매일 {fmt(Math.round(currentMonthly / 30))} 씩 나가고 있어요
-          </p>
-        </div>
-      </div>
-
-      {/* ── 우측: 실시간 결과판 ── */}
-      <div className="space-y-4">
-
-        {/* 월 실질 비용 비교 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-blue-500" />
-            <p className="text-sm font-bold text-gray-800">월 실질 비용 비교</p>
-          </div>
-          <p className="text-xs text-gray-400">전월세전환율 5.5% · 기대수익률 3.5% · 2025년 기준</p>
-
-          <div className="space-y-3">
-            {comparison.map((c) => {
-              const isSelected = TYPES.find(t => t.value === selectedType)?.label === c.label
-              const max = Math.max(...comparison.map(x => x.monthly))
-              const pct = max > 0 ? Math.round((c.monthly / max) * 100) : 0
-              return (
-                <div key={c.label} className={`rounded-xl p-3 ${isSelected ? "bg-blue-50 border border-blue-200" : "bg-gray-50"}`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className={`text-sm font-medium ${isSelected ? "text-blue-700" : "text-gray-700"}`}>{c.label}</p>
-                    <p className={`text-sm font-bold ${isSelected ? "text-blue-700" : "text-gray-900"}`}>{fmt(c.monthly)}/월</p>
-                  </div>
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${isSelected ? "bg-blue-500" : "bg-gray-400"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 10년 후 자산 바차트 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-blue-500" />
-            <p className="text-sm font-bold text-gray-800">{YEARS}년 후 내 자산</p>
-          </div>
-          <p className="text-xs text-gray-400">집값 연 3% 상승 · 대출 원리금 상환 반영</p>
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {comparison.map((c) => {
-              const isSelected = TYPES.find(t => t.value === selectedType)?.label === c.label
-              return (
-                <div key={c.label} className={`rounded-xl p-3 text-center ${isSelected ? "bg-blue-50 border border-blue-200" : "bg-gray-50"}`}>
-                  <p className={`text-xs mb-1 ${isSelected ? "text-blue-500" : "text-gray-400"}`}>{c.label}</p>
-                  <p className={`text-sm font-bold ${isSelected ? "text-blue-700" : "text-gray-700"}`}>{fmt(c.asset10)}</p>
-                </div>
-              )
-            })}
-          </div>
-
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${Math.round(v / 10000)}억`} domain={[0, 'auto']} />
-              <Tooltip formatter={(value: number) => [`${fmt(value)}`, ""]} />
-              <Bar dataKey="월세" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="전세" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="자가" fill="#2563eb" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-
-          {/* 각성 문구 */}
-          {currentAsset < bestAsset && (
-            <div className="bg-blue-500 text-white px-4 py-3 rounded-2xl">
-              <p className="text-sm font-semibold">
-                자가 선택 시 {YEARS}년 후 {fmt(bestAsset - currentAsset)} 더 남아요
-              </p>
-              <p className="text-xs text-blue-200 mt-1">지금 선택이 미래 자산을 결정해요</p>
+              </div>
             </div>
-          )}
+
+            {/* 세로 구분선 — 데스크탑만 */}
+            <div className="hidden md:block absolute left-1/2 top-6 bottom-16 w-px bg-gray-100" />
+
+            {/* 우: 원하는 집 */}
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Home size={14} className="text-blue-500" />
+                    <p className="text-sm font-bold text-gray-900">원하는 집</p>
+                  </div>
+                  <p className="text-xs font-medium text-gray-500 mt-0.5">어느 지역 기준으로 볼까요?</p>
+                </div>
+                {/* 지역 선택 */}
+                <div className="flex items-center gap-1">
+                  {(["서울", "경기", "광역시", "기타"] as const).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => handleRegionChange(r)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                        region === r
+                          ? "bg-gray-900 text-white"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-gray-300 cursor-default text-xs ml-0.5">ⓘ</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">한국부동산원 2025년 기준 평균값이에요</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+
+              {/* 목표 이미지 */}
+              <div className="flex justify-center items-end bg-gray-50 rounded-xl overflow-hidden" style={{ height: 260 }}>
+                <img
+                  src={SIZES.find((s) => s.value === targetSize)?.img}
+                  alt={SIZES.find((s) => s.value === targetSize)?.label}
+                  className={`object-contain transition-opacity duration-200 ${imgVisible ? "opacity-100" : "opacity-0"}`}
+                  style={{
+                    width:  targetSize === 84 ? 310 : targetSize === 59 ? 300 : 260,
+                    height: targetSize === 84 ? 310 : targetSize === 59 ? 300 : 260,
+                  }}
+                />
+              </div>
+
+              {/* 목표 평수 버튼 */}
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {SIZES.map((s) => (
+                  <Tooltip key={s.value}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleTargetSizeChange(s.value)}
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          targetSize === s.value
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">{s.sqm}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+
+              {/* 감성 카피 */}
+              <div className={`transition-opacity duration-200 ${imgVisible ? "opacity-100" : "opacity-0"}`}>
+                <p className="text-sm font-bold text-gray-900">{SIZE_COPY[targetSize].title}</p>
+                <p className="text-xs font-medium text-gray-500 mt-0.5">{SIZE_COPY[targetSize].sub}</p>
+              </div>
+
+              {/* 갭 요약 — 우측 컬럼 하단 */}
+              <div className="pt-4 border-t border-gray-100">
+                {currentSize >= targetSize ? (
+                  <p className="text-sm font-bold text-green-600 text-center">
+                    이미 목표 평수 이상에 살고 있어요 👏
+                  </p>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500">전세</span>
+                      <span className="text-sm font-bold text-blue-600">{fmt(targetDeposit)}</span>
+                      <span className="text-xs text-gray-300">·</span>
+                      <span className="text-xs font-medium text-gray-500">월세</span>
+                      <span className="text-sm font-bold text-gray-900">{targetRent}만원</span>
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">
+                      매달 <span className="text-blue-600">{monthlyGap}만원</span> 더 필요해요
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>  {/* ← 우측 컬럼 닫기 */}
+          </div>    {/* ← grid 닫기 */}
+        </div>      {/* ← 상단 카드 닫기 */}
+
+        {/* ── 하단: 기회비용 + 대출 비교 ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* 하단 좌: 지금 새고있는 돈 */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <TrendingDown size={14} className="text-blue-500" />
+                <p className="text-sm font-bold text-gray-900">지금 새고 있는 돈</p>
+              </div>
+              <p className="text-xs font-medium text-gray-500 mt-0.5">10년치 월세와 목표 보증금을 비교해봤어요</p>
+            </div>
+            <div className="space-y-4">
+              <CompareBar
+                label="10년 월세 총액 (소멸)"
+                value={tenYearWaste}
+                max={barMax}
+                color="bg-rose-400"
+                sub="내 손에 아무것도 남지 않아요"
+              />
+              <CompareBar
+                label={`${targetSize}㎡ 전세 보증금 (목표)`}
+                value={targetDeposit}
+                max={barMax}
+                color="bg-blue-400"
+                sub="이걸 모으면 전세로 이사 가능해요"
+              />
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-0.5">
+              <p className="text-xs font-medium text-gray-500">그냥 버리던 10년치 월세만 묶어 관리해도</p>
+              <p className="text-sm font-bold text-blue-600">목표 보증금의 {depositPct}%를 모을 수 있어요</p>
+            </div>
+          </div>
+
+          {/* 하단 우: 대출 끼면 얼마나 달라져? */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <Target size={14} className="text-blue-500" />
+                <p className="text-sm font-bold text-gray-900">대출 끼면 얼마나 달라져?</p>
+              </div>
+              <p className="text-xs font-medium text-gray-500 mt-0.5">전세대출 2억 활용 시 시나리오예요</p>
+            </div>
+
+            {/* 목표 보증금 */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
+              <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
+            </div>
+
+            {/* 대출 슬라이더 */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-gray-500">전세대출</p>
+                <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+              </div>
+              <Slider
+                min={0}
+                max={Math.min(targetDeposit, 50000)}
+                step={1000}
+                value={[loanAmount]}
+                onValueChange={([v]) => setLoanAmount(v)}
+                className="w-full"
+              />
+              <div className="flex justify-between">
+                <span className="text-[10px] text-gray-400">0원</span>
+                <span className="text-[10px] text-gray-400">{fmt(Math.min(targetDeposit, 50000))}</span>
+              </div>
+            </div>
+
+            {/* 시나리오 아코디언 */}
+            <Accordion type="single" collapsible className="space-y-2">
+              <AccordionItem value="pure" className="border border-gray-100 rounded-xl overflow-hidden">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50">
+                  <span className="text-xs font-medium text-gray-500 flex-1">순수 저축만</span>
+                  <span className="text-lg font-bold text-gray-300 w-24 text-right shrink-0">약 {yearsToGoal}년</span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 bg-gray-50 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-500">• 매달 {currentRent}만원 × 12 = {(currentRent * 12).toLocaleString()}만원/년</p>
+                  <p className="text-xs font-medium text-gray-500 mt-1">• {fmt(targetDeposit)} ÷ {(currentRent * 12).toLocaleString()}만원 = {yearsToGoal}년</p>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="loan" className="border border-gray-100 rounded-xl overflow-hidden">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50">
+                  <span className="text-xs font-medium text-gray-500 flex-1">전세대출 {fmt(loanAmount)} 끼면</span>
+                  <span className="text-lg font-bold text-gray-900 w-24 text-right shrink-0">
+                    {loanCoversAll ? "바로 가능" : `약 ${yearsWithLoan}년`}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 bg-gray-50 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-500">
+                    • {loanCoversAll
+                      ? `목표 보증금 ${fmt(targetDeposit)}이 대출 2억으로 충당 가능해요`
+                      : `(${fmt(targetDeposit)} - 2억) ÷ ${(currentRent * 12).toLocaleString()}만원/년 = ${yearsWithLoan}년`}
+                  </p>
+                  <p className="text-xs font-medium text-gray-500 mt-1">• 대출 조건은 금융체감 탭에서 조정 가능</p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            {/* 단축 요약 */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-500">대출을 활용하면</p>
+              <p className="text-sm font-bold text-gray-900">
+                {loanAmount === 0
+                  ? "대출 금액을 설정해보세요"
+                  : loanCoversAll
+                    ? `${yearsToGoal}년 단축 · 바로 이사 가능`
+                    : yearsToGoal - yearsWithLoan > 0
+                      ? `${yearsToGoal - yearsWithLoan}년 단축`
+                      : "대출 효과가 크지 않아요"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => router.push("/site/simulator?tab=assetPlan")}
+                className="py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
+              >
+                저축 플랜 세우기 →
+              </button>
+              <button
+                onClick={() => router.push("/site/simulator?tab=financeFeel")}
+                className="py-2.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-all"
+              >
+                대출 체감해보기 →
+              </button>
+            </div>
+          </div>
         </div>
-        {/* 관련 제도 팁 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">플랜 Tip</p>
-          <p className="text-base font-bold text-gray-900">이런 제도도 있어요</p>
+
+        {/* ── 제도 팁 ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-gray-500 tracking-wide">플랜 Tip</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Lightbulb size={14} className="text-blue-500" />
+              <p className="text-sm font-bold text-gray-900">이런 제도도 있어요</p>
+            </div>
+          </div>
           {tipPolicies.length === 0 ? (
-            <p className="text-xs text-gray-400">불러오는 중...</p>
+            <p className="text-xs font-medium text-gray-500">불러오는 중...</p>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {tipPolicies.map((p, i) => (
                 <div
                   key={p.policyId}
-                  // 카드 클릭 시 정책 상세 페이지로 이동
                   onClick={() => router.push(`/site/policies/${p.policyId}`)}
-                  className={`rounded-xl p-3 border cursor-pointer hover:opacity-80 ${i === 0 ? "border-blue-300 bg-blue-50" : "border-gray-100 bg-gray-50"}`}
+                  className={`rounded-xl p-3 border cursor-pointer hover:opacity-80 transition-opacity ${
+                    i === 0 ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-gray-50"
+                  }`}
                 >
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-block mb-1 ${i === 0 ? "bg-blue-100 text-blue-600" : "bg-gray-200 text-gray-500"}`}>
-                  {i === 0 ? "추천" : "참고"}
-                </span>
-                  <p className={`text-xs font-bold ${i === 0 ? "text-blue-700" : "text-gray-800"}`}>{p.title}</p>
-                  <p className={`text-[10px] leading-relaxed line-clamp-2 mt-0.5 ${i === 0 ? "text-blue-500" : "text-gray-400"}`}>{p.summary}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block mb-1.5 ${
+                    i === 0 ? "bg-blue-100 text-blue-600" : "bg-gray-200 text-gray-500"
+                  }`}>
+                    {i === 0 ? "추천" : "참고"}
+                  </span>
+                  <p className={`text-xs font-bold leading-snug line-clamp-1 ${i === 0 ? "text-blue-700" : "text-gray-900"}`}>
+                    {p.title}
+                  </p>
+                  <p className={`text-xs font-medium leading-relaxed line-clamp-1 mt-1 ${
+                    i === 0 ? "text-blue-500" : "text-gray-500"
+                  }`}>
+                    {p.summary}
+                  </p>
                 </div>
               ))}
             </div>
           )}
         </div>
+
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

@@ -1,7 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { HourglassIcon, Layers, TrendingUp, Pencil, Trash2, ChevronDown, ChevronUp, CheckCircle2, PiggyBank } from "lucide-react"
+import {
+  HourglassIcon,
+  Layers,
+  TrendingUp,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  PiggyBank,
+  Lightbulb
+} from "lucide-react";
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
@@ -721,7 +732,10 @@ export default function AssetPlan({
 
         {/* 플랜 tip. 이런 제도도 있어요 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Lightbulb size={14} className="text-blue-500" />
           <p className="text-xs text-gray-400 font-medium tracking-wide">플랜 Tip</p>
+          </div>
           <p className="text-base font-bold text-gray-900">이런 제도도 있어요</p>
           {tipPolicies.length === 0 ? (
             <p className="text-xs text-gray-400">불러오는 중...</p>

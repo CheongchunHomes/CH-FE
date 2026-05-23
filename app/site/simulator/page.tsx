@@ -11,6 +11,7 @@ import FinanceFeel from "@/components/simulator/FinanceFeel"
 import Roadmap from "@/components/simulator/Roadmap"
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
 import { useSearchParams, useRouter } from "next/navigation"
+import { DiagnosisForm } from "@/lib/diagnosisUtils"
 
 // 폼 초기값
 const EMPTY_FORM: AssetPlanForm = {
@@ -24,7 +25,6 @@ const EMPTY_FORM: AssetPlanForm = {
   isCompleted: false,
 }
 
-
 export default function SimulatorPage() {
   // 탭01 저장된 플랜 목록
   const [plans, setPlans] = useState<AssetPlanData[]>([])
@@ -35,9 +35,14 @@ export default function SimulatorPage() {
   // 플랜 목록 로딩 상태
   const [isLoading, setIsLoading] = useState(false)
 
-  // 페이지 진입 시 한 번만 실행 — 저장된 플랜 목록 불러오기
+  const [userProfile, setUserProfile] = useState<DiagnosisForm | null>(null)
+
   useEffect(() => {
     fetchPlans()
+    // 프로필 조회 — 비로그인이면 null
+    get<DiagnosisForm>("/api/diagnosis/profile")
+      .then(setUserProfile)
+      .catch(() => {})
   }, [])
 
   // 탭 상태 URL 쿼리로 관리 (?tab=assetPlan)
@@ -163,7 +168,7 @@ export default function SimulatorPage() {
 
           {/* 탭02 주거 비교 */}
           <TabsContent value="housingCompare">
-            <HousingCompare />
+            <HousingCompare userProfile={userProfile} />
           </TabsContent>
 
           {/* 탭03 금융 체감 */}
