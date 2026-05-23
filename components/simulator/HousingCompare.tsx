@@ -90,12 +90,14 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
   const [imgVisible, setImgVisible] = useState(true)
   const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
   const [loanAmount, setLoanAmount]   = useState(20000) // 2억 기본값
+  const [savingAmount, setSavingAmount] = useState(MONTHLY_RENT_BY_REGION["서울"][20])
 
   const router = useRouter()
 
   function handleCurrentSizeChange(size: number) {
     setCurrentSize(size)
     setCurrentRentInput(String(MONTHLY_RENT_BY_REGION[region][size]))
+    setSavingAmount(MONTHLY_RENT_BY_REGION[region][size])
   }
 
   function handleRegionChange(r: Region) {
@@ -130,8 +132,8 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
   const targetRent    = MONTHLY_RENT_BY_REGION[region][targetSize]
   const tenYearWaste  = currentRent * 12 * 10
   const depositPct    = Math.min(Math.round((tenYearWaste / targetDeposit) * 100), 100)
-  const yearsToGoal   = currentRent > 0 ? Math.ceil(targetDeposit / (currentRent * 12)) : 0
-  const yearsWithLoan = Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (currentRent * 12))
+  const yearsToGoal   = savingAmount > 0 ? Math.ceil(targetDeposit / (savingAmount * 12)) : 0
+  const yearsWithLoan = savingAmount > 0 ? Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (savingAmount * 12)) : 0
   const loanCoversAll = targetDeposit <= loanAmount
   const monthlyGap     = targetRent - currentRent
   const isSameOrBigger = currentSize >= targetSize
@@ -380,10 +382,34 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
               <p className="text-xs font-medium text-gray-500 mt-0.5">전세대출 2억 활용 시 시나리오예요</p>
             </div>
 
-            {/* 목표 보증금 */}
-            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
-              <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
-              <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
+            {/* 목표 보증금 + 저축 입력 */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
+                <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
+              </div>
+              <div className="flex items-center justify-between border-t border-gray-200 pt-2">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-medium text-gray-500">매달 저축 가능한 금액</p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-gray-300 cursor-default text-xs">ⓘ</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">월세와 별개로 실제로 모을 수 있는 금액이에요</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="relative w-28">
+                  <input
+                    type="number"
+                    value={savingAmount}
+                    onChange={(e) => setSavingAmount(Number(e.target.value) || 0)}
+                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-8 text-right"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
+                </div>
+              </div>
             </div>
 
             {/* 대출 슬라이더 */}
@@ -414,8 +440,8 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                   <span className="text-lg font-bold text-gray-300 w-24 text-right shrink-0">약 {yearsToGoal}년</span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 bg-gray-50 border-t border-gray-100">
-                  <p className="text-xs font-medium text-gray-500">• 매달 {currentRent}만원 × 12 = {(currentRent * 12).toLocaleString()}만원/년</p>
-                  <p className="text-xs font-medium text-gray-500 mt-1">• {fmt(targetDeposit)} ÷ {(currentRent * 12).toLocaleString()}만원 = {yearsToGoal}년</p>
+                  <p className="text-xs font-medium text-gray-500">• 매달 {savingAmount}만원 × 12 = {(savingAmount * 12).toLocaleString()}만원/년</p>
+                  <p className="text-xs font-medium text-gray-500 mt-1">• {fmt(targetDeposit)} ÷ {(savingAmount * 12).toLocaleString()}만원 = {yearsToGoal}년</p>
                 </AccordionContent>
               </AccordionItem>
 
@@ -430,7 +456,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                   <p className="text-xs font-medium text-gray-500">
                     • {loanCoversAll
                       ? `목표 보증금 ${fmt(targetDeposit)}이 대출 2억으로 충당 가능해요`
-                      : `(${fmt(targetDeposit)} - 2억) ÷ ${(currentRent * 12).toLocaleString()}만원/년 = ${yearsWithLoan}년`}
+                    : `(${fmt(targetDeposit)} - ${fmt(loanAmount)}) ÷ ${(savingAmount * 12).toLocaleString()}만원/년 = ${yearsWithLoan}년`}
                   </p>
                   <p className="text-xs font-medium text-gray-500 mt-1">• 대출 조건은 금융체감 탭에서 조정 가능</p>
                 </AccordionContent>
