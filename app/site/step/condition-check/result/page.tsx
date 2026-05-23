@@ -288,7 +288,7 @@ export default function DiagnosisResultPage() {
               <RotateCcw className="w-4 h-4" />
               <span className="hidden sm:inline">다시 진단하기</span>
             </Button>
-          </div>handleReset
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">

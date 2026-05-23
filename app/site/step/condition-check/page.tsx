@@ -281,7 +281,9 @@ const HousingFormPage = () => {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit 실행")
     const incompleteSteps = STEPS.filter(s => !isStepCompleted(s.id, form));
+    console.log("미완료 스텝:", incompleteSteps.map(s => s.label))
     if (incompleteSteps.length > 0) {
       setValidationError(`미완료 항목: ${incompleteSteps.map(s => s.label).join(", ")}`);
       scrollToQuestion(incompleteSteps[0].id);
@@ -323,6 +325,13 @@ const HousingFormPage = () => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+
+  if (isSubmitting) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-gray-500 font-medium">진단 결과를 분석하는 중입니다...</p>
+    </div>
   );
 
   return (
