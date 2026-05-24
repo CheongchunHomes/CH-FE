@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  PiggyBank,
   Lightbulb
 } from "lucide-react";
 import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
@@ -34,7 +33,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { get, post } from "@/lib/api";
 import { useRouter} from "next/navigation";
-import { DiagnosisForm, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
 
 // ─ 카테고리 목록
 const CATEGORIES = [

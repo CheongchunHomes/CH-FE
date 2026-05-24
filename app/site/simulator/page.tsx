@@ -37,15 +37,17 @@ export default function SimulatorPage() {
 
   const [userProfile, setUserProfile] = useState<DiagnosisForm | null>(null)
 
+// 프로필 조회(비로그인 시 null)와 플랜 목록 독립 호출
   useEffect(() => {
-    fetchPlans()
-    // 프로필 조회 — 비로그인이면 null
     get<DiagnosisForm>("/api/diagnosis/profile")
       .then(setUserProfile)
       .catch(() => {})
+    fetchPlans()
   }, [])
 
   // 탭 상태 URL 쿼리로 관리 (?tab=assetPlan)
+  // 로그인 여부 — userProfile로 판단
+  const isLoggedIn = userProfile !== null
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeTab = searchParams.get("tab") ?? "assetPlan"
@@ -138,7 +140,13 @@ export default function SimulatorPage() {
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
         <Tabs
           value={activeTab}
-          onValueChange={(tab) => router.push(`/site/simulator?tab=${tab}`)}
+          onValueChange={(tab) => {
+            if (tab === "roadmap" && !isLoggedIn) {
+              router.push("/login?redirect=/site/simulator?tab=roadmap")
+              return
+            }
+            router.push(`/site/simulator?tab=${tab}`)
+          }}
         >
 
           {/* 탭바 */}
@@ -146,7 +154,7 @@ export default function SimulatorPage() {
             <TabsTrigger value="assetPlan" className="flex-1">자산 플랜</TabsTrigger>
             <TabsTrigger value="housingCompare" className="flex-1">주거 비교</TabsTrigger>
             <TabsTrigger value="financeFeel" className="flex-1">금융 체감</TabsTrigger>
-            <TabsTrigger value="roadmap" className="flex-1">전략 로드맵</TabsTrigger>
+            <TabsTrigger value="roadmap" className="flex-1">AI청춘 플래너</TabsTrigger>
           </TabsList>
 
           {/* 탭01 자산 플랜 */}
@@ -173,7 +181,7 @@ export default function SimulatorPage() {
 
           {/* 탭03 금융 체감 */}
           <TabsContent value="financeFeel">
-            <FinanceFeel />
+            <FinanceFeel userProfile={userProfile} />
           </TabsContent>
 
           {/* 탭04 전략 로드맵 */}

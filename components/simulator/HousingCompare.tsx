@@ -5,7 +5,7 @@ import { get } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MapPin, Home, Target, Lightbulb, ArrowLeftRight, TrendingDown } from "lucide-react";
+import { MapPin, Home, Target, Lightbulb, ArrowRight, TrendingDown, ArrowLeftRight } from "lucide-react";
 import { Slider } from "@/components/ui/slider"
 
 interface PolicyListDTO {
@@ -90,23 +90,23 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
     setTimeout(() => { setTargetSize(size); setImgVisible(true) }, 180)
   }
 
-  useEffect(() => {
-    get<{ content: PolicyListDTO[] }>("/api/policies", {
-      query: { subCategory: "월세지원", size: 100, region: userProfile?.desiredCity ?? undefined }
-    })
-      .then((res) =>
-        setTipPolicies(
-          (res.content ?? [])
-            .filter((p) =>
-              (p.title.includes("월세") || p.title.includes("전세") || p.title.includes("보증금") ||
-                p.summary?.includes("월세") || p.summary?.includes("전세")) &&
-              (p.title.includes("청년") || p.summary?.includes("청년"))
-            )
-            .slice(0, 3)
-        )
+useEffect(() => {
+  get<{ content: PolicyListDTO[] }>("/api/policies", {
+    query: { subCategory: "월세지원", size: 100, region: userProfile?.desiredCity ?? undefined }
+  })
+    .then((res) =>
+      setTipPolicies(
+        (res.content ?? [])
+          .filter((p) =>
+            (p.title.includes("월세") || p.title.includes("전세") || p.title.includes("보증금") ||
+              p.summary?.includes("월세") || p.summary?.includes("전세")) &&
+            (p.title.includes("청년") || p.summary?.includes("청년"))
+          )
+          .slice(0, 3)
       )
-      .catch(() => {})
-  }, [userProfile])
+    )
+    .catch(() => {})
+}, [userProfile])
 
   // 계산
   const targetDeposit = JEONSE_DEPOSIT_BY_REGION[region][targetSize]
@@ -121,6 +121,29 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
     : 0
   const loanCoversAll = targetDeposit <= loanAmount
   const yearsSaved    = yearsToGoal - yearsWithLoan
+
+    // housingSnapshot → sessionStorage 저장 (탭4 AI 프롬프트용)
+    useEffect(() => {
+      const snapshot = {
+        region,
+        currentSize,
+        currentRent,
+        targetSize,
+        targetDeposit,
+        targetRent,
+        tenYearWaste,
+        monthlyGap,
+        savingAmount,
+        loanAmount,
+        yearsToGoal,
+        yearsWithLoan,
+        yearsSaved,
+        loanCoversAll,
+      }
+      sessionStorage.setItem("housingSnapshot", JSON.stringify(snapshot))
+    }, [region, currentSize, currentRent, targetSize, targetDeposit, targetRent,
+      tenYearWaste, monthlyGap, savingAmount, loanAmount, yearsToGoal, yearsWithLoan,
+      yearsSaved, loanCoversAll])
 
   return (
     <TooltipProvider>
