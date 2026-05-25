@@ -33,11 +33,11 @@ const MARRIAGE_PERIOD_LABEL: Record<string, string> = {
 // 원 단위 → 억/만 단위 변환
 const formatAsset = (value: number): string => {
   if (!value || value <= 0) return "-";
-  const uk = Math.floor(value / 10000);
-  const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원 이하`;
+  const uk = Math.floor(value / 100000000);  // 억
+  const man = Math.floor((value % 100000000) / 10000);  // 만
+  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
   if (uk > 0) return `${uk}억`;
-  return `${value.toLocaleString()}만원`;
+  return `${Math.floor(value / 10000).toLocaleString()}만원`;
 };
 
 // 만 39세까지 남은 기간 계산
@@ -274,7 +274,7 @@ export default function DiagnosisResultPage() {
 
   const summaryItems = [
     { label: "주거 형태",   value: form?.currentResidence || "" },
-    { label: "총 자산",     value: form?.totalAsset ? formatAsset(form.totalAsset) : "" },
+    { label: "총 자산",     value: form?.totalAsset ? formatAsset(form.totalAsset) + " 이하" : "" },
     { label: "현금성 자산", value: form?.cashAsset ? formatAsset(form.cashAsset) : "" },
     { label: "연소득",      value: form?.annualIncome ? formatAsset(form.annualIncome) : "" },
     { label: "무주택",      value: form?.houseless ? "무주택" : "" },
