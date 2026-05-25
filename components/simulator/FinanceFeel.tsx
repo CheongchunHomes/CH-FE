@@ -232,7 +232,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
   monthlyIncome: number
 }) {
   const [open, setOpen] = useState(false)
-  const [method, setMethod] = useState<"equal" | "interest">("equal")
+  const [method, setMethod] = useState<"equal" | "interest">("interest")
   const [months, setMonths] = useState(loan.remainMonths)
 
   const schedule = method === "equal" ? calcSchedule(loan.balance, loan.annualRate, months) : []
@@ -279,7 +279,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">상환 방식</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {(["equal", "interest"] as const).map((m) => (
+                {(["interest", "equal"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMethod(m)}
@@ -287,7 +287,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
                       method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    {m === "equal" ? "원리금균등" : "이자만"}
+                    {m === "interest" ? "이자만" : "원리금균등"}
                   </button>
                 ))}
               </div>
@@ -311,18 +311,22 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
           </div>
 
           {/* 요약 */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-gray-400 mb-1">월 납입액</p>
+          <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-0">
+            {/*<div className="flex justify-between items-center py-1.5 border-b border-gray-100">*/}
+            {/*  <p className="text-xs text-gray-500">총 이자</p>*/}
+            {/*  <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>*/}
+            {/*</div>*/}
+            <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+              <p className="text-xs text-gray-500">연 이자</p>
+              <p className="text-sm font-bold text-red-500">{fmtNum(Math.round(totalInterest / (months / 12)))}</p>
+            </div>
+            <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+              <p className="text-xs text-gray-500">월 납입액</p>
               <p className="text-sm font-bold text-gray-900">{fmtNum(monthlyPayment)}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-gray-400 mb-1">총 이자</p>
-              <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-gray-400 mb-1">총 상환액</p>
-              <p className="text-sm font-bold text-gray-900">{fmtNum(totalPayment)}</p>
+            <div className="flex justify-between items-center py-1.5">
+              <p className="text-xs text-gray-500">매일로 나누면</p>
+              <p className="text-sm font-bold text-gray-900">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
             </div>
           </div>
 
@@ -357,8 +361,8 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
 
   // 연봉 → 월소득 자동입력
   const defaultMonthlyIncome = userProfile?.annualIncome
-    ? Math.round(userProfile.annualIncome / 12 / 10000)
-    : 300
+    ? Math.round(userProfile.annualIncome / 12) * 10000  // 만원 단위 → 원 단위
+    : 3000000  // 기본값 300만원 (원 단위)
 
 // sessionStorage에서 이전 값 복원
   const savedFinance = (() => {
@@ -368,12 +372,12 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
 // DSR 시뮬레이터 state
   const [loanAmount, setLoanAmount]       = useState(savedFinance?.loanAmount   ?? 120000000)
   const [annualRate, setAnnualRate]       = useState(savedFinance?.annualRate    ?? 3.5)
-  const [monthlyIncome, setMonthlyIncome] = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome * 10000)
+  const [monthlyIncome, setMonthlyIncome] = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome)
   const [repayMonths, setRepayMonths]     = useState(savedFinance?.repayMonths   ?? 60)
   const [method, setMethod] = useState<"equal" | "interest">(
     savedFinance?.method === "equal" || savedFinance?.method === "interest"
       ? savedFinance.method
-      : "equal"
+      : "interest"
   )
 
   // 계산
@@ -384,6 +388,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
     ? (schedule[0]?.payment ?? 0)
     : calcInterestOnly(loanAmount, annualRate)
   const dsr = monthlyIncome > 0 ? Math.round((monthlyPayment / monthlyIncome) * 100) : 0
+
   const dsrLevel = DSR_LEVELS.find((l) => dsr < l.max) ?? DSR_LEVELS[DSR_LEVELS.length - 1]
   const totalInterest = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
@@ -469,7 +474,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               <div className="relative">
                 <input
                   type="number"
-                  value={Math.round(monthlyIncome / 10000)}
+                  value={monthlyIncome === 0 ? "" : Math.round(monthlyIncome / 10000)}
                   onChange={(e) => setMonthlyIncome((Number(e.target.value) || 0) * 10000)}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 pr-10"
                 />
@@ -477,8 +482,8 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               </div>
               <p className="text-xs text-gray-400">
                 {userProfile?.annualIncome
-                  ? `연봉 ${Math.round(userProfile.annualIncome / 10000).toLocaleString()}만원 기준 자동입력 · 직접 수정 가능`
-                  : "월 소득을 입력해주세요"}
+                  ? `연봉 ${(userProfile.annualIncome / 10000).toLocaleString()}만원이에요 · 직접 수정 가능`
+                  : "기본값 300만원 적용 · 직접 수정 가능"}
               </p>
             </div>
 
@@ -486,7 +491,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">상환 방식</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {(["equal", "interest"] as const).map((m) => (
+                {(["interest", "equal"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMethod(m)}
@@ -494,7 +499,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
                       method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    {m === "equal" ? "원리금균등" : "이자만"}
+                    {m === "interest" ? "이자만" : "원리금균등"}
                   </button>
                 ))}
               </div>
@@ -520,17 +525,21 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
 
             {/* 요약 */}
             <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-0">
+              {/*<div className="flex justify-between items-center py-1.5 border-b border-gray-100">*/}
+              {/*  <p className="text-xs text-gray-500">총 이자</p>*/}
+              {/*  <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>*/}
+              {/*</div>*/}
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                <p className="text-xs text-gray-500">연 이자</p>
+                <p className="text-sm font-bold text-red-500">{fmtNum(Math.round(totalInterest / (repayMonths / 12)))}</p>
+              </div>
               <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                 <p className="text-xs text-gray-500">월 납입액</p>
                 <p className="text-sm font-bold text-gray-900">{fmtNum(monthlyPayment)}</p>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-                <p className="text-xs text-gray-500">총 이자</p>
-                <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>
-              </div>
               <div className="flex justify-between items-center py-1.5">
                 <p className="text-xs text-gray-500">매일로 나누면</p>
-                <p className="text-sm font-bold text-gray-700">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
+                <p className="text-sm font-bold text-gray-900">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
               </div>
             </div>
           </div>
@@ -541,7 +550,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               <img
                 src={dsrLevel.img}
                 alt={dsrLevel.label}
-                className="w-56 h-56 object-contain transition-all duration-300 mix-blend-multiply"
+                className="w-80 h-60 object-contain transition-all duration-300"
               />
               <div className="text-center">
                 <p className={`text-2xl font-bold ${dsrLevel.color}`}>DSR {dsr}%</p>
@@ -550,38 +559,24 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               </div>
             </div>
 
-            {/* DSR 상태 문구 — 항상 표시 */}
-            <div className={`w-full rounded-xl px-4 py-3 border ${
-              dsr > 60
-                ? "bg-red-50 border-red-100"
-                : dsr > 40
-                  ? "bg-orange-50 border-orange-100"
-                  : dsr > 20
-                    ? "bg-yellow-50 border-yellow-100"
-                    : "bg-blue-50 border-blue-100"
-            }`}>
-              <p className={`text-xs font-medium text-center ${
-                dsr > 60
-                  ? "text-red-500"
-                  : dsr > 40
-                    ? "text-orange-500"
-                    : dsr > 20
-                      ? "text-yellow-600"
-                      : "text-blue-600"
+            {/* DSR 체감 문구 */}
+            <div className="w-full rounded-xl px-4 py-3 border border-gray-100 bg-gray-50">
+              <p className={`text-xs font-bold mb-1 ${
+                dsr > 60 ? "text-red-500" : dsr > 40 ? "text-orange-500" : dsr > 20 ? "text-yellow-600" : "text-blue-600"
               }`}>
-                {dsr > 60
-                  ? "DSR 60% 초과 시 대부분 금융기관에서 대출이 어려워요"
-                  : dsr > 40
-                    ? "DSR 40% 초과 시 대부분 금융기관에서 대출이 제한돼요"
-                    : dsr > 20
-                      ? "적정 수준이에요. 지출 관리를 유지해봐요"
-                      : "여유로운 수준이에요. 추가 저축 여력이 있어요 💪"}
+                대출이 월급의 {dsr}%를 가져가요
               </p>
+              {monthlyIncome > 0 && (
+                <p className="text-xs font-semibold text-gray-500">
+                  남은 {fmt(monthlyIncome - monthlyPayment)}으로 식비·교통·생활비 다 해결해야 해요
+                </p>
+              )}
             </div>
+
 
             <button
               onClick={() => router.push("/site/simulator?tab=assetPlan")}
-              className="w-full py-2.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-all"
+              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
             >
               저축 플랜 세우기 →
             </button>

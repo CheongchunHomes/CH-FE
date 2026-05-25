@@ -257,7 +257,7 @@ useEffect(() => {
                   onClick={() => router.push("/site/simulator?tab=assetPlan")}
                   className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
                 >
-                  저축 속도 올려볼까요? → 자산 플랜 세우기
+                  자산 플랜 세우기 →
                 </button>
               </div>
             </div>
@@ -268,9 +268,9 @@ useEffect(() => {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Home size={14} className="text-blue-500" />
-                    <p className="text-sm font-bold text-gray-900">원하는 집</p>
+                    <p className="text-sm font-bold text-gray-900">어디에 살고 싶나요?</p>
                   </div>
-                  <p className="text-xs font-medium text-gray-500 mt-0.5">어느 지역 기준으로 볼까요?</p>
+                  <p className="text-xs font-medium text-gray-500 mt-0.5">지역 기준으로 시세 차이가 있어요</p>
                 </div>
                 {/* 지역 선택 */}
                 <div className="flex items-center gap-1">
@@ -388,59 +388,7 @@ useEffect(() => {
           <p className="text-xs font-medium text-gray-500 mb-5">저축 금액과 전세대출을 조정해봐요</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 좌: 입력 */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-xl px-4 py-3">
-                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
-                  <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
-                  <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs font-medium text-gray-500">매달 저축 가능한 금액</p>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-gray-300 cursor-default text-xs">ⓘ</span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p className="text-xs">월세와 별개로 실제로 모을 수 있는 금액이에요</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <div className="relative w-28">
-                    <input
-                      type="number"
-                      value={savingAmount}
-                      onChange={(e) => setSavingAmount(Number(e.target.value) || 0)}
-                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-8 text-right"
-                    />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 대출 슬라이더 */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-gray-500">전세대출</p>
-                  <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
-                </div>
-                <Slider
-                  min={0}
-                  max={Math.min(targetDeposit, 50000)}
-                  step={1000}
-                  value={[loanAmount]}
-                  onValueChange={([v]) => setLoanAmount(v)}
-                  className="w-full"
-                />
-                <div className="flex justify-between">
-                  <span className="text-[10px] text-gray-400">0원</span>
-                  <span className="text-[10px] text-gray-400">{fmt(Math.min(targetDeposit, 50000))}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 우: 시나리오 2-카드 */}
+            {/* 좌: 시나리오 2-카드 */}
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 {/* 순수 저축 */}
@@ -508,6 +456,60 @@ useEffect(() => {
                 대출 체감해보기 →
               </button>
             </div>
+
+            {/* 우: 입력 */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-xl px-4 py-3">
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
+                  <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-medium text-gray-500">매달 저축 가능한 금액</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-gray-300 cursor-default text-xs">ⓘ</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">월세와 별개로 실제로 모을 수 있는 금액이에요</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="relative w-28">
+                    <input
+                      type="number"
+                      value={savingAmount}
+                      onChange={(e) => setSavingAmount(Number(e.target.value) || 0)}
+                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-8 text-right"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 대출 슬라이더 */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-500">전세대출</p>
+                  <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+                </div>
+                <Slider
+                  min={0}
+                  max={Math.min(targetDeposit, 50000)}
+                  step={1000}
+                  value={[loanAmount]}
+                  onValueChange={([v]) => setLoanAmount(v)}
+                  className="w-full"
+                />
+                <div className="flex justify-between">
+                  <span className="text-[10px] text-gray-400">0원</span>
+                  <span className="text-[10px] text-gray-400">{fmt(Math.min(targetDeposit, 50000))}</span>
+                </div>
+              </div>
+            </div>
+
+
           </div>
         </div>
 

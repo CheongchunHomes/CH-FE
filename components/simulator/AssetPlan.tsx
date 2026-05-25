@@ -230,7 +230,7 @@ export default function AssetPlan({
   }, [])
 
   // 저축 분석
-  const completedPlans = plans.filter((p) => p.isCompleted || isOverdue(p.endDate))
+  const completedPlans = plans.filter((p) => p.isCompleted)
   const totalSaved = completedPlans.reduce((sum, p) => sum + (p.goalAmount ?? 0), 0)
   const totalMonths = plans.reduce((sum, p) => {
     if (!p.endDate) return sum

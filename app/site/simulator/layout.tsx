@@ -1,9 +1,14 @@
 import "./simulator.css"
 
 export default function SimulatorLayout({
-  children,
-}: {
+                                          children,
+                                        }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return (
+    <>
+      <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+      {children}
+    </>
+  )
 }

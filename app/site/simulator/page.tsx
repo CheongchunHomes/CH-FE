@@ -158,7 +158,7 @@ export default function SimulatorPage() {
               value="roadmap"
               className="flex-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
             >
-              AI청춘 플래너
+              청춘 플랜
             </TabsTrigger>
           </TabsList>
 

@@ -44,11 +44,10 @@ interface RoadmapRequestBody {
   financeSnapshot?: FinanceSnapshot
 }
 
-interface RoadmapParsed {
-  checkList: Array<{ label: string; status: "pass" | "fail" | "warn" }>
-  numbers: Array<{ label: string; value: string; sub?: string }>
+// numbers 필드 제거 — 프론트에서 직접 계산
+export interface RoadmapParsed {
   insights: Array<{ item: string; metaphor: string; action: string }>
-  actions: Array<{ title: string; reason: string; priority: string; link: string | null }>
+  actions: Array<{ title: string; reason: string; priority: "high" | "medium" | "low"; link: string | null }>
   timeline: Array<{ period: string; title: string; why: string; action: string }>
 }
 
@@ -62,23 +61,90 @@ export async function POST(request: Request) {
   }
 
   const { profile, recommendation, assetPlans, housingSnapshot, financeSnapshot } = body
+
+  // ── 데이터 요약 계산 (프롬프트에 해석된 값 전달) ──────────────────
   const sections: string[] = []
 
+  // 1. 사용자 기본 프로필
   if (profile) {
     const age = profile.birthDate
       ? Math.floor((Date.now() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365))
       : null
     sections.push(`[사용자 프로필]
-- 나이: ${age ? `만 ${age}세` : "정보 없음"}
+- 나이: ${age != null ? `만 ${age}세` : "정보 없음"}
 - 혼인 여부: ${profile.married ? "기혼" : "미혼"}
 - 무주택 여부: ${profile.houseless ? "무주택" : "유주택"}
-- 연소득: ${profile.annualIncome ? `${Math.round(profile.annualIncome / 10000).toLocaleString()}만원` : "정보 없음"}
+- 연소득: ${profile.annualIncome ? `${Math.round(profile.annualIncome / 10000).toLocaleString()}만원/년 (월 ${Math.round(profile.annualIncome / 120000)}만원)` : "정보 없음"}
 - 희망 지역: ${profile.desiredCity ?? "정보 없음"} ${profile.desiredDistrict ?? ""}
-- 청약통장: ${profile.subscriptionMonths ? `${profile.subscriptionMonths}개월` : "정보 없음"}
+- 청약통장: ${profile.subscriptionMonths ? `${profile.subscriptionMonths}개월 납입` : "미보유"}
 - 부양가족: ${profile.dependentCount ?? 0}명
 - 고용 상태: ${profile.employmentStatus ?? "정보 없음"}`)
   }
 
+  // 2. 저축 플랜 — 달성 현황 계산해서 전달
+  if (assetPlans && assetPlans.length > 0) {
+    const completedPlans = assetPlans.filter((p) => p.isCompleted)
+    const activePlans    = assetPlans.filter((p) => !p.isCompleted)
+
+    // 달성된 플랜 합계 (goalAmount 기준)
+    const completedTotal = completedPlans.reduce((s, p) => s + (p.goalAmount ?? 0), 0)
+    // 진행 중인 플랜 목표 합계
+    const activeGoalTotal = activePlans.reduce((s, p) => s + (p.goalAmount ?? 0), 0)
+    // baseAsset(현재 모은 금액) 합계
+    const savedTotal = assetPlans.reduce((s, p) => s + (p.baseAsset ?? 0), 0)
+
+    const planLines = assetPlans
+      .map((p) => {
+        const goal    = Math.round((p.goalAmount ?? 0) / 10000)
+        const current = Math.round((p.baseAsset ?? 0) / 10000)
+        const rate    = goal > 0 ? Math.round((current / goal) * 100) : 0
+        return `  - [${p.isCompleted ? "완료" : "진행중"}] ${p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
+      })
+      .join("\n")
+
+    sections.push(`[저축 플랜 현황]
+- 전체 플랜: ${assetPlans.length}개 (완료 ${completedPlans.length}개, 진행 중 ${activePlans.length}개)
+- 지금까지 모은 금액: ${Math.round(savedTotal / 10000).toLocaleString()}만원
+- 달성 완료 금액: ${Math.round(completedTotal / 10000).toLocaleString()}만원
+- 진행 중 목표 합계: ${Math.round(activeGoalTotal / 10000).toLocaleString()}만원
+${planLines}`)
+  } else {
+    sections.push(`[저축 플랜 현황]\n- 저축 플랜 없음 (탭1 미입력)`)
+  }
+
+  // 3. 주거비 시뮬레이션
+  if (housingSnapshot) {
+    const h = housingSnapshot
+    const savingInsufficient = h.savingAmount <= h.currentRent || h.savingAmount === 0
+    const yearsDisplay = savingInsufficient ? "미입력" : `${h.yearsToGoal}년`
+
+    sections.push(`[주거비 시뮬레이션]
+- 현재 거주: ${h.currentSize}㎡, 월세 ${h.currentRent}만원
+- 목표 주거: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${Math.round(h.targetDeposit / 10000).toLocaleString()}만원)
+- 10년 월세 소멸액: ${h.tenYearWaste.toLocaleString()}만원
+- 목표까지 (순수 저축): ${yearsDisplay}
+- 목표까지 (대출 활용): ${h.loanCoversAll ? "바로 가능" : h.yearsWithLoan > 0 ? `${h.yearsWithLoan}년` : "미입력"}
+- 대출로 단축 가능 기간: ${h.yearsSaved > 0 ? `${h.yearsSaved}년` : "없음"}
+- 설정 월 저축액: ${h.savingAmount}만원${savingInsufficient ? " (저축액 미입력 — 월세와 동일한 초기값)" : ""}`)
+  } else {
+    sections.push(`[주거비 시뮬레이션]\n- 탭2 미입력`)
+  }
+
+  // 4. 대출/금융 체감
+  if (financeSnapshot) {
+    const f = financeSnapshot
+    const monthlyNet = f.monthlyIncome - f.monthlyPayment
+    sections.push(`[대출/금융 체감]
+- 시뮬레이션 대출금액: ${Math.round(f.loanAmount / 10000).toLocaleString()}만원 (연 ${f.annualRate}%)
+- 월 납입액: ${Math.round(f.monthlyPayment / 10000)}만원
+- DSR: ${f.dsr}% → ${f.dsrLabel}
+- 월 소득: ${Math.round(f.monthlyIncome / 10000)}만원
+- 상환 후 실수령: ${Math.round(monthlyNet / 10000)}만원 (생활비·식비 등 충당 필요)`)
+  } else {
+    sections.push(`[대출/금융 체감]\n- 탭3 미입력`)
+  }
+
+  // 5. 제도 추천 결과
   if (recommendation?.results?.length) {
     const top3 = recommendation.results
       .slice(0, 3)
@@ -87,117 +153,66 @@ export async function POST(request: Request) {
     sections.push(`[제도 추천 결과 TOP3]\n${top3}`)
   }
 
-  if (assetPlans?.length) {
-    const planSummary = assetPlans
-      .map((p) => `  - ${p.planName}: 목표 ${Math.round((p.goalAmount ?? 0) / 10000)}만원 (${p.isCompleted ? "완료" : "진행중"})`)
-      .join("\n")
-    sections.push(`[저축 플랜]\n${planSummary}`)
-  }
-
-  if (housingSnapshot) {
-    const h = housingSnapshot
-    // savingAmount가 너무 작으면 (월세랑 같은 초기값) yearsToGoal 신뢰도 낮음
-    const yearsDisplay = h.savingAmount <= h.currentRent
-      ? "저축액 미입력"
-      : `${h.yearsToGoal}년`
-
-    sections.push(`[주거비 시뮬레이션]
-- 현재 월세: ${h.currentRent}만원
-- 목표 평수: ${h.targetSize}㎡ (${h.region})
-- 목표 전세 보증금: ${Math.round(h.targetDeposit / 10000)}만원
-- 순수 저축 시 목표까지: ${yearsDisplay}
-- 대출 활용 시: ${h.loanCoversAll ? "바로 가능" : `${h.yearsWithLoan}년`}
-- 10년 월세 소멸액: ${h.tenYearWaste}만원`)
-  }
-
-  if (financeSnapshot) {
-    const f = financeSnapshot
-    sections.push(`[대출/금융 체감]
-- 대출금액: ${Math.round(f.loanAmount / 10000)}만원
-- 연 금리: ${f.annualRate}%
-- 월 납입액: ${Math.round(f.monthlyPayment / 10000)}만원
-- DSR: ${f.dsr}% (${f.dsrLabel})
-- 월 소득: ${Math.round(f.monthlyIncome / 10000)}만원`)
-  }
-
   const dataContext = sections.join("\n\n")
 
-  const systemPrompt = `당신은 청춘홈즈 서비스의 AI 청춘 플래너예요.
-청년의 주거 상황을 분석해서 핵심만 짚어주세요.
+  // ── 시스템 프롬프트 ────────────────────────────────────────────────
+  const systemPrompt = `당신은 청춘홈즈의 AI 청춘 플래너예요.
+청년의 주거 상황을 분석해서 진짜 도움이 되는 개인화된 조언을 해주세요.
 
-[응답 규칙]
-- 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만.
+[핵심 원칙]
+- 데이터를 단순 반복하지 마세요. 반드시 "해석"하세요.
+- 이 사람 고유의 상황(저축 현황, DSR, 목표 지역)을 명시적으로 언급하세요.
+- "청약통장이 없어요" 같은 일반론 금지. "280만원을 모았는데 청약통장은 없어요" 처럼 구체적으로.
+- 비유는 이 사람의 상황에 딱 맞게. 누구한테나 적용되는 비유는 금지.
 
-- checkList: 조건 체크리스트 4~5개. status는 pass/fail/warn 중 하나.
-  예) 무주택 → pass, 청약통장 없음 → fail, DSR 55% → warn
+[응답 형식]
+반드시 아래 JSON만. 다른 텍스트 없이.
 
-- numbers: 시뮬레이터 숫자 요약 카드 3개. 데이터 없으면 value에 "정보 없음" 표시.
-  예) 10년 월세 소멸액 / DSR+월납입 / 목표까지 기간
+checkList: 4~5개. status는 pass/fail/warn.
+  - 데이터가 없는 항목(탭 미입력)은 warn으로 표시. 예) "주거비 시뮬레이션 미입력 → warn"
+  - 구체적인 수치 포함. 예) "DSR 600% — 위험 수준" 이 아닌 "DSR ${financeSnapshot?.dsr ?? "?"}%"
 
-- insights: 일상 비유 3~4개. 각 항목 = item(상황, 20자 이내) + metaphor(비유 한 문장, 30자 이내) + action(할 일, 30자 이내)
-  [비유 규칙]
-  - 아래 카테고리에서 매번 다르게 선택, 같은 카테고리 2번 연속 금지
-  - 사용 가능 카테고리: 요리, 공사/건축, 스포츠/경기, 게임, 운전/여행, 식물/농사, 이사/짐, 영화/드라마, 날씨/계절, 목표/과녁
-  - insights 3개면 3개 카테고리 모두 달라야 함
-  - 요리는 전체 insights 중 1개만 허용
+insights: 3~4개. 각 항목 = item(상황 설명 20자 이내) + metaphor(비유 한 문장, 40자 이내) + action(할 일 30자 이내)
+  [규칙]
+  - item은 이 사람의 상황을 짧게. "저축 목표 달성 미흡", "청약통장 미보유" 같은 식.
+  - metaphor는 비유만. 카테고리명·접두어 절대 금지. "게임:", "요리:" 같은 거 붙이지 말 것.
+  - metaphor는 친구한테 말하듯 자연스럽게. "게임으로 치면 레벨업 아이템도 없이 던전 들어간 거예요" 처럼.
+  - 이 사람 고유 수치나 상황을 녹일 것. 누구한테나 해당되는 말 금지.
 
-- actions: 지금 당장 할 것 3가지. priority는 high/medium/low.
-link는 반드시 아래 목록에서만 선택:
-"/site/announcements?keyword=행복주택"      → 행복주택 관련
-"/site/announcements?keyword=청년매입임대"   → 청년 매입임대 관련
-"/site/announcements?keyword=청년전세임대"   → 청년 전세임대 관련
-"/site/announcements?keyword=청년버팀목"     → 대출 관련
-"/site/loan"                                → 대출 상세
-"/site/simulator?tab=assetPlan"             → 저축 목표 관련
-"/site/simulator?tab=housingCompare"        → 주거비 비교 관련
-"/site/simulator?tab=financeFeel"           → DSR·대출 체감 관련
-null                                        → 해당 없음
+actions: 3개. priority는 high/medium/low.
+  link는 아래 목록에서만:
+  "/site/announcements?keyword=행복주택"
+  "/site/announcements?keyword=청년매입임대"
+  "/site/announcements?keyword=청년전세임대"
+  "/site/announcements?keyword=청년버팀목"
+  "/site/loan"
+  "/site/simulator?tab=assetPlan"
+  "/site/simulator?tab=housingCompare"
+  "/site/simulator?tab=financeFeel"
+  null
 
-- timeline: 현재/3개월/1년/3년 4단계 주거 전략 로드맵. 각 단계 = period + title(10자 이내) + why(40자 이내) + action(40자 이내)
+timeline: 현재/3개월/1년/3년. period + title(10자 이내) + why(40자 이내) + action(40자 이내)
+  - 실제 수치 기반으로. "저축 목표" 같은 추상어 금지. "월 30만원 저축으로 38개월 후 달성" 처럼.
+  - 탭 미입력 시에는 해당 단계에 "시뮬레이터 입력 후 구체화 가능" 으로 표시.
 
+응답 예시 구조:
 {
-  "checkList": [
-    { "label": "무주택", "status": "pass" },
-    { "label": "청약통장 없음", "status": "fail" }
-  ],
-  "numbers": [
-    { "label": "10년 월세 소멸액", "value": "7,200만원", "sub": "월 60만원 기준" },
-    { "label": "DSR", "value": "55%", "sub": "월 납입 110만원" },
-    { "label": "목표까지", "value": "4년", "sub": "저축 기준" }
-  ],
-  "insights": [
-    {
-      "item": "청약통장 정보 없음",
-      "metaphor": "경기 시작 전 유니폼을 안 챙긴 것과 같아요",
-      "action": "지금 바로 청약통장 개설하세요"
-    }
-  ],
-  "actions": [
-    {
-      "title": "액션 제목 (20자 이내)",
-      "reason": "이유 (40자 이내)",
-      "priority": "high",
-      "link": "/site/loan 또는 null"
-    }
-  ],
-  "timeline": [
-    { "period": "현재", "title": "한 줄 상태", "why": "이유", "action": "할 일" },
-    { "period": "3개월", "title": "...", "why": "...", "action": "..." },
-    { "period": "1년",   "title": "...", "why": "...", "action": "..." },
-    { "period": "3년",   "title": "...", "why": "...", "action": "..." }
-  ]
+  "checkList": [...],
+  "insights": [...],
+  "actions": [...],
+  "timeline": [...]
 }`
 
   const messages: ChatMessage[] = [
     {
       role: "user",
-      content: `아래 데이터를 바탕으로 AI 청춘 플래너 분석을 해주세요.\n\n[시스템 지시]\n${systemPrompt}\n\n${dataContext}`,
+      content: `아래 데이터를 분석해서 AI 청춘 플래너 결과를 JSON으로 작성해주세요.\n\n${dataContext}\n\n${systemPrompt}`,
     },
   ]
 
   try {
-    const reply = await createChatReply(messages)
-    const clean = reply.replace(/```json|```/g, "").trim()
+    const reply  = await createChatReply(messages)
+    const clean  = reply.replace(/```json|```/g, "").trim()
     const parsed = JSON.parse(clean) as RoadmapParsed
     return NextResponse.json(parsed)
   } catch (error) {
