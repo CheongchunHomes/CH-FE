@@ -360,12 +360,21 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
     ? Math.round(userProfile.annualIncome / 12 / 10000)
     : 300
 
-  // DSR 시뮬레이터 state
-  const [loanAmount, setLoanAmount]       = useState(120000000)
-  const [annualRate, setAnnualRate]       = useState(3.5)
-  const [monthlyIncome, setMonthlyIncome] = useState(defaultMonthlyIncome * 10000)
-  const [repayMonths, setRepayMonths]     = useState(60)
-  const [method, setMethod]               = useState<"equal" | "interest">("equal")
+// sessionStorage에서 이전 값 복원
+  const savedFinance = (() => {
+    try { return JSON.parse(sessionStorage.getItem("financeSnapshot") ?? "null") } catch { return null }
+  })()
+
+// DSR 시뮬레이터 state
+  const [loanAmount, setLoanAmount]       = useState(savedFinance?.loanAmount   ?? 120000000)
+  const [annualRate, setAnnualRate]       = useState(savedFinance?.annualRate    ?? 3.5)
+  const [monthlyIncome, setMonthlyIncome] = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome * 10000)
+  const [repayMonths, setRepayMonths]     = useState(savedFinance?.repayMonths   ?? 60)
+  const [method, setMethod] = useState<"equal" | "interest">(
+    savedFinance?.method === "equal" || savedFinance?.method === "interest"
+      ? savedFinance.method
+      : "equal"
+  )
 
   // 계산
   const schedule = method === "equal"

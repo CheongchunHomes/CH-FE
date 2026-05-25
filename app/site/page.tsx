@@ -26,7 +26,7 @@ const quickMenus = [
 ]
 
 const homeTips = [
-  { title: "청년 플랜 · 시뮬레이터", desc: "모으고, 비교하고, 계산하고, 결국 내 집까지", href: getPageSampleHref("simulator") },
+  { title: "청춘 플랜 · 시뮬레이터", desc: "모으고, 비교하고, 계산하고, 결국 내 집까지", href: getPageSampleHref("simulator") },
   { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
   { title: "공지사항", desc: "청년 주거 지원 정책과 서비스 관련 주요 안내를 확인하는 공간", href: getPageSampleHref("notice") },
   { title: "가계부", desc: "월별 수입과 지출을 기록하고 소비 내역을 관리하는 공간", href: getPageSampleHref("ledger") },

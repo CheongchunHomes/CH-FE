@@ -131,7 +131,7 @@ export default function SimulatorPage() {
       {/* 헤더 */}
       <div className="bg-white border-b py-6">
         <div className="max-w-5xl mx-auto px-4 md:px-8">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">청년 플랜 · 시뮬레이터</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">청춘 플랜 · 시뮬레이터</h1>
           <p className="text-sm text-gray-500 mt-1">모으고, 비교하고, 계산하고, 결국 내 집까지</p>
         </div>
       </div>

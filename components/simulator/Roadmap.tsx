@@ -67,6 +67,10 @@ const STATUS_CONFIG = {
   warn: { icon: AlertTriangle, color: "text-yellow-500", bg: "bg-yellow-50" },
 }
 
+function parseSession(key: string) {
+  try { return JSON.parse(sessionStorage.getItem(key) ?? "null") } catch { return null }
+}
+
 export default function Roadmap() {
   const router = useRouter()
   const [result, setResult]             = useState<RoadmapResult | null>(null)
@@ -74,6 +78,7 @@ export default function Roadmap() {
   const [error, setError]               = useState<string | null>(null)
   const [profile, setProfile]           = useState<DiagnosisForm | null>(null)
   const [policyScores, setPolicyScores] = useState<PolicyScore[]>([])
+  const [isStale, setIsStale]           = useState(false)
 
   // 쿨타임 종료 시각 기반 초기값 — 탭 전환 시에도 카운트다운 유지
   const [cooldown, setCooldown] = useState(() => {
@@ -82,6 +87,7 @@ export default function Roadmap() {
     const remaining = Math.ceil((Number(savedTime) - Date.now()) / 1000)
     return remaining > 0 ? remaining : 0
   })
+
   useEffect(() => { fetchRoadmap() }, [])
 
   // 쿨타임 카운트다운
@@ -92,49 +98,48 @@ export default function Roadmap() {
   }, [cooldown])
 
   async function fetchRoadmap(forceRefresh = false) {
-    if (forceRefresh && cooldown > 0) return // 쿨타임 중 차단
-    if (forceRefresh) setCooldown(60) // 60초 쿨타임 시작
-    if (forceRefresh) { // 쿨타임 시작 — 종료 시각 저장 후 카운트다운
+    if (forceRefresh && cooldown > 0) return
+    // 쿨타임 시작 — 종료 시각 저장 후 카운트다운
+    if (forceRefresh) {
       const endTime = Date.now() + 60 * 1000
       sessionStorage.setItem("roadmapCooldownEnd", String(endTime))
       setCooldown(60)
     }
+
     setLoading(true)
+    setError(null)
 
     try {
-      // 현재 snapshot
       const housingSnapshot = parseSession("housingSnapshot")
       const financeSnapshot = parseSession("financeSnapshot")
 
-      // 캐시 확인 — snapshot 비교
+      // 캐시 확인 — snapshot 비교로 stale 여부 판단
       if (!forceRefresh) {
         const cached = sessionStorage.getItem("roadmapResult")
-        const cachedSnapshot = parseSession("roadmapSnapshot")
-        const currentSnapshot = { housingSnapshot, financeSnapshot }
-        const isStale = JSON.stringify(cachedSnapshot) !== JSON.stringify(currentSnapshot)
+        if (cached) {
+          const cachedSnapshot = parseSession("roadmapSnapshot")
+          const currentSnapshot = { housingSnapshot, financeSnapshot }
+          const stale = JSON.stringify(cachedSnapshot) !== JSON.stringify(currentSnapshot)
 
-        if (cached && !isStale) {
           setResult(JSON.parse(cached) as RoadmapResult)
+          setIsStale(stale)
           loadSideData()
           setLoading(false)
           return
         }
       }
 
-      // 프로필 조회
+      // 캐시 없거나 forceRefresh — AI 호출
       const profileData = await get<DiagnosisForm>("/api/diagnosis/profile").catch(() => null)
       setProfile(profileData)
 
-      // 제도 추천 점수
       const recommendation = await get<{ results: PolicyScore[] }>("/api/recommendation/calculate/profile", { cache: "no-store" }).catch(() => null)
       if (recommendation?.results) {
         setPolicyScores(recommendation.results.slice(0, 6))
       }
 
-      // 저축 플랜
       const assetPlans = await get<unknown[]>("/api/simulator/asset-plans", { cache: "no-store" }).catch(() => [])
 
-      // AI 호출
       const data = await post<RoadmapResult>("/api/simulator/roadmap", {
         profile: profileData,
         recommendation,
@@ -147,6 +152,18 @@ export default function Roadmap() {
       sessionStorage.setItem("roadmapResult", JSON.stringify(data))
       sessionStorage.setItem("roadmapSnapshot", JSON.stringify({ housingSnapshot, financeSnapshot }))
       setResult(data)
+      setIsStale(false)
+
+      // 리포트 DB 저장 — 실패해도 분석 결과 표시는 유지
+      await post("/api/simulator/reports", {
+        assetSnapshot: assetPlans,
+        housingSnapshot,
+        loanSnapshot: financeSnapshot,
+        scoreSnapshot: recommendation?.results ?? null,
+        aiResult: data,
+        aiPrompt: null,
+      }).catch(() => {})
+
     } catch (e) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했어요")
     } finally {
@@ -159,10 +176,6 @@ export default function Roadmap() {
     if (recommendation?.results) {
       setPolicyScores(recommendation.results.slice(0, 6))
     }
-  }
-
-  function parseSession(key: string) {
-    try { return JSON.parse(sessionStorage.getItem(key) ?? "null") } catch { return null }
   }
 
   if (loading) return <LoadingSkeleton />
@@ -181,14 +194,21 @@ export default function Roadmap() {
               AI 분석
             </Badge>
           </div>
-          <button
-            onClick={() => fetchRoadmap(true)}
-            disabled={cooldown > 0}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <RotateCcw size={12} />
-            {cooldown > 0 ? `${cooldown}초 후 가능` : "다시 분석"}
-          </button>
+          <div className="flex items-center gap-2">
+            {isStale && (
+              <Badge className="text-[10px] font-bold bg-red-500 hover:bg-red-500 text-white border-0 pointer-events-none">
+                조건이 변경됐어요
+              </Badge>
+            )}
+            <button
+              onClick={() => fetchRoadmap(true)}
+              disabled={cooldown > 0}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <RotateCcw size={12} />
+              {cooldown > 0 ? `${cooldown}초 후 가능` : "다시 분석"}
+            </button>
+          </div>
         </div>
         <p className="text-xs text-gray-500 mt-1">
           {profile ? "입력하신 조건을 바탕으로 맞춤 주거 전략을 분석했어요" : "시뮬레이터 데이터를 바탕으로 분석했어요"}
@@ -223,7 +243,7 @@ export default function Roadmap() {
                 return (
                   <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${config.bg}`}>
                     <Icon size={13} className={config.color} />
-                    <p className="text-xs text-gray-700">{item.label}</p>
+                    <p className="text-xs text-gray-700">ㆍ{item.label}</p>
                   </div>
                 )
               })}
@@ -238,9 +258,9 @@ export default function Roadmap() {
                 policyScores.map((p, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold w-4 flex-shrink-0 ${
-              i === 0 ? "text-blue-600" : i === 1 ? "text-blue-400" : "text-gray-300"
-            }`}>{i + 1}</span>
+                      <span className={`text-xs font-bold w-4 flex-shrink-0 ${
+                        i === 0 ? "text-blue-600" : i === 1 ? "text-blue-400" : "text-gray-300"
+                      }`}>{i + 1}</span>
                       <p className="text-xs text-gray-700 flex-1 truncate">{p.policyName}</p>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${
                         p.grade === "적극추천"   ? "bg-blue-100 text-blue-700"     :
