@@ -75,17 +75,45 @@ export default function Roadmap() {
   const [profile, setProfile]           = useState<DiagnosisForm | null>(null)
   const [policyScores, setPolicyScores] = useState<PolicyScore[]>([])
 
+  // 쿨타임 종료 시각 기반 초기값 — 탭 전환 시에도 카운트다운 유지
+  const [cooldown, setCooldown] = useState(() => {
+    const savedTime = sessionStorage.getItem("roadmapCooldownEnd")
+    if (!savedTime) return 0
+    const remaining = Math.ceil((Number(savedTime) - Date.now()) / 1000)
+    return remaining > 0 ? remaining : 0
+  })
   useEffect(() => { fetchRoadmap() }, [])
 
+  // 쿨타임 카운트다운
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
+
   async function fetchRoadmap(forceRefresh = false) {
+    if (forceRefresh && cooldown > 0) return // 쿨타임 중 차단
+    if (forceRefresh) setCooldown(60) // 60초 쿨타임 시작
+    if (forceRefresh) { // 쿨타임 시작 — 종료 시각 저장 후 카운트다운
+      const endTime = Date.now() + 60 * 1000
+      sessionStorage.setItem("roadmapCooldownEnd", String(endTime))
+      setCooldown(60)
+    }
     setLoading(true)
-    setError(null)
 
     try {
-      // 캐시 확인
+      // 현재 snapshot
+      const housingSnapshot = parseSession("housingSnapshot")
+      const financeSnapshot = parseSession("financeSnapshot")
+
+      // 캐시 확인 — snapshot 비교
       if (!forceRefresh) {
         const cached = sessionStorage.getItem("roadmapResult")
-        if (cached) {
+        const cachedSnapshot = parseSession("roadmapSnapshot")
+        const currentSnapshot = { housingSnapshot, financeSnapshot }
+        const isStale = JSON.stringify(cachedSnapshot) !== JSON.stringify(currentSnapshot)
+
+        if (cached && !isStale) {
           setResult(JSON.parse(cached) as RoadmapResult)
           loadSideData()
           setLoading(false)
@@ -103,10 +131,6 @@ export default function Roadmap() {
         setPolicyScores(recommendation.results.slice(0, 6))
       }
 
-      // sessionStorage 데이터
-      const housingSnapshot = parseSession("housingSnapshot")
-      const financeSnapshot = parseSession("financeSnapshot")
-
       // 저축 플랜
       const assetPlans = await get<unknown[]>("/api/simulator/asset-plans", { cache: "no-store" }).catch(() => [])
 
@@ -119,7 +143,9 @@ export default function Roadmap() {
         financeSnapshot,
       })
 
+      // 결과 + snapshot 같이 저장
       sessionStorage.setItem("roadmapResult", JSON.stringify(data))
+      sessionStorage.setItem("roadmapSnapshot", JSON.stringify({ housingSnapshot, financeSnapshot }))
       setResult(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했어요")
@@ -157,10 +183,11 @@ export default function Roadmap() {
           </div>
           <button
             onClick={() => fetchRoadmap(true)}
+            disabled={cooldown > 0}
             className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             <RotateCcw size={12} />
-            다시 분석
+            {cooldown > 0 ? `${cooldown}초 후 가능` : "다시 분석"}
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-1">
@@ -221,7 +248,7 @@ export default function Roadmap() {
                             p.grade === "조건부추천" ? "bg-yellow-100 text-yellow-700" :
                               "bg-gray-100 text-gray-400"
                       }`}>{p.grade}</span>
-                      <span className="text-xs font-bold text-gray-900 w-8 text-right flex-shrink-0">{p.score}점</span>
+                      <span className="text-xs font-bold text-gray-900 w-10 text-right flex-shrink-0">{p.score}점</span>
                     </div>
                     <div className="pl-4">
                       <Progress value={p.score} className="h-1.5" />
