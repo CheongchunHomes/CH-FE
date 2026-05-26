@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { createChatReply, type ChatMessage } from "@/lib/openai"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { AssetPlanData } from "@/lib/simulatorTypes"
 
@@ -84,7 +83,7 @@ export async function POST(request: Request) {
   // 2. 저축 플랜 — 달성 현황 계산해서 전달
   if (assetPlans && assetPlans.length > 0) {
     const completedPlans = assetPlans.filter((p) => p.isCompleted)
-    const activePlans    = assetPlans.filter((p) => !p.isCompleted)
+    const activePlans = assetPlans.filter((p) => !p.isCompleted)
 
     // 달성된 플랜 합계 (goalAmount 기준)
     const completedTotal = completedPlans.reduce((s, p) => s + (p.goalAmount ?? 0), 0)
@@ -95,9 +94,9 @@ export async function POST(request: Request) {
 
     const planLines = assetPlans
       .map((p) => {
-        const goal    = Math.round((p.goalAmount ?? 0) / 10000)
+        const goal = Math.round((p.goalAmount ?? 0) / 10000)
         const current = Math.round((p.baseAsset ?? 0) / 10000)
-        const rate    = goal > 0 ? Math.round((current / goal) * 100) : 0
+        const rate = goal > 0 ? Math.round((current / goal) * 100) : 0
         return `  - [${p.isCompleted ? "완료" : "진행중"}] ${p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
       })
       .join("\n")
@@ -203,7 +202,7 @@ timeline: 현재/3개월/1년/3년. period + title(10자 이내) + why(40자 이
   "timeline": [...]
 }`
 
-  const messages: ChatMessage[] = [
+  const messages = [
     {
       role: "user",
       content: `아래 데이터를 분석해서 AI 청춘 플래너 결과를 JSON으로 작성해주세요.\n\n${dataContext}\n\n${systemPrompt}`,
@@ -211,8 +210,26 @@ timeline: 현재/3개월/1년/3년. period + title(10자 이내) + why(40자 이
   ]
 
   try {
-    const reply  = await createChatReply(messages)
-    const clean  = reply.replace(/```json|```/g, "").trim()
+    const aiBaseUrl = process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000"
+
+    const response = await fetch(`${aiBaseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`AI 서버 요청 실패: ${response.status}`)
+    }
+
+    const data = await response.json() as { reply?: string; error?: string }
+    const reply = data.reply?.trim()
+
+    if (!reply) {
+      throw new Error("AI 서버 응답이 비어 있습니다.")
+    }
+
+    const clean = reply.replace(/```json|```/g, "").trim()
     const parsed = JSON.parse(clean) as RoadmapParsed
     return NextResponse.json(parsed)
   } catch (error) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Slider } from "@/components/ui/slider"
 import { ChevronDown, ChevronUp, TrendingUp, CreditCard } from "lucide-react"
-import { get } from "@/lib/api"
+// import { get } from "@/lib/api"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import {
   Pagination,

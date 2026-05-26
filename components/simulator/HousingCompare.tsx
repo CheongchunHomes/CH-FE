@@ -63,15 +63,19 @@ interface HousingCompareProps {
 }
 
 export default function HousingCompare({ userProfile }: HousingCompareProps) {
-  const [region, setRegion]                     = useState<Region>("서울")
-  const [currentSize, setCurrentSize]           = useState(20)
-  const [currentRentInput, setCurrentRentInput] = useState(String(MONTHLY_RENT_BY_REGION["서울"][20]))
+  const saved = (() => {
+    try { return JSON.parse(sessionStorage.getItem("housingSnapshot") ?? "null") } catch { return null }
+  })()
+
+  const [region, setRegion]                     = useState<Region>(saved?.region ?? "서울")
+  const [currentSize, setCurrentSize]           = useState(saved?.currentSize ?? 20)
+  const [currentRentInput, setCurrentRentInput] = useState(saved?.currentRent ? String(saved.currentRent) : String(MONTHLY_RENT_BY_REGION["서울"][20]))
   const currentRent = Number(currentRentInput) || 0
-  const [targetSize, setTargetSize]             = useState(84)
+  const [targetSize, setTargetSize]             = useState(saved?.targetSize ?? 84)
   const [imgVisible, setImgVisible]             = useState(true)
   const [tipPolicies, setTipPolicies]           = useState<PolicyListDTO[]>([])
-  const [loanAmount, setLoanAmount]             = useState(0)
-  const [savingAmount, setSavingAmount]         = useState(MONTHLY_RENT_BY_REGION["서울"][20])
+  const [loanAmount, setLoanAmount]             = useState(saved?.loanAmount ?? 0)
+  const [savingAmount, setSavingAmount]         = useState(saved?.savingAmount ?? MONTHLY_RENT_BY_REGION["서울"][20])
 
   const router = useRouter()
 
