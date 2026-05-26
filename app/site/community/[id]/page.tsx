@@ -65,9 +65,7 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
       setDeleting(true);
       setErrorMessage('');
 
-      await request(`/api/community/${post.postId}`, {
-        method: 'DELETE',
-      });
+await request('DELETE', `/api/community/${id}`);
 
       router.push('/site/community');
       router.refresh();

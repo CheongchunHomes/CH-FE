@@ -91,14 +91,13 @@ export default function CommunityEditPage() {
     try {
       setSaving(true);
 
-      await request(apiPath, {
-        method: 'PUT',
-        body: {
-          title,
-          region,
-          content,
-        },
-      });
+    await request('PUT', apiPath, {
+     body: {
+      title,
+      region,
+      content,
+    },
+  });
 
       alert('게시글이 수정되었습니다.');
       router.push(isAdminMode ? '/site/community?admin=1' : `/site/community/${postId}`);

@@ -471,9 +471,7 @@ export default function CommunityPage() {
     if (!ok) return;
 
     try {
-      await request(`/api/community/admin/${postId}`, {
-        method: 'DELETE',
-      });
+ await request('DELETE', `/api/community/admin/${postId}`);
 
       await fetchPosts();
     } catch (error) {
