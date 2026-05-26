@@ -1,6 +1,29 @@
 "use client";
 
+import { useRef } from "react";
 import type { SubscriptionApplyDraft } from "@/app/site/subscription/[id]/apply/page";
+
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (options: {
+        oncomplete: (data: DaumPostcodeData) => void;
+      }) => {
+        open: () => void;
+      };
+    };
+  }
+}
+
+type DaumPostcodeData = {
+  zonecode: string;
+  roadAddress: string;
+  jibunAddress: string;
+  userSelectedType: "R" | "J";
+  buildingName: string;
+  apartment: "Y" | "N";
+  bname: string;
+};
 
 type Props = {
   draft: SubscriptionApplyDraft;
@@ -9,12 +32,18 @@ type Props = {
   onNext: () => void;
 };
 
+const DAUM_POSTCODE_SCRIPT_ID = "daum-postcode-script";
+const DAUM_POSTCODE_SCRIPT_SRC =
+  "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+
 export default function SubscriptionApplyFormStep({
   draft,
   updateDraft,
   onPrev,
   onNext,
 }: Props) {
+  const detailAddressRef = useRef<HTMLInputElement | null>(null);
+
   const validateAndNext = () => {
     if (!draft.applicantName.trim()) {
       alert("신청자 이름을 입력해 주세요.");
@@ -27,11 +56,86 @@ export default function SubscriptionApplyFormStep({
     }
 
     if (!draft.zipCode.trim() || !draft.address.trim()) {
-      alert("주소를 입력해 주세요.");
+      alert("주소검색 버튼을 눌러 주소를 입력해 주세요.");
       return;
     }
 
     onNext();
+  };
+
+  const loadDaumPostcodeScript = () => {
+    return new Promise<void>((resolve, reject) => {
+      if (window.daum?.Postcode) {
+        resolve();
+        return;
+      }
+
+      const existingScript = document.getElementById(DAUM_POSTCODE_SCRIPT_ID);
+
+      if (existingScript) {
+        existingScript.addEventListener("load", () => resolve(), { once: true });
+        existingScript.addEventListener(
+          "error",
+          () => reject(new Error("주소 검색 스크립트 로드 실패")),
+          { once: true },
+        );
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = DAUM_POSTCODE_SCRIPT_ID;
+      script.src = DAUM_POSTCODE_SCRIPT_SRC;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("주소 검색 스크립트 로드 실패"));
+
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleAddressSearch = async () => {
+    try {
+      await loadDaumPostcodeScript();
+
+      if (!window.daum?.Postcode) {
+        alert("주소 검색 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+
+      new window.daum.Postcode({
+        oncomplete: (data) => {
+          const baseAddress =
+            data.userSelectedType === "R" ? data.roadAddress : data.jibunAddress;
+
+          let extraAddress = "";
+
+          if (data.userSelectedType === "R") {
+            if (data.bname) {
+              extraAddress += data.bname;
+            }
+
+            if (data.buildingName && data.apartment === "Y") {
+              extraAddress += extraAddress
+                ? `, ${data.buildingName}`
+                : data.buildingName;
+            }
+          }
+
+          updateDraft({
+            zipCode: data.zonecode,
+            address: extraAddress ? `${baseAddress} (${extraAddress})` : baseAddress,
+            detailAddress: "",
+          });
+
+          window.setTimeout(() => {
+            detailAddressRef.current?.focus();
+          }, 0);
+        },
+      }).open();
+    } catch (error) {
+      console.error("주소 검색 실행 실패:", error);
+      alert("주소 검색을 실행하지 못했습니다. 네트워크 상태를 확인해 주세요.");
+    }
   };
 
   return (
@@ -54,11 +158,13 @@ export default function SubscriptionApplyFormStep({
         </FormRow>
 
         <FormRow label="연락처" required>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={draft.phonePrefix}
               onChange={(event) =>
-                updateDraft({ phonePrefix: event.target.value })
+                updateDraft({
+                  phonePrefix: event.target.value.replace(/[^0-9]/g, ""),
+                })
               }
               maxLength={3}
               className="w-20 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
@@ -85,33 +191,22 @@ export default function SubscriptionApplyFormStep({
               maxLength={4}
               className="w-28 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
-
-            <label className="ml-4 flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={draft.smsAgree}
-                onChange={(event) =>
-                  updateDraft({ smsAgree: event.target.checked })
-                }
-              />
-              SMS 통지에 동의함
-            </label>
           </div>
         </FormRow>
 
         <FormRow label="주소" required>
           <div className="space-y-2">
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 value={draft.zipCode}
-                onChange={(event) => updateDraft({ zipCode: event.target.value })}
+                readOnly
                 placeholder="우편번호"
-                className="w-36 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
+                className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none sm:w-40"
               />
               <button
                 type="button"
-                onClick={() => alert("주소 검색 기능은 추후 연결 예정입니다.")}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                onClick={handleAddressSearch}
+                className="w-full rounded-lg bg-blue-600 px-6 py-2 text-sm font-bold text-white hover:bg-blue-700 sm:w-40"
               >
                 주소검색
               </button>
@@ -119,12 +214,13 @@ export default function SubscriptionApplyFormStep({
 
             <input
               value={draft.address}
-              onChange={(event) => updateDraft({ address: event.target.value })}
-              placeholder="기본 주소를 입력해 주세요"
-              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
+              readOnly
+              placeholder="주소검색 버튼을 눌러 기본 주소를 입력해 주세요"
+              className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none"
             />
 
             <input
+              ref={detailAddressRef}
               value={draft.detailAddress}
               onChange={(event) =>
                 updateDraft({ detailAddress: event.target.value })
@@ -148,7 +244,7 @@ export default function SubscriptionApplyFormStep({
         <button
           type="button"
           onClick={validateAndNext}
-          className="rounded-xl bg-yellow-400 px-12 py-3 text-base font-bold text-gray-900 hover:bg-yellow-300"
+          className="rounded-xl bg-blue-600 px-12 py-3 text-base font-bold text-white hover:bg-blue-700"
         >
           다음 →
         </button>

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import SubscriptionApplyStepper from "@/components/subscription/apply/SubscriptionApplyStepper";
 import SubscriptionApplyNoticeStep from "@/components/subscription/apply/SubscriptionApplyNoticeStep";
 import SubscriptionApplyFormStep from "@/components/subscription/apply/SubscriptionApplyFormStep";
 import SubscriptionApplyConfirmStep from "@/components/subscription/apply/SubscriptionApplyConfirmStep";
-import SubscriptionApplyCompleteStep from "@/components/subscription/apply/SubscriptionApplyCompleteStep"
+import SubscriptionApplyCompleteStep from "@/components/subscription/apply/SubscriptionApplyCompleteStep";
+import { ApiError } from "@/lib/api";
+import { applySubscription } from "@/lib/subscription-api";
 
 type ApplyStep = 1 | 2 | 3 | 4;
 
@@ -15,7 +17,6 @@ export type SubscriptionApplyDraft = {
   announcementTitle: string;
   houseTypeId: number | null;
   houseTypeName: string;
-  applyType: string;
 
   applicantName: string;
   phonePrefix: string;
@@ -24,18 +25,11 @@ export type SubscriptionApplyDraft = {
   zipCode: string;
   address: string;
   detailAddress: string;
-  smsAgree: boolean;
 
   noticeAgree: boolean;
   privacyAgree: boolean;
   thirdPartyAgree: boolean;
   uniqueInfoAgree: boolean;
-};
-
-const applyTypeLabelMap: Record<string, string> = {
-  SPECIAL: "특별공급",
-  GENERAL: "1순위/2순위",
-  REMAIN: "잔여세대",
 };
 
 export default function SubscriptionApplyPage() {
@@ -44,21 +38,20 @@ export default function SubscriptionApplyPage() {
   const router = useRouter();
 
   const [step, setStep] = useState<ApplyStep>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const announcementId = Number(params.id);
   const announcementTitle = searchParams.get("title") ?? "청약 공고";
   const houseTypeId = searchParams.get("houseTypeId")
     ? Number(searchParams.get("houseTypeId"))
     : null;
-  const houseTypeName = searchParams.get("houseTypeName") ?? "-";
-  const applyType = searchParams.get("applyType") ?? "";
+  const houseTypeName = searchParams.get("houseTypeName") ?? "";
 
   const [draft, setDraft] = useState<SubscriptionApplyDraft>({
     announcementId,
     announcementTitle,
     houseTypeId,
     houseTypeName,
-    applyType,
 
     applicantName: "",
     phonePrefix: "010",
@@ -67,7 +60,6 @@ export default function SubscriptionApplyPage() {
     zipCode: "",
     address: "",
     detailAddress: "",
-    smsAgree: true,
 
     noticeAgree: false,
     privacyAgree: false,
@@ -76,15 +68,11 @@ export default function SubscriptionApplyPage() {
   });
 
   useEffect(() => {
-    if (!announcementId || !houseTypeId || !applyType) {
-      alert("신청에 필요한 공고, 주택형, 신청 타입 정보가 없습니다.");
+    if (!announcementId || !houseTypeName) {
+      alert("신청에 필요한 공고, 주택형 정보가 없습니다.");
       router.replace(`/site/subscription/${params.id}`);
     }
-  }, [announcementId, houseTypeId, applyType, params.id, router]);
-
-  const applyTypeLabel = useMemo(() => {
-    return applyTypeLabelMap[draft.applyType] ?? draft.applyType;
-  }, [draft.applyType]);
+  }, [announcementId, houseTypeName, params.id, router]);
 
   const updateDraft = (partial: Partial<SubscriptionApplyDraft>) => {
     setDraft((prev) => ({
@@ -101,29 +89,36 @@ export default function SubscriptionApplyPage() {
     setStep((prev) => Math.max(prev - 1, 1) as ApplyStep);
   };
 
-  const submitApplication = () => {
+  const submitApplication = async () => {
     const payload = {
       announcementId: draft.announcementId,
-      houseTypeId: draft.houseTypeId,
-      applyType: draft.applyType,
+      supplyId: draft.houseTypeId,
+      housingType: draft.houseTypeName,
       applicantName: draft.applicantName,
-      phone: `${draft.phonePrefix}-${draft.phoneMiddle}-${draft.phoneLast}`,
-      zipCode: draft.zipCode,
+      postalCode: draft.zipCode,
       address: draft.address,
       detailAddress: draft.detailAddress,
-      smsAgree: draft.smsAgree,
-      noticeAgree: draft.noticeAgree,
-      privacyAgree: draft.privacyAgree,
-      thirdPartyAgree: draft.thirdPartyAgree,
-      uniqueInfoAgree: draft.uniqueInfoAgree,
     };
 
-    // TODO: 백엔드 신청 API 생성 후 POST 요청으로 교체
-    // 예시: await post("/api/subscription/applications", payload);
     console.log("[청약 신청 최종 payload]", payload);
 
-    setStep(4);
+    try {
+      setIsSubmitting(true);
+      await applySubscription(payload);
+      alert("청약 신청이 완료되었습니다.");
+      setStep(4);
+    } catch (error) {
+      console.error("청약 신청 실패:", error);
 
+      if (isDuplicateApplicationError(error)) {
+        alert("이미 신청한 공고입니다.");
+        return;
+      }
+
+      alert("청약 신청 중 오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -146,16 +141,11 @@ export default function SubscriptionApplyPage() {
           </button>
         </div>
 
-        <section className="mb-8 rounded-2xl border bg-yellow-50 p-5">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <section className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <SummaryItem label="공고명" value={draft.announcementTitle} />
             <SummaryItem label="주택형" value={draft.houseTypeName} />
-            <SummaryItem label="공급유형" value={applyTypeLabel} />
-            <SummaryItem
-              label="신청구분"
-              value="가상 청약 신청"
-              strong
-            />
+            <SummaryItem label="신청구분" value="가상 청약 신청" strong />
           </div>
         </section>
 
@@ -182,7 +172,7 @@ export default function SubscriptionApplyPage() {
           {step === 3 && (
             <SubscriptionApplyConfirmStep
               draft={draft}
-              applyTypeLabel={applyTypeLabel}
+              isSubmitting={isSubmitting}
               onPrev={goPrev}
               onSubmit={submitApplication}
             />
@@ -191,14 +181,28 @@ export default function SubscriptionApplyPage() {
           {step === 4 && (
             <SubscriptionApplyCompleteStep
               draft={draft}
-              applyTypeLabel={applyTypeLabel}
-              onHome={() => router.push("/site/subscription")}
-              onDetail={() => router.push(`/site/subscription/${params.id}`)}
+              onMain={() => router.push("/site")}
             />
           )}
         </section>
       </div>
     </main>
+  );
+}
+
+function isDuplicateApplicationError(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    error.status === 409 ||
+    message.includes("이미") ||
+    message.includes("중복") ||
+    message.includes("duplicate") ||
+    message.includes("already")
   );
 }
 

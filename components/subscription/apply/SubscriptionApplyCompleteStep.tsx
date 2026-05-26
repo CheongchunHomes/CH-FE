@@ -4,16 +4,12 @@ import type { SubscriptionApplyDraft } from "@/app/site/subscription/[id]/apply/
 
 type Props = {
   draft: SubscriptionApplyDraft;
-  applyTypeLabel: string;
-  onHome: () => void;
-  onDetail: () => void;
+  onMain: () => void;
 };
 
 export default function SubscriptionApplyCompleteStep({
   draft,
-  applyTypeLabel,
-  onHome,
-  onDetail,
+  onMain,
 }: Props) {
   return (
     <div>
@@ -33,7 +29,6 @@ export default function SubscriptionApplyCompleteStep({
 
         <CompleteRow label="공고명" value={draft.announcementTitle} />
         <CompleteRow label="주택형" value={draft.houseTypeName} />
-        <CompleteRow label="공급유형" value={applyTypeLabel} />
         <CompleteRow label="신청자" value={draft.applicantName} />
         <CompleteRow
           label="연락처"
@@ -41,21 +36,13 @@ export default function SubscriptionApplyCompleteStep({
         />
       </div>
 
-      <div className="mt-8 flex justify-center gap-3">
+      <div className="mt-8 flex justify-center">
         <button
           type="button"
-          onClick={onHome}
-          className="rounded-xl bg-yellow-400 px-12 py-3 text-base font-bold text-gray-900 hover:bg-yellow-300"
+          onClick={onMain}
+          className="rounded-xl bg-blue-600 px-12 py-3 text-base font-bold text-white hover:bg-blue-700"
         >
-          목록으로
-        </button>
-
-        <button
-          type="button"
-          onClick={onDetail}
-          className="rounded-xl bg-gray-700 px-12 py-3 text-base font-bold text-white hover:bg-gray-800"
-        >
-          상세페이지로
+          메인페이지로
         </button>
       </div>
     </div>

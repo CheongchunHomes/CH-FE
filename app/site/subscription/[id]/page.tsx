@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError, get } from "@/lib/api";
 
-type ApplyType = "SPECIAL" | "GENERAL" | "REMAIN";
-
 type AnnouncementDetail = {
   announcementId: number;
   title: string;
@@ -27,7 +25,7 @@ type AnnouncementDetail = {
 };
 
 type SubscriptionHouseType = {
-  houseTypeId: number;
+  houseTypeId: number | null;
   announcementId: number;
   houseManageNo: string | null;
   pblancNo: string | null;
@@ -42,28 +40,6 @@ type SubscriptionHouseType = {
   monthlyRent: number | null;
 };
 
-const applyTypeOptions: {
-  value: ApplyType;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "SPECIAL",
-    label: "특별공급",
-    description: "생애최초, 신혼부부, 다자녀 등 특별공급 유형",
-  },
-  {
-    value: "GENERAL",
-    label: "1순위/2순위",
-    description: "특별공급 외 일반공급 신청 유형",
-  },
-  {
-    value: "REMAIN",
-    label: "잔여세대",
-    description: "잔여 물량 또는 무순위 성격의 신청 유형",
-  },
-];
-
 export default function SubscriptionDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -76,7 +52,6 @@ export default function SubscriptionDetailPage() {
   const [houseTypes, setHouseTypes] = useState<SubscriptionHouseType[]>([]);
   const [selectedHouseType, setSelectedHouseType] =
     useState<SubscriptionHouseType | null>(null);
-  const [selectedApplyType, setSelectedApplyType] = useState<ApplyType | "">("");
 
   const [detailLoading, setDetailLoading] = useState(false);
   const [houseTypeLoading, setHouseTypeLoading] = useState(false);
@@ -142,21 +117,25 @@ export default function SubscriptionDetailPage() {
 
   const handleApply = () => {
     if (!selectedHouseType) {
-      alert("신청할 주택형을 선택해 주세요.");
+      alert("신청할 주택형을 선택해주세요.");
       return;
     }
 
-    if (!selectedApplyType) {
-      alert("신청 타입을 선택해 주세요.");
+    const houseTypeName = selectedHouseType.houseTypeName;
+
+    if (!announcementId || !houseTypeName) {
+      alert("신청에 필요한 공고, 주택형 정보가 없습니다.");
       return;
     }
 
     const query = new URLSearchParams({
       title: announcement?.title ?? "",
-      houseTypeId: String(selectedHouseType.houseTypeId),
-      houseTypeName: selectedHouseType.houseTypeName ?? "",
-      applyType: selectedApplyType,
+      houseTypeName,
     });
+
+    if (selectedHouseType.houseTypeId != null) {
+      query.set("houseTypeId", String(selectedHouseType.houseTypeId));
+    }
 
     router.push(`/site/subscription/${announcementId}/apply?${query.toString()}`);
   };
@@ -253,11 +232,9 @@ export default function SubscriptionDetailPage() {
         <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                주택형 선택
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900">주택형 선택</h2>
               <p className="mt-2 text-sm text-gray-600">
-                신청할 주택형을 먼저 선택해 주세요.
+                주택형 정보를 확인해 주세요. 청약 신청은 공고 기준으로 접수됩니다.
               </p>
             </div>
 
@@ -286,7 +263,7 @@ export default function SubscriptionDetailPage() {
 
                 return (
                   <button
-                    key={houseType.houseTypeId}
+                    key={houseType.houseTypeId ?? houseType.houseTypeName ?? "fallback"}
                     type="button"
                     onClick={() => setSelectedHouseType(houseType)}
                     className={`rounded-xl border p-4 text-left transition ${
@@ -329,46 +306,16 @@ export default function SubscriptionDetailPage() {
         </section>
 
         <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900">신청 타입 선택</h2>
+          <h2 className="text-lg font-bold text-gray-900">청약 신청</h2>
           <p className="mt-2 text-sm text-gray-600">
-            신청하기 전에 본인이 신청할 타입을 선택해 주세요.
+            신청할 주택형을 선택한 뒤 신청 절차를 시작해 주세요.
           </p>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {applyTypeOptions.map((option) => {
-              const isSelected = selectedApplyType === option.value;
-
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSelectedApplyType(option.value)}
-                  className={`rounded-xl border px-4 py-4 text-left transition ${
-                    isSelected
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <p className="text-sm font-bold">{option.label}</p>
-                  <p className="mt-2 text-xs leading-5 text-gray-500">
-                    {option.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
 
           <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
             <p>
               선택 주택형:{" "}
               <span className="font-bold text-gray-900">
                 {selectedHouseType?.houseTypeName ?? "미선택"}
-              </span>
-            </p>
-            <p className="mt-1">
-              선택 신청 타입:{" "}
-              <span className="font-bold text-gray-900">
-                {getApplyTypeLabel(selectedApplyType) || "미선택"}
               </span>
             </p>
           </div>
@@ -415,13 +362,4 @@ function formatPrice(value: number | null | undefined) {
   }
 
   return `${value.toLocaleString()}원`;
-}
-
-function getApplyTypeLabel(value: ApplyType | "") {
-  if (!value) {
-    return "";
-  }
-
-  const option = applyTypeOptions.find((item) => item.value === value);
-  return option?.label ?? value;
 }

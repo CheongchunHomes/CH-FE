@@ -4,14 +4,14 @@ import type { SubscriptionApplyDraft } from "@/app/site/subscription/[id]/apply/
 
 type Props = {
   draft: SubscriptionApplyDraft;
-  applyTypeLabel: string;
+  isSubmitting?: boolean;
   onPrev: () => void;
   onSubmit: () => void;
 };
 
 export default function SubscriptionApplyConfirmStep({
   draft,
-  applyTypeLabel,
+  isSubmitting = false,
   onPrev,
   onSubmit,
 }: Props) {
@@ -29,7 +29,6 @@ export default function SubscriptionApplyConfirmStep({
         <ConfirmSection title="신청 공고 정보">
           <ConfirmRow label="공고명" value={draft.announcementTitle} />
           <ConfirmRow label="주택형" value={draft.houseTypeName} />
-          <ConfirmRow label="공급유형" value={applyTypeLabel} />
           <ConfirmRow label="공고번호" value={String(draft.announcementId)} />
         </ConfirmSection>
 
@@ -37,10 +36,6 @@ export default function SubscriptionApplyConfirmStep({
           <ConfirmRow label="신청자명" value={draft.applicantName} />
           <ConfirmRow label="연락처" value={phone} />
           <ConfirmRow label="주소" value={fullAddress} />
-          <ConfirmRow
-            label="SMS 수신"
-            value={draft.smsAgree ? "동의함" : "동의하지 않음"}
-          />
         </ConfirmSection>
 
         <ConfirmSection title="동의 내역">
@@ -72,6 +67,7 @@ export default function SubscriptionApplyConfirmStep({
         <button
           type="button"
           onClick={onPrev}
+          disabled={isSubmitting}
           className="rounded-xl bg-gray-600 px-12 py-3 text-base font-bold text-white hover:bg-gray-700"
         >
           ← 이전
@@ -80,9 +76,10 @@ export default function SubscriptionApplyConfirmStep({
         <button
           type="button"
           onClick={onSubmit}
-          className="rounded-xl bg-yellow-400 px-12 py-3 text-base font-bold text-gray-900 hover:bg-yellow-300"
+          disabled={isSubmitting}
+          className="rounded-xl bg-blue-600 px-12 py-3 text-base font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          신청 완료하기
+          {isSubmitting ? "신청 중..." : "신청 완료하기"}
         </button>
       </div>
     </div>

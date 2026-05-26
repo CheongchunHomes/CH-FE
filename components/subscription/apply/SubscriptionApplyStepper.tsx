@@ -38,7 +38,7 @@ export default function SubscriptionApplyStepper({
               {index !== 0 && (
                 <div
                   className={`absolute right-1/2 top-4 h-1 w-full ${
-                    isDone || isActive ? "bg-yellow-400" : "bg-gray-200"
+                    isDone || isActive ? "bg-blue-600" : "bg-gray-200"
                   }`}
                 />
               )}
@@ -46,7 +46,7 @@ export default function SubscriptionApplyStepper({
               <div
                 className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                   isDone
-                    ? "bg-yellow-400 text-gray-900"
+                    ? "bg-blue-600 text-white"
                     : isActive
                       ? "bg-blue-600 text-white"
                       : "bg-gray-200 text-gray-500"

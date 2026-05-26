@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { MapListing } from "@/lib/map/map-types";
+import { createSign } from "@/lib/sign-api";
 
 type MapPropertyDetailPanelProps = {
   listing: MapListing | null;
@@ -10,12 +12,10 @@ type MapPropertyDetailPanelProps = {
   isOpeningChat?: boolean;
 };
 
-type ContractRequestPayload = {
-  type: "주택계약";
-  providerId: number | null;
-  consumerId: number | null;
-  amount: number | null;
-  productId: number;
+type ContractFeedback = {
+  title: string;
+  message: string;
+  tone: "success" | "error";
 };
 
 export default function MapPropertyDetailPanel({
@@ -24,13 +24,17 @@ export default function MapPropertyDetailPanel({
   onOpenChat,
   isOpeningChat = false,
 }: MapPropertyDetailPanelProps) {
+  const router = useRouter();
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isContractRequesting, setIsContractRequesting] = useState(false);
+  const [contractFeedback, setContractFeedback] =
+    useState<ContractFeedback | null>(null);
 
   if (!listing) {
     return null;
   }
 
+  const isSubscriptionListing = listing.category === "subscription";
   const tags = Array.isArray(listing.tag) ? listing.tag : [];
   const options = Array.isArray(listing.options) ? listing.options : [];
   const securityFacilities = Array.isArray(listing.securityFacilities)
@@ -41,24 +45,22 @@ export default function MapPropertyDetailPanel({
     try {
       setIsContractRequesting(true);
 
-      const payload: ContractRequestPayload = {
-        type: "주택계약",
-        providerId: getOptionalNumber(listing, "landlordUserId"),
-        consumerId: getOptionalNumber(listing, "currentUserId"),
-        amount: getOptionalNumber(listing, "depositAmount"),
-        productId: listing.id,
-      };
+      await createSign(listing.id);
 
-      console.log("계약 요청 payload:", payload);
-
-      // TODO: 백엔드 계약 API 완성 후 이 부분에서 POST 요청 연결
-      // await post("/contracts", payload);
-
-      alert("계약 요청 정보가 준비되었습니다.");
       setIsContractModalOpen(false);
+      setContractFeedback({
+        title: "계약 요청 완료",
+        message:
+          "임대인에게 계약 요청을 보냈습니다. 마이페이지에서 진행 상태를 확인해 주세요.",
+        tone: "success",
+      });
     } catch (error) {
       console.error("계약 요청 실패:", error);
-      alert("계약 요청 중 오류가 발생했습니다.");
+      setContractFeedback({
+        title: "계약 요청 실패",
+        message: "계약 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        tone: "error",
+      });
     } finally {
       setIsContractRequesting(false);
     }
@@ -74,7 +76,7 @@ export default function MapPropertyDetailPanel({
               {getCategoryLabel(listing.category)}
             </p>
             <h2 className="mt-1 text-lg font-bold text-slate-900">
-              매물 {listing.id}
+              {isSubscriptionListing ? `공고 ${listing.id}` : `매물 ${listing.id}`}
             </h2>
           </div>
 
@@ -97,7 +99,7 @@ export default function MapPropertyDetailPanel({
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
-              이미지 준비중
+              {isSubscriptionListing ? "공고 이미지 준비중" : "이미지 준비중"}
             </div>
           )}
         </div>
@@ -106,12 +108,12 @@ export default function MapPropertyDetailPanel({
           {/* 매물 제목과 가격입니다. */}
           <div>
             <p className="text-xs font-semibold text-slate-400">
-              매물번호 {listing.id}
+              {isSubscriptionListing ? "공고번호" : "매물번호"} {listing.id}
             </p>
 
             <h1 className="mt-3 text-2xl font-bold text-slate-900">
-              {listing.depositLabel}
-              {listing.monthlyRentLabel ? ` / ${listing.monthlyRentLabel}` : ""}
+              {isSubscriptionListing ? listing.title : listing.depositLabel}
+              {!isSubscriptionListing && listing.monthlyRentLabel ? ` / ${listing.monthlyRentLabel}` : ""}
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -169,24 +171,34 @@ export default function MapPropertyDetailPanel({
           </div>
 
           {/* CTA 버튼입니다. */}
-          <div className="mt-6 grid grid-cols-2 gap-2">
+          {isSubscriptionListing ? (
             <button
               type="button"
-              onClick={() => setIsContractModalOpen(true)}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100"
+              onClick={() => router.push(`/site/subscription/${listing.id}`)}
+              className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"
             >
-              계약 요청하기
+              청약 신청하기
             </button>
+          ) : (
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsContractModalOpen(true)}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100"
+              >
+                계약 요청하기
+              </button>
 
-            <button
-              type="button"
-              onClick={() => onOpenChat?.(listing)}
-              disabled={isOpeningChat}
-              className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {isOpeningChat ? "채팅방 여는 중..." : "채팅하기"}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => onOpenChat?.(listing)}
+                disabled={isOpeningChat}
+                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isOpeningChat ? "채팅방 여는 중..." : "채팅하기"}
+              </button>
+            </div>
+          )}
 
           {/* 태그입니다. */}
           <DetailSection title="태그">
@@ -229,12 +241,19 @@ export default function MapPropertyDetailPanel({
         </div>
       </aside>
 
-      {isContractModalOpen && (
+      {!isSubscriptionListing && isContractModalOpen && (
         <ContractRequestModal
           listing={listing}
           isLoading={isContractRequesting}
           onClose={() => setIsContractModalOpen(false)}
           onConfirm={handleConfirmContractRequest}
+        />
+      )}
+
+      {contractFeedback && (
+        <ContractFeedbackModal
+          feedback={contractFeedback}
+          onClose={() => setContractFeedback(null)}
         />
       )}
     </>
@@ -315,8 +334,8 @@ function ContractRequestModal({
         </div>
 
         <p className="mt-4 text-xs leading-5 text-slate-500">
-          실제 계약 진행은 임대인 확인 후 별도 절차로 진행됩니다. 현재는
-          백엔드 계약 API가 완성되기 전이므로 요청 데이터만 준비됩니다.
+          확인 버튼을 누르면 임대인에게 계약 요청이 전달됩니다. 실제 계약
+          진행은 임대인 확인 후 별도 절차로 진행됩니다.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-2">
@@ -338,6 +357,50 @@ function ContractRequestModal({
             {isLoading ? "요청 중..." : "확인"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+type ContractFeedbackModalProps = {
+  feedback: ContractFeedback;
+  onClose: () => void;
+};
+
+function ContractFeedbackModal({
+  feedback,
+  onClose,
+}: ContractFeedbackModalProps) {
+  const isSuccess = feedback.tone === "success";
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-[380px] rounded-2xl bg-white p-6 text-center shadow-xl">
+        <div
+          className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold ${
+            isSuccess
+              ? "bg-blue-50 text-blue-600"
+              : "bg-red-50 text-red-500"
+          }`}
+        >
+          {isSuccess ? "✓" : "!"}
+        </div>
+
+        <h2 className="mt-4 text-lg font-bold text-slate-900">
+          {feedback.title}
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {feedback.message}
+        </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"
+        >
+          확인
+        </button>
       </div>
     </div>
   );
@@ -436,14 +499,4 @@ function formatArea(area?: number | null) {
   }
 
   return `${area}㎡`;
-}
-
-function getOptionalNumber(source: unknown, key: string) {
-  const value = (source as Record<string, unknown>)[key];
-
-  if (typeof value === "number") {
-    return value;
-  }
-
-  return null;
 }

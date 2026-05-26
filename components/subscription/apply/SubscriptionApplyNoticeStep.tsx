@@ -118,7 +118,7 @@ export default function SubscriptionApplyNoticeStep({
         <button
           type="button"
           onClick={validateAndNext}
-          className="rounded-xl bg-yellow-400 px-12 py-3 text-base font-bold text-gray-900 hover:bg-yellow-300"
+          className="rounded-xl bg-blue-600 px-12 py-3 text-base font-bold text-white hover:bg-blue-700"
         >
           다음 →
         </button>
