@@ -68,7 +68,7 @@ export default function MapSidebar({
             {listings.length > 0 ? (
               listings.map((item) => (
                 <MapListingCard
-                  key={item.id}
+                  key={`${item.category}-${item.id}`}
                   item={item}
                   onClick={onSelectListing}
                 />
