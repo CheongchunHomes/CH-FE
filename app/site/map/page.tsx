@@ -128,9 +128,20 @@ export default function MapPage() {
               setIsLoading(true);
               setErrorMessage("");
 
-              const data = await get<MapListing[]>("/api/properties/map");
+              const [propertyListings, subscriptionListings] = await Promise.all([
+                get<MapListing[]>("/api/properties/map"),
+                get<MapListing[]>("/api/subscription/map"),
+              ]);
 
-              setListings(normalizeMapListings(data));
+              // properties 테이블에 있던 기존 분양공고 샘플 데이터는 제거합니다.
+              // 실제 청약 공고는 /api/subscription/map 응답만 사용합니다.
+              const realEstateListings = propertyListings.filter(
+                (listing) => listing.category !== "subscription"
+              );
+
+              setListings(
+                normalizeMapListings([...realEstateListings, ...subscriptionListings])
+              );
             } catch (error) {
               if (error instanceof ApiError) {
                 setErrorMessage(error.message || "매물 목록을 불러오지 못했습니다.");

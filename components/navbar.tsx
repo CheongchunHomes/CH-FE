@@ -14,7 +14,7 @@ const navItems = [
   { label: "공고", href: getPageSampleHref("announcements") },
   { label: "제도", href: getPageSampleHref("policies")},
   { label: "대출", href: "/loan" },
-  { label: "지도", href: getPageSampleHref("rent") },
+  { label: "지도", href: "/site/map" },
 ]
 
 export default function Navbar() {
