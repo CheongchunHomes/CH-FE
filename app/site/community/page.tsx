@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { get, post, ApiError } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
+import { get, post, request, ApiError } from '@/lib/api';
 
 const REGIONS = {
   seoul: {
@@ -358,6 +359,9 @@ interface CommunityPageResponse {
 }
 
 export default function CommunityPage() {
+  const searchParams = useSearchParams();
+  const isAdminMode = searchParams.get('admin') === '1';
+
   const MAIN_COLOR = '#2196F3';
 
   const theme = {
@@ -453,6 +457,28 @@ export default function CommunityPage() {
     } catch (error) {
       if (error instanceof ApiError) {
         console.error('저장 실패:', error.message);
+      } else {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeletePost = async (postId: number) => {
+    const ok = window.confirm(
+      '이 게시글을 삭제할까요? 삭제하면 복구할 수 없습니다.'
+    );
+
+    if (!ok) return;
+
+    try {
+      await request(`/api/community/admin/${postId}`, {
+        method: 'DELETE',
+      });
+
+      await fetchPosts();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error('게시글 삭제 실패:', error.message);
       } else {
         console.error(error);
       }
@@ -755,7 +781,7 @@ export default function CommunityPage() {
                   <th style={{ width: '150px' }}>지역</th>
                   <th>제목</th>
                   <th style={{ width: '80px' }}>조회수</th>
-                  {/*<th style={{ width: '120px' }}>날짜</th>*/}
+                  {isAdminMode && <th style={{ width: '130px' }}>관리</th>}
                 </tr>
               </thead>
 
@@ -763,7 +789,7 @@ export default function CommunityPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={isAdminMode ? 5 : 4}
                       style={{
                         padding: '40px',
                         textAlign: 'center',
@@ -816,20 +842,55 @@ export default function CommunityPage() {
 
                       <td>{Number(post.viewCount ?? 0).toLocaleString()}</td>
 
-                      <td
-                        style={{
-                          color: '#888',
-                          fontSize: '0.9rem',
-                        }}
-                      >
-                        {post.createdAt?.slice(0, 10)}
-                      </td>
+                      {isAdminMode && (
+                        <td>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '6px',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Link
+                              href={`/site/community/${post.postId}/edit?admin=1`}
+                              style={{
+                                padding: '7px 10px',
+                                borderRadius: '10px',
+                                border: '1px solid #bfdbfe',
+                                backgroundColor: '#fff',
+                                color: '#1d4ed8',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              수정
+                            </Link>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post.postId)}
+                              style={{
+                                padding: '7px 10px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                backgroundColor: '#ff5a5f',
+                                color: '#fff',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={isAdminMode ? 5 : 4}
                       style={{
                         padding: '40px',
                         textAlign: 'center',
