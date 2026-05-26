@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
+import { AspectRatio } from "@/components/ui/aspect-ratio"
 import {
   Sparkles, ChevronRight, RotateCcw, Zap,
   Home, ChevronDown, MapPin
@@ -86,6 +87,19 @@ const SIZE_LABEL: Record<number, string> = {
   20: "원룸", 33: "투룸", 59: "빌라", 84: "아파트",
 }
 
+const SIZE_SLOGAN: Record<number, string> = {
+  20: "첫 독립, 시작이 반이야!",
+  33: "공간의 여유가 마음의 여유로!",
+  59: "작은 빌라에서 꾸는 다른 꿈!",
+  84: "내 집 마련, 결국 해낸다!",
+}
+
+function getJosa(word: string, ja: string, eul: string): string {
+  const lastChar = word[word.length - 1]
+  const code = lastChar.charCodeAt(0)
+  if (code < 0xAC00 || code > 0xD7A3) return ja
+  return (code - 0xAC00) % 28 === 0 ? ja : eul
+}
 
 // ── 유틸 ────────────────────────────────────────────────────────────
 
@@ -137,7 +151,7 @@ function calcNumberCards(
   if (housing) {
     cards.push({
       label: "10년 월세 소멸액",
-      value: `${housing.tenYearWaste.toLocaleString()}만원`,
+      value: `${fmt만원(housing.tenYearWaste * 10000)}`,
       sub: `월 ${housing.currentRent}만원 기준`,
     })
   } else {
@@ -234,8 +248,6 @@ export default function Roadmap() {
       const assetPlansRaw = await get<Array<{
         planName: string; goalAmount: number; baseAsset: number; isCompleted: boolean
       }>>("/api/simulator/asset-plans", { cache: "no-store" }).catch(() => [])
-      console.log("assetPlansRaw", assetPlansRaw)
-
 
       if (assetPlansRaw?.length) {
         const summary: AssetPlanSummary = {
@@ -278,8 +290,6 @@ export default function Roadmap() {
     const assetPlansRaw = await get<Array<{
       planName: string; goalAmount: number; baseAsset: number; isCompleted: boolean
     }>>("/api/simulator/asset-plans", { cache: "no-store" }).catch(() => [])
-
-    console.log("loadSideData assetPlansRaw", assetPlansRaw)
 
     if (assetPlansRaw?.length) {
       setAssetSummary({
@@ -351,17 +361,18 @@ export default function Roadmap() {
                 <>
                   {/* 타이틀 - 이미지 위 */}
                   <p className="text-5xl font-extralight text-gray-900 text-center -mb-6"  style={{ fontFamily: "'Nanum Pen Script', cursive" }}>
-                    "서울 아파트가 목표라면!"
+                    "{SIZE_SLOGAN[housingSnap.targetSize]}"
                   </p>
 
                   {/* 이미지 */}
-                  <div className="relative -mb-5">
-                    <img
-                      src={SIZE_IMAGE[housingSnap.targetSize] ?? SIZE_IMAGE[84]}
-                      alt={SIZE_LABEL[housingSnap.targetSize] ?? "목표 주거"}
-                      className="object-contain"
-                      style={{ width: 300, height: 300 }}
-                    />
+                  <div className="w-[300px]">
+                    <AspectRatio ratio={1}>
+                      <img
+                        src={SIZE_IMAGE[housingSnap.targetSize] ?? SIZE_IMAGE[84]}
+                        alt={SIZE_LABEL[housingSnap.targetSize] ?? "목표 주거"}
+                        className="object-contain w-full h-full"
+                      />
+                    </AspectRatio>
                   </div>
 
                   {/* 지역+가격 */}
@@ -380,7 +391,7 @@ export default function Roadmap() {
             </div>
 
             {/* 우: AI 인사이트 + 조건 체크 */}
-            <div className="flex flex-col divide-y divide-gray-50">
+            <div className="flex flex-col divide-y divide-gray-200">
               {result?.insights && result.insights.length > 0 && (
                 <InsightAccordion insights={result.insights} />
               )}
@@ -478,10 +489,15 @@ function InsightAccordion({ insights }: { insights: InsightItem[] }) {
       <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
         <div className="px-6 pb-5 space-y-3">
           {insights.map((ins, i) => (
-            <div key={i} className="space-y-1 pb-3 border-b border-gray-50 last:border-0 last:pb-0">
-              <p className="text-xs font-bold text-gray-800">ㆍ {ins.item}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>
-              <p className="text-xs font-medium text-blue-600">{ins.action}</p>
+            <div key={i} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+              <div className="flex gap-2">
+                <span className="text-xs font-bold text-gray-800 shrink-0">ㆍ</span>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-gray-800">{ins.item}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>
+                  <p className="text-xs font-medium text-blue-600">{ins.action}</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>

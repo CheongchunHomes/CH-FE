@@ -232,7 +232,7 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <p className="text-xs font-medium text-gray-500">10년이면</p>
-                  <p className="text-base font-bold text-red-500">{tenYearWaste.toLocaleString()}만원 소멸</p>
+                  <p className="text-base font-bold text-red-500">{fmt(tenYearWaste)} 소멸</p>
                 </div>
               </div>
 
