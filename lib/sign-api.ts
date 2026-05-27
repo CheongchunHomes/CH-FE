@@ -16,9 +16,49 @@ export type SignDocument = {
   updatedAt: string
 }
 
+export type ContractParty = {
+  userId: number
+  realName: string | null
+  address: string | null
+  phone: string | null
+  birthDate: string | null
+}
+
+export type ContractProperty = {
+  propertyId: number
+  address: string | null
+  depositAmount: number | null
+  supplyAreaM2: number | null
+  exclusiveAreaM2: number | null
+  buildingUse: string | null
+  moveInDate: string | null
+}
+
+export type SignContractDocument = {
+  signId: number
+  status: SignStatus
+  createdAt: string
+  updatedAt: string
+  property: ContractProperty
+  provider: ContractParty
+  customer: ContractParty
+}
+
 export async function getMySigns(): Promise<SignDocument[]> {
   return get<SignDocument[]>("/api/sign/my", {
     cache: "no-store",
+  })
+}
+
+export async function getSignContract(signId: number): Promise<SignContractDocument> {
+  return get<SignContractDocument>(`/api/sign/${signId}/contract`, {
+    cache: "no-store",
+  })
+}
+
+export async function createSign(propertyId: number): Promise<SignDocument> {
+  return post<SignDocument>("/api/sign", {
+    propertyId,
   })
 }
 

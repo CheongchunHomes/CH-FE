@@ -201,7 +201,7 @@ function SignCard({ sign, isCanceling, onCancel }: SignCardProps) {
 
         <div className="flex shrink-0 gap-2">
           <Button asChild size="sm" variant="outline" className="bg-white">
-            <Link href={`/site/my-page/sign/${sign.signId}/approve`}>상세</Link>
+            <Link href={`/site/step/sign/${sign.signId}`}>상세</Link>
           </Button>
 
           {canCancel && (
