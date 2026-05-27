@@ -115,6 +115,7 @@ export default function AnnouncementsPage() {
   const [appliedLocation, setAppliedLocation] = useState<UserLocation | null>(
     null
   );
+  const [appliedAreaType, setAppliedAreaType] = useState<string | undefined>();
 
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
 
@@ -136,17 +137,17 @@ export default function AnnouncementsPage() {
   };
 
   const getLocationFilterGuideText = (filter?: string) => {
-  if (filter === "거리 순") {
-    return "내 위치 기준 가까운 공고부터 정렬됩니다.";
-  }
+    if (filter === "거리 순") {
+      return "내 위치 기준 가까운 공고부터 정렬됩니다.";
+    }
 
-  if (filter === "5km 이내") {
-    return "내 위치 기준 5km 이하 공고만 조회됩니다.";
-  }
+    if (filter === "5km 이내") {
+      return "내 위치 기준 5km 이하 공고만 조회됩니다.";
+    }
 
-  if (filter === "10km 이내") {
-    return "내 위치 기준 10km 이하 공고만 조회됩니다.";
-  }
+    if (filter === "10km 이내") {
+      return "내 위치 기준 10km 이하 공고만 조회됩니다.";
+    }
 
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
@@ -213,18 +214,21 @@ export default function AnnouncementsPage() {
     status?: string,
     keyword?: string,
     deadlineSoon?: boolean,
+    areaType?: string,
     location?: UserLocation | null,
     locationFilter?: string
   ) => {
     try {
       const useLocation = location && isLocationFilterActive(locationFilter);
+      const useAreaFilter = !!areaType && areaType !== "전체";
 
       const data = await getAnnouncements({
         region,
         status,
         keyword,
         deadlineSoon,
-        targetType: "공공임대주택",
+        areaType,
+        targetType: useAreaFilter ? undefined : "공공임대주택",
         latitude: useLocation ? location.latitude : undefined,
         longitude: useLocation ? location.longitude : undefined,
         locationFilter: useLocation ? locationFilter : undefined,
@@ -262,6 +266,7 @@ export default function AnnouncementsPage() {
     setAppliedDeadlineSoon(false);
     setAppliedLocationFilter(undefined);
     setAppliedLocation(null);
+    setAppliedAreaType(undefined);
 
     setSearchSuggestions([]);
     setIsSuggestionLoading(false);
@@ -320,6 +325,7 @@ export default function AnnouncementsPage() {
     setAppliedDeadlineSoon(deadlineSoon);
     setAppliedLocationFilter(locationFilter);
     setAppliedLocation(searchLocation);
+    setAppliedAreaType(areaType);
 
     await fetchData(
       0,
@@ -327,6 +333,7 @@ export default function AnnouncementsPage() {
       status,
       trimmedKeyword,
       deadlineSoon,
+      areaType,
       searchLocation,
       locationFilter
     );
@@ -348,6 +355,7 @@ export default function AnnouncementsPage() {
     setAppliedDeadlineSoon(deadlineSoon);
     setAppliedLocationFilter(locationFilter);
     setAppliedLocation(searchLocation);
+    setAppliedAreaType(areaType);
 
     await fetchData(
       0,
@@ -355,6 +363,7 @@ export default function AnnouncementsPage() {
       status,
       trimmedKeyword,
       deadlineSoon,
+      areaType,
       searchLocation,
       locationFilter
     );
@@ -467,6 +476,7 @@ export default function AnnouncementsPage() {
                           setAppliedRegion(region);
                           setAppliedStatus(status);
                           setAppliedDeadlineSoon(deadlineSoon);
+                          setAppliedAreaType(areaType);
                           setAppliedLocationFilter(undefined);
                           setAppliedLocation(null);
 
@@ -475,7 +485,8 @@ export default function AnnouncementsPage() {
                             region,
                             status,
                             selectedKeyword,
-                            deadlineSoon
+                            deadlineSoon,
+                            areaType
                           );
 
                           setIsSearchOpen(false);
@@ -643,7 +654,7 @@ export default function AnnouncementsPage() {
                   </div>
 
                   <p className="text-xs text-gray-400">
-                    전용면적 필터는 청약 API 연동 후 실제 검색에 반영됩니다.
+                    선택한 전용면적 범위에 해당하는 주택형이 포함된 공고만 조회됩니다.
                   </p>
                 </div>
               </div>
@@ -826,6 +837,7 @@ export default function AnnouncementsPage() {
                         appliedStatus,
                         appliedKeyword,
                         appliedDeadlineSoon,
+                        appliedAreaType,
                         appliedLocation,
                         appliedLocationFilter
                       )
@@ -855,6 +867,7 @@ export default function AnnouncementsPage() {
                             appliedStatus,
                             appliedKeyword,
                             appliedDeadlineSoon,
+                            appliedAreaType,
                             appliedLocation,
                             appliedLocationFilter
                           )
@@ -877,6 +890,7 @@ export default function AnnouncementsPage() {
                         appliedStatus,
                         appliedKeyword,
                         appliedDeadlineSoon,
+                        appliedAreaType,
                         appliedLocation,
                         appliedLocationFilter
                       )

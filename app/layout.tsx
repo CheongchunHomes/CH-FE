@@ -3,7 +3,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { AuthProvider } from '@/lib/auth-context'
 import { ApiFeedbackModal } from '@/components/api-feedback-modal'
-import MiniChatWidget from '@/components/chat/MiniChatWidget'
+import ChatBotWrapper from "@/components/chat/ChatBotWrapper";
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ html {
         <AuthProvider>
           <ApiFeedbackModal />
           {children}
-          <MiniChatWidget />
+          <ChatBotWrapper />
         </AuthProvider>
       </body>
     </html>
