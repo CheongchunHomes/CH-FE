@@ -168,6 +168,11 @@ export default function DiagnosisResultPage() {
       try {
         // 저장된 프로필 조회
         const profile = await get<DiagnosisForm>("/api/diagnosis/profile");
+
+        if (!profile) {
+          router.push("/site/step/condition-check");
+          return;
+        }
         setForm(profile);
 
         // 진단 결과 계산
