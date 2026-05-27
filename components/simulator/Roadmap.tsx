@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import {
   Sparkles, ChevronRight, RotateCcw, Zap,
-  Home, ChevronDown, MapPin
+  Home, ChevronDown, MapPin, Info
 } from "lucide-react";
 import { RoadmapParsed } from "@/app/api/simulator/roadmap/route"
 
@@ -495,7 +495,7 @@ function InsightAccordion({ insights }: { insights: InsightItem[] }) {
                 <div className="space-y-1">
                   <p className="text-xs font-bold text-gray-800">{ins.item}</p>
                   <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>
-                  <p className="text-xs font-medium text-blue-600">{ins.action}</p>
+                  <p className="text-xs font-semibold text-blue-600">→ {ins.action}</p>
                 </div>
               </div>
             </div>
@@ -593,7 +593,9 @@ function HorizontalTimeline({ items }: { items: TimelineItem[] }) {
                 <div className="w-px h-3 bg-blue-300" />
               </div>
             ) : (
-              <div className="h-12" />
+              <div className="h-12 flex items-end justify-center">
+                <div className="w-2 h-2 rounded-full bg-gray-200" />
+              </div>
             )}
           </div>
         ))}
@@ -657,20 +659,25 @@ function HorizontalTimeline({ items }: { items: TimelineItem[] }) {
                     : "border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-gray-100"
               }`}
             >
-              <p className={`text-xs font-bold mb-1 leading-snug ${
-                isFirst || isActive ? "text-blue-700" : "text-gray-600"
-              }`}>
-                {item.title}
-              </p>
-              <p className="text-[10px] text-gray-400 leading-relaxed line-clamp-2">
-                {item.action}
-              </p>
+              <div className="flex items-center gap-1 mb-1">
+                <Home size={11} className="text-blue-700 shrink-0" />
+                <p className={`text-xs font-bold leading-snug ${
+                  isFirst || isActive ? "text-blue-700" : "text-gray-600"
+                }`}>
+                  {item.title}
+                </p>
+              </div>
+
+              {!isActive && (
+                <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">
+                  {item.action}
+                </p>
+              )}
+
               {isActive && (
-                <div className="mt-2 pt-2 border-t border-blue-100 space-y-1.5">
-                  <p className="text-[10px] text-blue-700 font-medium leading-relaxed">{item.action}</p>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">
-                    <span className="font-bold text-gray-400">WHY  </span>{item.why}
-                  </p>
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold text-blue-700">{item.action}</p>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">ㆍ{item.why}</p>
                 </div>
               )}
             </div>

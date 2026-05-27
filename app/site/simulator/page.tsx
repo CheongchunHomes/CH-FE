@@ -154,12 +154,7 @@ export default function SimulatorPage() {
             <TabsTrigger value="assetPlan" className="flex-1">자산 플랜</TabsTrigger>
             <TabsTrigger value="housingCompare" className="flex-1">주거 비교</TabsTrigger>
             <TabsTrigger value="financeFeel" className="flex-1">금융 체감</TabsTrigger>
-            <TabsTrigger
-              value="roadmap"
-              className="flex-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-            >
-              청춘 플랜
-            </TabsTrigger>
+            <TabsTrigger value="roadmap" className="flex-1">청춘 플랜</TabsTrigger>
           </TabsList>
 
           {/* 탭01 자산 플랜 */}

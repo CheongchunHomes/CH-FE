@@ -43,6 +43,17 @@ interface RoadmapRequestBody {
   financeSnapshot?: FinanceSnapshot
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  HOUSING: "주거",
+  TRAVEL: "여행",
+  CAR: "자동차",
+  ELECTRONICS: "전자기기",
+  WEDDING: "결혼",
+  FASHION: "패션",
+  EDUCATION: "교육",
+  OTHER: "기타",
+}
+
 // numbers 필드 제거 — 프론트에서 직접 계산
 export interface RoadmapParsed {
   insights: Array<{ item: string; metaphor: string; action: string }>
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
         const goal = Math.round((p.goalAmount ?? 0) / 10000)
         const current = Math.round((p.baseAsset ?? 0) / 10000)
         const rate = goal > 0 ? Math.round((current / goal) * 100) : 0
-        return `  - [${p.isCompleted ? "완료" : "진행중"}] ${p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
+        return `  - [${p.isCompleted ? "완료" : "진행중"}] ${CATEGORY_LABEL[p.category] ?? p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
       })
       .join("\n")
 
@@ -173,10 +184,16 @@ checkList: 4~5개. status는 pass/fail/warn.
 
 insights: 3~4개. 각 항목 = item(상황 설명 20자 이내) + metaphor(비유 한 문장, 40자 이내) + action(할 일 30자 이내)
   [규칙]
+  - metaphor는 반드시 한 문장으로만. 설명 추가 금지.
+  - metaphor 문장은 반드시 "~해요", "~거예요", "~같아요" 로 끝낼 것. "~된다", "~진다" 같은 어미 금지.
+  - 비유는 김창옥·김미경 강연 스타일처럼. 청년의 현실을 공감하는 따뜻하고 직접적인 일상 비유.
+  - 비유 소재는 카페·지하철·날씨·음식 같은 생활 밀착형으로. 스포츠·마라톤 같은 거창한 비유 금지.
   - item은 이 사람의 상황을 짧게. "저축 목표 달성 미흡", "청약통장 미보유" 같은 식.
   - metaphor는 비유만. 카테고리명·접두어 절대 금지. "게임:", "요리:" 같은 거 붙이지 말 것.
-  - metaphor는 친구한테 말하듯 자연스럽게. "게임으로 치면 레벨업 아이템도 없이 던전 들어간 거예요" 처럼.
   - 이 사람 고유 수치나 상황을 녹일 것. 누구한테나 해당되는 말 금지.
+  - 플랜 이름이나 숫자 코드값을 action에 직접 쓰지 말 것. "해당 저축 항목"으로 표현.
+  - 지역명을 비유에 억지로 활용하지 말 것.
+  - 어색하거나 문법이 맞지 않는 비유 금지. 자연스러운 한국어 문장으로.
 
 actions: 3개. priority는 high/medium/low.
   link는 아래 목록에서만:
@@ -190,8 +207,14 @@ actions: 3개. priority는 high/medium/low.
   "/site/simulator?tab=financeFeel"
   null
 
-timeline: 현재/3개월/1년/3년. period + title(10자 이내) + why(40자 이내) + action(40자 이내)
-  - 실제 수치 기반으로. "저축 목표" 같은 추상어 금지. "월 30만원 저축으로 38개월 후 달성" 처럼.
+timeline: 현재/3개월/1년/3년. period + title(10자 이내) + action(20자 이내, 핵심 행동 한 줄) + why(50자 이내, 구체적인 실행 방법)
+  - action은 반드시 20자 이내. 핵심 행동만 짧게. 예) "청약통장 개설 시작", "생애최초 여부 점검"
+  - why는 반드시 50자 이내. 구체적인 실행 방법으로. 예) "지금 개설하면 24개월 후 1순위 가능해요."
+  - why 문장 어미는 "~해요", "~거예요", "~가능해요" 처럼 부드러운 존칭으로. "~함", "~증가", "~향상" 같은 명사형 종결 금지.
+  - why 문장 마지막은 반드시 마침표 포함.
+  - 세미콜론(;) 사용 금지. 자연스러운 한국어 문장으로.
+  - 카테고리명 뒤 조사는 자연스러운 한국어로 처리할 것. "주거 저축이", "여행 저축을" 등.
+  - 실제 수치 기반으로. "저축 목표" 같은 추상어 금지.
   - 탭 미입력 시에는 해당 단계에 "시뮬레이터 입력 후 구체화 가능" 으로 표시.
 
 응답 예시 구조:
