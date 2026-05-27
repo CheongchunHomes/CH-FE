@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { MessageCircle, Send, X, Bot, User } from "lucide-react"
+import { getAnnouncement } from "@/lib/announcements-api"
+
 
 // 미니채팅 UI 파일은 components/chat/MiniChatWidget.tsx입니다.
 // app/site/layout.tsx에 붙여놔서 /site 하위 모든 페이지에 뜹니다.
@@ -162,17 +164,18 @@ export default function MiniChatWidget() {
 
       if (announcementMatch) {
         try {
-          const annRes = await fetch(`/api/announcements/${announcementMatch[1]}`)
-          if (annRes.ok) {
-            const ann = await annRes.json()
-            pageContext = `사용자가 현재 아래 공고 상세페이지를 보고 있습니다.
-      공고명: ${ann.title}
-      지역: ${ann.region}
-      상태: ${ann.status}
-      신청기간: ${ann.applyStartDate} ~ ${ann.applyEndDate}
-      내용: ${ann.content ?? ''}
-      출처: ${ann.sourceUrl ?? ''}`
-          }
+          const ann = await getAnnouncement(Number(announcementMatch[1]))
+          pageContext = `사용자가 현재 아래 공고 상세페이지를 보고 있습니다. 
+          공고명: ${ann.title}
+          지역: ${ann.region}
+          상태: ${ann.status}
+          신청기간: ${ann.applyStartDate} ~ ${ann.applyEndDate}
+          주소: ${ann.address}
+          시행기관: ${ann.supplyInstitution}
+          대상유형: ${ann.targetType}
+          내용: ${ann.content ?? ''}
+          출처: ${ann.sourceUrl ?? ''}
+          `
         } catch {}
       } else if (policyMatch) {
         try {
