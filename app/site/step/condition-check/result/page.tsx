@@ -33,11 +33,11 @@ const MARRIAGE_PERIOD_LABEL: Record<string, string> = {
 // 원 단위 → 억/만 단위 변환
 const formatAsset = (value: number): string => {
   if (!value || value <= 0) return "-";
-  const uk = Math.floor(value / 10000);
-  const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원 이하`;
+  const uk = Math.floor(value / 100000000);  // 억
+  const man = Math.floor((value % 100000000) / 10000);  // 만
+  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
   if (uk > 0) return `${uk}억`;
-  return `${value.toLocaleString()}만원`;
+  return `${Math.floor(value / 10000).toLocaleString()}만원`;
 };
 
 // 만 39세까지 남은 기간 계산
@@ -168,6 +168,11 @@ export default function DiagnosisResultPage() {
       try {
         // 저장된 프로필 조회
         const profile = await get<DiagnosisForm>("/api/diagnosis/profile");
+
+        if (!profile) {
+          router.push("/site/step/condition-check");
+          return;
+        }
         setForm(profile);
 
         // 진단 결과 계산
@@ -199,14 +204,37 @@ export default function DiagnosisResultPage() {
     router.push("/site/step/condition-check");
   };
 
-  if (isLoading) return (
+// 로딩 중이거나 결과/프로필 없으면 스피너 표시
+  if (isLoading || !result || !form || recLoading) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
       <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
       <p className="text-sm text-gray-500 font-medium">진단 결과를 불러오는 중입니다...</p>
     </div>
   );
 
-  if (!result) return null;
+  const getScoreComment = (label: string, score: number): string => {
+    if (label === "청약 준비도") {
+      if (score >= 70) return "청약통장 조건이 잘 갖춰져 있어요"
+      if (score >= 40) return "청약통장 가입기간을 늘려보세요"
+      return "청약통장 개설이 필요해요"
+    }
+    if (label === "공공임대 적합도") {
+      if (score >= 70) return "공공임대 신청 조건을 잘 충족해요"
+      if (score >= 40) return "일부 조건 보완이 필요해요"
+      return "소득·무주택 조건을 확인해보세요"
+    }
+    if (label === "전세대출 가능성") {
+      if (score >= 70) return "전세대출 가능성이 높아요"
+      if (score >= 40) return "소득 대비 부채 비율을 확인해보세요"
+      return "전세대출 조건이 부족해요"
+    }
+    if (label === "분양형 당첨 가능성") {
+      if (score >= 70) return "청약 가점이 잘 쌓여있어요"
+      if (score >= 40) return "가점 항목을 더 채워보세요"
+      return "청약통장과 가점 준비가 필요해요"
+    }
+    return ""
+  }
 
   // ─────────────────────────────────────────────────────────
   // 렌더링 데이터 준비
@@ -222,11 +250,11 @@ export default function DiagnosisResultPage() {
   ];
 
   const scores = [
-    { label: "청약 준비도",       score: result.subscriptionScore,  color: "#3b82f6", comment: "청약통장 가입기간이 짧아 준비도가 보통입니다." },
-    { label: "공공임대 적합도",   score: result.publicRentalScore,  color: "#22c55e", comment: "소득 및 무주택 요건을 충족하여 적합도가 높습니다." },
-    { label: "전세대출 가능성",   score: result.jeonseScore,        color: "#06b6d4", comment: "소득 대비 부채 부담이 적어 가능성이 높습니다." },
-    { label: "분양형 당첨 가능성", score: result.saleScore,          color: "#a855f7", comment: "청약통장 가입기간 및 가점 요소가 부족합니다." },
-  ];
+    { label: "청약 준비도",       score: result.subscriptionScore, color: "#3b82f6", comment: getScoreComment("청약 준비도",       result.subscriptionScore) },
+    { label: "공공임대 적합도",   score: result.publicRentalScore,  color: "#22c55e", comment: getScoreComment("공공임대 적합도",   result.publicRentalScore)  },
+    { label: "전세대출 가능성",   score: result.jeonseScore,        color: "#06b6d4", comment: getScoreComment("전세대출 가능성",   result.jeonseScore)        },
+    { label: "분양형 당첨 가능성", score: result.saleScore,         color: "#a855f7", comment: getScoreComment("분양형 당첨 가능성", result.saleScore)          },
+  ]
 
   const dday = form?.birthDate ? calcDday(form.birthDate) : null;
   const keywords = form ? getKeywords(form, result) : [];
@@ -251,7 +279,7 @@ export default function DiagnosisResultPage() {
 
   const summaryItems = [
     { label: "주거 형태",   value: form?.currentResidence || "" },
-    { label: "총 자산",     value: form?.totalAsset ? formatAsset(form.totalAsset) : "" },
+    { label: "총 자산",     value: form?.totalAsset ? formatAsset(form.totalAsset) + " 이하" : "" },
     { label: "현금성 자산", value: form?.cashAsset ? formatAsset(form.cashAsset) : "" },
     { label: "연소득",      value: form?.annualIncome ? formatAsset(form.annualIncome) : "" },
     { label: "무주택",      value: form?.houseless ? "무주택" : "" },
@@ -288,7 +316,7 @@ export default function DiagnosisResultPage() {
               <RotateCcw className="w-4 h-4" />
               <span className="hidden sm:inline">다시 진단하기</span>
             </Button>
-          </div>handleReset
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">

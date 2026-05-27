@@ -22,6 +22,12 @@ export async function getMySigns(): Promise<SignDocument[]> {
   })
 }
 
+export async function createSign(propertyId: number): Promise<SignDocument> {
+  return post<SignDocument>("/api/sign", {
+    propertyId,
+  })
+}
+
 export async function cancelSign(signId: number): Promise<SignDocument> {
   return post<SignDocument>(`/api/sign/${signId}/cancel`, {})
 }
