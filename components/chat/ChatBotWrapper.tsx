@@ -6,8 +6,12 @@ import MiniChatWidget from "./MiniChatWidget";
 export default function ChatBotWrapper() {
     const pathname = usePathname();
 
-    const hideChatBot = 
-        pathname === "/site/map";
+    const hideChatBotPaths = [
+        "/site/map",
+        "/live2d",
+    ]
+       
+    const hideChatBot = hideChatBotPaths.includes(pathname);
     
     if (hideChatBot) return null;
 

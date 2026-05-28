@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { getAnnouncements, Announcement } from "@/lib/announcements-api";
 import { AnnouncementSidebar } from "@/components/announcements-sidebar";
 import {
@@ -80,6 +91,7 @@ type UserLocation = {
 };
 
 export default function AnnouncementsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -118,9 +130,20 @@ export default function AnnouncementsPage() {
   const [appliedAreaType, setAppliedAreaType] = useState<string | undefined>();
 
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchScrapIds = async () => {
+      const token =
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("jwt");
+
+      if (!token) {
+        setLikedIds(new Set());
+        return;
+      }
+
       try {
         const ids = await getMyAnnouncementScrapIds();
         setLikedIds(new Set(ids));
@@ -376,30 +399,40 @@ export default function AnnouncementsPage() {
   };
 
   const handleLike = async (id: number) => {
-    const isLiked = likedIds.has(id);
+    const token =
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("jwt")
+
+    if (!token) {
+      setLoginDialogOpen(true)
+      return
+    }
+
+    const isLiked = likedIds.has(id)
 
     try {
       if (isLiked) {
-        await removeAnnouncementScrap(id);
+        await removeAnnouncementScrap(id)
       } else {
-        await addAnnouncementScrap(id);
+        await addAnnouncementScrap(id)
       }
 
       setLikedIds((prev) => {
-        const next = new Set(prev);
+        const next = new Set(prev)
 
         if (isLiked) {
-          next.delete(id);
+          next.delete(id)
         } else {
-          next.add(id);
+          next.add(id)
         }
 
-        return next;
-      });
+        return next
+      })
     } catch (e) {
-      alert("로그인 후 이용할 수 있습니다.");
+      setLoginDialogOpen(true)
     }
-  };
+  }
 
   const uniqueSearchSuggetions = Array.from(
     new Map(
@@ -429,6 +462,26 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="flex min-h-screen">
+      <AlertDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>로그인이 필요한 서비스입니다</AlertDialogTitle>
+            <AlertDialogDescription>
+              공고 스크랩 기능은 로그인 후 이용할 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => router.push("/login?redirect=/site/announcements")}
+            >
+              로그인하기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AnnouncementSidebar />
 
       <main className="flex-1 px-8 py-8">
@@ -654,7 +707,8 @@ export default function AnnouncementsPage() {
                   </div>
 
                   <p className="text-xs text-gray-400">
-                    선택한 전용면적 범위에 해당하는 주택형이 포함된 공고만 조회됩니다.
+                    선택한 전용면적 범위에 해당하는 주택형이 포함된 공고만
+                    조회됩니다.
                   </p>
                 </div>
               </div>
