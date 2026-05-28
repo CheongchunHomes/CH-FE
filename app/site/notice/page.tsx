@@ -15,17 +15,31 @@ import {
 
 import { get } from '@/lib/api';
 
-type NoticeCategory =
-  | '전체'
+type DisplayNoticeCategory =
   | '운영자 안내'
   | '정책 변경'
   | '점검'
   | '업데이트'
   | '약관 변경';
 
+type NoticeCategory = '전체' | DisplayNoticeCategory;
+
+type ApiNoticeCategory = DisplayNoticeCategory | '커뮤니티' | string;
+
+interface ApiNoticeItem {
+  noticeId: number;
+  category: ApiNoticeCategory;
+  title: string;
+  summary: string;
+  content: string;
+  important: boolean;
+  viewCount?: number;
+  createdAt: string;
+}
+
 interface NoticeItem {
   noticeId: number;
-  category: Exclude<NoticeCategory, '전체'>;
+  category: DisplayNoticeCategory;
   title: string;
   summary: string;
   content: string;
@@ -44,7 +58,7 @@ const categories: NoticeCategory[] = [
 ];
 
 const categoryStyle: Record<
-  Exclude<NoticeCategory, '전체'>,
+  DisplayNoticeCategory,
   {
     icon: React.ElementType;
     className: string;
@@ -112,7 +126,7 @@ function isNewNotice(value: string) {
   return now - created <= sevenDays;
 }
 
-function normalizeCategory(category: string): Exclude<NoticeCategory, '전체'> {
+function normalizeCategory(category: string): DisplayNoticeCategory {
   if (
     category === '운영자 안내' ||
     category === '정책 변경' ||
@@ -138,16 +152,23 @@ export default function NoticePage() {
   useEffect(() => {
     const fetchNotices = async () => {
       try {
-        const data = await get<NoticeItem[]>('/api/notice', {
+        const data = await get<ApiNoticeItem[]>('/api/notice', {
           cache: 'no-store',
         });
 
         setNotices(
-          data.map((notice) => ({
-            ...notice,
-            category: normalizeCategory(notice.category),
-            viewCount: notice.viewCount ?? 0,
-          })),
+          data
+            .filter((notice) => notice.category !== '커뮤니티')
+            .map((notice) => ({
+              noticeId: notice.noticeId,
+              category: normalizeCategory(notice.category),
+              title: notice.title,
+              summary: notice.summary,
+              content: notice.content,
+              important: notice.important,
+              viewCount: notice.viewCount ?? 0,
+              createdAt: notice.createdAt,
+            })),
         );
       } finally {
         setLoading(false);

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { get, post, request, ApiError } from '@/lib/api';
 
 const REGIONS = {
@@ -358,7 +358,18 @@ interface CommunityPageResponse {
   last: boolean;
 }
 
+interface CommunityNotice {
+  noticeId: number;
+  category: string;
+  title: string;
+  summary?: string;
+  important?: boolean;
+  viewCount?: number;
+  createdAt?: string;
+}
+
 export default function CommunityPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isAdminMode = searchParams.get('admin') === '1';
 
@@ -382,7 +393,11 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [communityNotices, setCommunityNotices] = useState<CommunityNotice[]>(
+    []
+  );
   const POSTS_PER_PAGE = 10;
+  const latestCommunityNotices = communityNotices.slice(0, 3);
 
   const fetchPosts = async () => {
     try {
@@ -409,8 +424,31 @@ export default function CommunityPage() {
     }
   };
 
+  const fetchCommunityNotices = async () => {
+    try {
+      const data = await get<CommunityNotice[]>('/api/notice/community/latest', {
+        cache: 'no-store',
+      });
+
+      setCommunityNotices(
+        Array.isArray(data)
+          ? data.filter((notice) => notice.category === '커뮤니티').slice(0, 3)
+          : []
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error('커뮤니티 공지 조회 실패:', error.message);
+      } else {
+        console.error(error);
+      }
+
+      setCommunityNotices([]);
+    }
+  };
+
   useEffect(() => {
     fetchPosts();
+    fetchCommunityNotices();
   }, []);
 
   const handleSubmit = async () => {
@@ -784,6 +822,97 @@ export default function CommunityPage() {
               </thead>
 
               <tbody>
+                {latestCommunityNotices.map((notice) => (
+                  <tr
+                    key={`notice-${notice.noticeId}`}
+                    onClick={() => router.push(`/site/notice/${notice.noticeId}`)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#eff6ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8fbff';
+                    }}
+                    style={{
+                      borderBottom: '1px solid #dbeafe',
+                      backgroundColor: '#f8fbff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <td style={{ padding: '15px 10px' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          borderRadius: '999px',
+                          backgroundColor: notice.important
+                            ? '#fef3c7'
+                            : '#dbeafe',
+                          color: notice.important ? '#b45309' : '#1d4ed8',
+                          padding: '3px 8px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {notice.important ? '중요' : '공지'}
+                      </span>
+                    </td>
+
+                    <td
+                      style={{
+                        fontSize: '0.85rem',
+                        color: '#1d4ed8',
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: '#eff6ff',
+                          padding: '3px 7px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        커뮤니티
+                      </span>
+                    </td>
+
+                    <td>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <strong
+                          style={{
+                            color: '#111827',
+                            fontSize: '0.95rem',
+                          }}
+                        >
+                          {notice.title}
+                        </strong>
+                      </div>
+
+                      {notice.summary && (
+                        <p
+                          style={{
+                            margin: '5px 0 0',
+                            color: '#64748b',
+                            fontSize: '13px',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {notice.summary}
+                        </p>
+                      )}
+                    </td>
+
+                    <td>{Number(notice.viewCount ?? 0).toLocaleString()}</td>
+
+                    {isAdminMode && <td />}
+                  </tr>
+                ))}
+
                 {loading ? (
                   <tr>
                     <td

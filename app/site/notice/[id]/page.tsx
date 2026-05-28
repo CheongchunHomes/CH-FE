@@ -26,6 +26,18 @@ type NoticeCategory =
 interface NoticeDetail {
   noticeId: number;
   category: NoticeCategory;
+  sourceCategory: string;
+  title: string;
+  summary: string;
+  content: string;
+  important: boolean;
+  viewCount: number;
+  createdAt: string;
+}
+
+interface NoticeDetailResponse {
+  noticeId: number;
+  category: string;
   title: string;
   summary: string;
   content: string;
@@ -132,13 +144,14 @@ export default function NoticeDetailPage() {
       }
 
       try {
-        const data = await get<NoticeDetail>(`/api/notice/${noticeId}`, {
+        const data = await get<NoticeDetailResponse>(`/api/notice/${noticeId}`, {
           cache: 'no-store',
         });
 
         setNotice({
           ...data,
           category: normalizeCategory(data.category),
+          sourceCategory: data.category,
           viewCount: data.viewCount ?? 0,
         });
       } catch (error) {
@@ -193,6 +206,8 @@ export default function NoticeDetailPage() {
 
   const style = categoryStyle[notice.category];
   const Icon = style.icon;
+  const listHref =
+    notice.sourceCategory === '커뮤니티' ? '/site/community' : '/site/notice';
 
   const paragraphs = notice.content
     .split('\n')
@@ -203,7 +218,7 @@ export default function NoticeDetailPage() {
     <main className="min-h-screen bg-[#f8fafc] px-6 py-12">
       <section className="mx-auto max-w-4xl">
         <Link
-          href="/site/notice"
+          href={listHref}
           className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
         >
           <ArrowLeft className="h-4 w-4" />
