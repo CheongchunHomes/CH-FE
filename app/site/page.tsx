@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getPageSampleHref } from "@/lib/page-samples"
+import BannerModal from "@/components/banner/banner-modal"
 
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("step/condition-check") },
@@ -38,6 +39,7 @@ const homeTips = [
 export default function SitePage() {
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
+      <BannerModal />
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
         <section className="grid gap-4">
           <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">

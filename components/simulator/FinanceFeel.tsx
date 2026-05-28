@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Slider } from "@/components/ui/slider"
 import { ChevronDown, ChevronUp, TrendingUp, CreditCard } from "lucide-react"
-// import { get } from "@/lib/api"
+import { get } from "@/lib/api"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import {
   Pagination,
@@ -14,6 +14,22 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+
+
+// 대출 상품 타입 (대출파트 LoanProduct 엔티티 기준)
+interface LoanProduct {
+  loanId: number
+  name: string
+  provider: string
+  loanType: string
+  interestRate: number | null
+  interestRateMin: number | null
+  maxAmount: number | null
+  incomeLimit: number | null
+  conditions: string | null
+  policyLoan: boolean
+  visible: boolean
+}
 
 // DSR 구간별 캐릭터
 const DSR_LEVELS = [
@@ -95,11 +111,6 @@ function fmt(value: number): string {
 function fmtNum(n: number) {
   return n.toLocaleString() + "원"
 }
-
-// mock 대출 데이터 (API 연동 전)
-const MOCK_LOANS = [
-  { loanId: 1, name: "청년 버팀목 전세대출", balance: 120000000, annualRate: 2.5, remainMonths: 24 },
-]
 
 // DSR 설명 아코디언
 function DsrInfo() {
@@ -226,25 +237,27 @@ function ScheduleTable({ rows }: { rows: ReturnType<typeof calcSchedule> }) {
   )
 }
 
-// 대출 아코디언 아이템
+// 추천 대출 상품 아코디언 아이템
 function LoanAccordionItem({ loan, monthlyIncome }: {
-  loan: typeof MOCK_LOANS[0]
+  loan: LoanProduct
   monthlyIncome: number
 }) {
   const [open, setOpen] = useState(false)
-  const [method, setMethod] = useState<"equal" | "interest">("interest")
-  const [months, setMonths] = useState(loan.remainMonths)
+  const [method, setMethod] = useState<"equal" | "interest">("interest")  // 이게 빠진 거야
+  const [months, setMonths] = useState(24)
+  const rate = Number(loan.interestRate) || 0
+  const balance = loan.maxAmount ?? 0
 
-  const schedule = method === "equal" ? calcSchedule(loan.balance, loan.annualRate, months) : []
+  const schedule = method === "equal" ? calcSchedule(balance, rate, months) : []
   const monthlyPayment = method === "equal"
     ? (schedule[0]?.payment ?? 0)
-    : calcInterestOnly(loan.balance, loan.annualRate)
+    : calcInterestOnly(balance, rate)
   const totalInterest = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
-    : calcInterestOnly(loan.balance, loan.annualRate) * months
-  const totalPayment = loan.balance + totalInterest
+    : calcInterestOnly(balance, rate) * months
   const dsrContrib = monthlyIncome > 0 ? Math.round((monthlyPayment / monthlyIncome) * 100) : 0
 
+  {/* ── 추천 대출 상품 ── */}
   return (
     <div className="border border-gray-100 rounded-2xl overflow-hidden">
       {/* 헤더 */}
@@ -257,7 +270,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
           <div>
             <p className="text-sm font-bold text-gray-900">{loan.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              잔액 {fmt(loan.balance)} · 연 {loan.annualRate}%
+              최대 {fmt(loan.maxAmount ?? 0)} · 연 {loan.interestRateMin ?? loan.interestRate}~{loan.interestRate}%
             </p>
           </div>
         </div>
@@ -287,7 +300,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
                       method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    {m === "interest" ? "이자만" : "원리금균등"}
+                    {m === "interest" ? "원금거치상환" : "원리금균등상환"}
                   </button>
                 ))}
               </div>
@@ -380,6 +393,10 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
       : "interest"
   )
 
+// 추천 대출 상품 state
+  const [loans, setLoans] = useState<LoanProduct[]>([])
+  const [loanLoading, setLoanLoading] = useState(true)
+
   // 계산
   const schedule = method === "equal"
     ? calcSchedule(loanAmount, annualRate, repayMonths)
@@ -410,6 +427,31 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
     sessionStorage.setItem("financeSnapshot", JSON.stringify(snapshot))
   }, [loanAmount, annualRate, monthlyIncome, repayMonths, method,
     monthlyPayment, dsr, dsrLevel.label, totalInterest])
+
+// 추천 대출 상품 조회
+  useEffect(() => {
+    get<LoanProduct[]>("/api/loan-products")
+      .then((data) => setLoans(
+        data.filter((loan) => {
+          // 1. 소득 기준
+          const incomeOk = loan.incomeLimit == null ||
+            (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
+
+          // 2. 신혼부부 전용 제외 (미혼이면)
+          const marriageOk = userProfile?.married ||
+            !loan.name.includes("신혼부부")
+
+          // 3. 신생아 특례 제외 (영유아 자녀 없으면)
+          const childOk = userProfile?.hasYoungChild ||
+            !loan.name.includes("신생아")
+
+          return incomeOk && marriageOk && childOk
+        })
+          .slice(0, 5)
+      ))
+      .catch(() => setLoans([]))
+      .finally(() => setLoanLoading(false))
+  }, [userProfile])
 
   return (
     <div className="space-y-4 pt-6">
@@ -499,7 +541,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
                       method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
                     }`}
                   >
-                    {m === "interest" ? "이자만" : "원리금균등"}
+                    {m === "interest" ? "원금거치상환" : "원리금균등상환"}
                   </button>
                 ))}
               </div>
@@ -525,10 +567,10 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
 
             {/* 요약 */}
             <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-0">
-              {/*<div className="flex justify-between items-center py-1.5 border-b border-gray-100">*/}
-              {/*  <p className="text-xs text-gray-500">총 이자</p>*/}
-              {/*  <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>*/}
-              {/*</div>*/}
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                <p className="text-xs text-gray-500">대출금액</p>
+                <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+              </div>
               <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                 <p className="text-xs text-gray-500">연 이자</p>
                 <p className="text-sm font-bold text-red-500">{fmtNum(Math.round(totalInterest / (repayMonths / 12)))}</p>
@@ -584,30 +626,29 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
         </div>
       </div>
 
-      {/* ── 내 대출 불러오기 ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-1.5 mb-1">
           <CreditCard size={14} className="text-blue-600" />
-          <p className="text-sm font-bold text-gray-900">내 대출 상세</p>
+          <p className="text-sm font-bold text-gray-900">이런 대출 어때요?</p>
         </div>
-        <p className="text-xs text-gray-500 mb-5">등록된 대출의 상환 스케줄을 확인해봐요</p>
+        <p className="text-xs text-gray-500 mb-5">조건에 맞는 대출 상품으로 상환 부담을 시뮬레이션해봐요</p>
 
         <div className="space-y-3">
-          {MOCK_LOANS.map((loan) => (
-            <LoanAccordionItem
-              key={loan.loanId}
-              loan={loan}
-              monthlyIncome={monthlyIncome}
-            />
-          ))}
+          {loanLoading ? (
+            <p className="text-sm text-gray-400 text-center py-4">대출 상품을 불러오는 중입니다...</p>
+          ) : loans.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">추천 대출 상품이 없습니다.</p>
+          ) : (
+            loans.map((loan) => (
+              <LoanAccordionItem
+                key={loan.loanId}
+                loan={loan}
+                monthlyIncome={monthlyIncome}
+              />
+            ))
+          )}
         </div>
-
-        {/* API 연동 후 제거할 mock 안내 */}
-        <p className="text-[11px] text-gray-300 text-center mt-4">
-          * 대출 API 연동 전 mock 데이터입니다
-        </p>
       </div>
-
     </div>
   )
 }

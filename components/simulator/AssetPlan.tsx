@@ -58,6 +58,11 @@ const CATEGORY_IMAGES: Record<string, string> = {
   OTHER:       "/images/simulator/asset/other.png",
 }
 
+// 추천 제도 ID (청년주택드림 청약통장, 청년내일저축계좌)
+const WHITELIST_IDS = [515, 20]
+
+
+
 // ─ 카테고리별 콘텐츠
 const CATEGORY_CONTENT: Record<string, {
   shock: string
@@ -194,7 +199,9 @@ interface PolicyListDTO {
   status: string;
   applyPeriod: string;
   supervisingInstitution: string;
+  region: string | null;
 }
+
 
 export default function AssetPlan({
                                     plans, form, setForm, editingPlanId, isLoading,
@@ -203,6 +210,7 @@ export default function AssetPlan({
   const [hideAmount, setHideAmount] = useState(false)
   const [sortBy, setSortBy] = useState<"date" | "status">("status")
   const [openPlanId, setOpenPlanId] = useState<number | null>(null)
+  const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
 
   const content = CATEGORY_CONTENT[form.category]
   const ph = content.placeholder
@@ -215,17 +223,19 @@ export default function AssetPlan({
     editingPlanId ? onUpdate() : onCreate()
   }
 
-  /* 플랜 tip */
-  const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
-
-// 정책 상세 페이지로 이동
+  // 정책 상세 페이지로 이동
   const router = useRouter()
+
 
   useEffect(() => {
     get<{ content: PolicyListDTO[] }>("/api/policies", {
-      query: { keyword: "저축,적금,통장", size: 100 }
+      query: { keyword: "저축", size: 100 }
     })
-      .then((res) => setTipPolicies((res.content ?? []).slice(0, 3)))
+      .then((res) => {
+        const filtered = (res.content ?? [])
+          .filter(p => WHITELIST_IDS.includes(p.policyId))
+        setTipPolicies(filtered.slice(0, 3))
+      })
       .catch(() => {})
   }, [])
 

@@ -19,7 +19,7 @@ export interface AssetPlanData {
   monthlySaving: number | null
   startDate: string | null
   endDate: string | null
-  isCompleted: boolean 
+  isCompleted: boolean
   createdAt: string
 }
 
