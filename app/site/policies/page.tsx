@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import {
   getMyPolicyScrapIds,
@@ -85,6 +96,8 @@ const SUPPORT_TYPE = [
 ]
 
 export default function PoliciesPage() {
+  const router = useRouter()
+
   const [policies, setPolicies] = useState<Policy[]>([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -94,6 +107,7 @@ export default function PoliciesPage() {
   const [showMoreRegions, setShowMoreRegions] = useState(false)
 
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set())
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false)
 
   const [mainCategory, setMainCategory] = useState<string | undefined>()
   const [subCategory, setSubCategory] = useState<string | undefined>()
@@ -145,9 +159,19 @@ export default function PoliciesPage() {
   }, [])
 
   // 내가 스크랩한 지원제도 ID 목록 조회
-  // 로그인 안 했거나 토큰이 만료된 경우에는 빈 Set으로 처리
+  // 로그인 안 했거나 토큰이 만료된 경우에는 요청하지 않고 빈 Set으로 처리
   useEffect(() => {
     const fetchScrapIds = async () => {
+      const token =
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("jwt")
+
+      if (!token) {
+        setLikedIds(new Set())
+        return
+      }
+
       try {
         const ids = await getMyPolicyScrapIds()
         setLikedIds(new Set(ids))
@@ -187,31 +211,41 @@ export default function PoliciesPage() {
     handleSearch()
   }
 
-  const handleLike = async (id: number) => {
-    const isLiked = likedIds.has(id)
+const handleLike = async (id: number) => {
+  const token =
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("jwt")
 
-    try {
+  if (!token) {
+    setLoginDialogOpen(true)
+    return
+  }
+
+  const isLiked = likedIds.has(id)
+
+  try {
+    if (isLiked) {
+      await removePolicyScrap(id)
+    } else {
+      await addPolicyScrap(id)
+    }
+
+    setLikedIds((prev) => {
+      const next = new Set(prev)
+
       if (isLiked) {
-        await removePolicyScrap(id)
+        next.delete(id)
       } else {
-        await addPolicyScrap(id)
+        next.add(id)
       }
 
-      setLikedIds((prev) => {
-        const next = new Set(prev)
-
-        if (isLiked) {
-          next.delete(id)
-        } else {
-          next.add(id)
-        }
-
-        return next
-      })
-    } catch (e) {
-      alert("로그인 후 이용할 수 있습니다.")
-    }
+      return next
+    })
+  } catch (e) {
+    setLoginDialogOpen(true)
   }
+}
 
   const handleReset = () => {
     setMainCategory(undefined)
@@ -237,6 +271,26 @@ export default function PoliciesPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <AlertDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>로그인이 필요한 서비스입니다</AlertDialogTitle>
+            <AlertDialogDescription>
+              스크랩 기능은 로그인 후 이용할 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => router.push("/login?redirect=/site/policies")}
+            >
+              로그인하기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <main className="px-8 py-8">
         <div className="mx-auto max-w-4xl">
           {/* 검색바 */}

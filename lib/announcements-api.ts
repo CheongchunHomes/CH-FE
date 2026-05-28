@@ -43,6 +43,7 @@ export async function getAnnouncements(params: {
   sourceType?: string;
   targetType?: string;
   deadlineSoon?: boolean;
+  areaType?: string,
 
   // 내 위치 기반 필터용
   latitude?: number;
@@ -60,6 +61,7 @@ export async function getAnnouncements(params: {
       sourceType: params.sourceType,
       targetType: params.targetType,
       deadlineSoon: params.deadlineSoon,
+      areaType: params.areaType,
 
       // 내 위치 기반 필터용
       latitude: params.latitude,
