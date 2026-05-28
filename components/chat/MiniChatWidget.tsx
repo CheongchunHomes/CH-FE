@@ -62,7 +62,7 @@ export default function MiniChatWidget() {
       id: "welcome",
       sender: "AI",
       content:
-        "안녕하세요. 청춘홈즈 상담봇입니다. 주거지원, 공고, 정책, 청약 관련해서 궁금한 내용을 물어보세요.",
+        "안녕하세요. 청춘홈즈 상담봇입니다. 주거지원, 공고, 지원제도, 청약 관련해서 궁금한 내용을 물어보세요.",
     },
   ])
 
