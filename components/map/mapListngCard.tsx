@@ -1,4 +1,5 @@
 import type { MapListing } from "@/lib/map/map-types";
+import { resolveMapImageUrl } from "@/lib/map/map-image";
 
 type MapListingCardProps = {
   item: MapListing;
@@ -7,6 +8,7 @@ type MapListingCardProps = {
 
 export default function MapListingCard({ item, onClick }: MapListingCardProps) {
   const tags = Array.isArray(item.tag) ? item.tag : [];
+  const thumbnailUrl = resolveMapImageUrl(item.thumbnailUrl);
 
   return (
     <button
@@ -16,9 +18,9 @@ export default function MapListingCard({ item, onClick }: MapListingCardProps) {
     >
       <div className="flex gap-3">
         {/* 매물 썸네일 영역입니다. */}
-        {item.thumbnailUrl ? (
+        {thumbnailUrl ? (
           <img
-            src={item.thumbnailUrl}
+            src={thumbnailUrl}
             alt={item.title}
             className="h-24 w-24 shrink-0 rounded-xl object-cover"
           />
