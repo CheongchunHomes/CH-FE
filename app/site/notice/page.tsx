@@ -13,23 +13,39 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-type NoticeCategory =
-  | '전체'
+import { get } from '@/lib/api';
+
+type DisplayNoticeCategory =
   | '운영자 안내'
   | '정책 변경'
   | '점검'
   | '업데이트'
   | '약관 변경';
 
-interface NoticeItem {
-  id: number;
-  category: Exclude<NoticeCategory, '전체'>;
+type NoticeCategory = '전체' | DisplayNoticeCategory;
+
+type ApiNoticeCategory = DisplayNoticeCategory | '커뮤니티' | string;
+
+interface ApiNoticeItem {
+  noticeId: number;
+  category: ApiNoticeCategory;
   title: string;
   summary: string;
-  date: string;
-  views: number;
-  important?: boolean;
-  isNew?: boolean;
+  content: string;
+  important: boolean;
+  viewCount?: number;
+  createdAt: string;
+}
+
+interface NoticeItem {
+  noticeId: number;
+  category: DisplayNoticeCategory;
+  title: string;
+  summary: string;
+  content: string;
+  important: boolean;
+  viewCount: number;
+  createdAt: string;
 }
 
 const categories: NoticeCategory[] = [
@@ -41,128 +57,8 @@ const categories: NoticeCategory[] = [
   '약관 변경',
 ];
 
-const notices: NoticeItem[] = [
-  {
-    id: 1,
-    category: '운영자 안내',
-    title: '청년홈즈 서비스 정식 오픈 안내',
-    summary:
-      '청년 주거 준비를 한 번에 확인할 수 있는 청년홈즈 서비스가 정식 오픈되었습니다.',
-    date: '2026.05.06',
-    views: 128,
-    important: true,
-    isNew: true,
-  },
-  {
-    id: 2,
-    category: '정책 변경',
-    title: '청년 주거 지원 정책 정보 업데이트 안내',
-    summary:
-      '최신 청년 주거 지원 정책과 신청 조건이 새롭게 반영되었습니다.',
-    date: '2026.05.05',
-    views: 96,
-    important: true,
-    isNew: true,
-  },
-  {
-    id: 3,
-    category: '점검',
-    title: '시스템 점검 안내',
-    summary:
-      '더 안정적인 서비스 제공을 위해 청년홈즈 시스템 점검이 진행될 예정입니다.',
-    date: '2026.05.04',
-    views: 74,
-    important: true,
-    isNew: true,
-  },
-  {
-    id: 4,
-    category: '약관 변경',
-    title: '개인정보 처리방침 개정 안내',
-    summary:
-      '개인정보 보호 기준 강화를 위해 개인정보 처리방침 일부 내용이 개정됩니다.',
-    date: '2026.04.29',
-    views: 65,
-    important: true,
-  },
-  {
-    id: 5,
-    category: '업데이트',
-    title: '공지사항 검색 기능 추가 안내',
-    summary:
-      '공지사항을 제목과 내용으로 더 빠르게 찾을 수 있도록 검색 기능이 추가되었습니다.',
-    date: '2026.05.03',
-    views: 112,
-  },
-  {
-    id: 6,
-    category: '운영자 안내',
-    title: '청년홈즈 커뮤니티 이용 안내',
-    summary:
-      '청년홈즈 커뮤니티를 안전하고 편리하게 이용하기 위한 기본 안내사항입니다.',
-    date: '2026.05.02',
-    views: 87,
-  },
-  {
-    id: 7,
-    category: '업데이트',
-    title: '관심 지역 설정 기능 추가 안내',
-    summary:
-      '자주 확인하는 지역을 관심 지역으로 설정하고 맞춤 정보를 확인할 수 있습니다.',
-    date: '2026.05.01',
-    views: 134,
-  },
-  {
-    id: 8,
-    category: '정책 변경',
-    title: '청년 주거 지원 기준 변경 안내',
-    summary:
-      '일부 청년 주거 지원 기준이 변경되어 신청 전 확인이 필요합니다.',
-    date: '2026.04.30',
-    views: 63,
-  },
-  {
-    id: 9,
-    category: '업데이트',
-    title: '매물 검색 필터 기능 개선 안내',
-    summary:
-      '원하는 조건의 매물을 더 쉽게 찾을 수 있도록 검색 필터가 개선되었습니다.',
-    date: '2026.04.28',
-    views: 151,
-  },
-  {
-    id: 10,
-    category: '운영자 안내',
-    title: '서비스 이용 중 오류 제보 안내',
-    summary:
-      '서비스 이용 중 오류를 발견하신 경우 제보 방법을 확인해 주세요.',
-    date: '2026.04.27',
-    views: 58,
-  },
-  {
-    id: 11,
-    category: '점검',
-    title: '야간 서버 안정화 작업 안내',
-    summary:
-      '서비스 품질 개선을 위해 야간 서버 안정화 작업이 진행됩니다.',
-    date: '2026.04.26',
-    views: 41,
-  },
-  {
-    id: 12,
-    category: '업데이트',
-    title: 'QnA 기능 개선 안내',
-    summary:
-      '자주 묻는 질문을 더 쉽게 확인할 수 있도록 QnA 화면이 개선되었습니다.',
-    date: '2026.04.25',
-    views: 77,
-  },
-];
-
-const ITEMS_PER_PAGE = 10;
-
 const categoryStyle: Record<
-  Exclude<NoticeCategory, '전체'>,
+  DisplayNoticeCategory,
   {
     icon: React.ElementType;
     className: string;
@@ -190,107 +86,195 @@ const categoryStyle: Record<
   },
 };
 
+const ITEMS_PER_PAGE = 5;
+
+function formatDate(value: string) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date
+    .toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+    .replace(/\. /g, '.')
+    .replace(/\.$/, '');
+}
+
+function isNewNotice(value: string) {
+  if (!value) {
+    return false;
+  }
+
+  const created = new Date(value).getTime();
+
+  if (Number.isNaN(created)) {
+    return false;
+  }
+
+  const now = Date.now();
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+  return now - created <= sevenDays;
+}
+
+function normalizeCategory(category: string): DisplayNoticeCategory {
+  if (
+    category === '운영자 안내' ||
+    category === '정책 변경' ||
+    category === '점검' ||
+    category === '업데이트' ||
+    category === '약관 변경'
+  ) {
+    return category;
+  }
+
+  return '운영자 안내';
+}
+
 export default function NoticePage() {
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [selectedCategory, setSelectedCategory] =
     useState<NoticeCategory>('전체');
   const [searchType, setSearchType] = useState<'title' | 'content'>('title');
   const [keyword, setKeyword] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const filteredNotices = useMemo(() => {
-    return notices.filter((notice) => {
-      const categoryMatched =
-        selectedCategory === '전체' || notice.category === selectedCategory;
+  useEffect(() => {
+    const fetchNotices = async () => {
+      try {
+        const data = await get<ApiNoticeItem[]>('/api/notice', {
+          cache: 'no-store',
+        });
 
-      const trimmedKeyword = keyword.trim().toLowerCase();
-
-      if (!trimmedKeyword) {
-        return categoryMatched;
+        setNotices(
+          data
+            .filter((notice) => notice.category !== '커뮤니티')
+            .map((notice) => ({
+              noticeId: notice.noticeId,
+              category: normalizeCategory(notice.category),
+              title: notice.title,
+              summary: notice.summary,
+              content: notice.content,
+              important: notice.important,
+              viewCount: notice.viewCount ?? 0,
+              createdAt: notice.createdAt,
+            })),
+        );
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const searchTarget =
-        searchType === 'title'
-          ? notice.title.toLowerCase()
-          : `${notice.title} ${notice.summary}`.toLowerCase();
-
-      return categoryMatched && searchTarget.includes(trimmedKeyword);
-    });
-  }, [selectedCategory, searchType, keyword]);
-
-  const totalPages = Math.ceil(filteredNotices.length / ITEMS_PER_PAGE);
-
-  const pagedNotices = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-
-    return filteredNotices.slice(startIndex, endIndex);
-  }, [filteredNotices, currentPage]);
+    fetchNotices();
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedCategory, searchType, keyword]);
 
+  const filteredNotices = useMemo(() => {
+    const trimmedKeyword = keyword.trim().toLowerCase();
+
+    return notices.filter((notice) => {
+      const matchesCategory =
+        selectedCategory === '전체' || notice.category === selectedCategory;
+
+      const searchTarget =
+        searchType === 'title'
+          ? notice.title
+          : `${notice.summary} ${notice.content}`;
+
+      const matchesKeyword =
+        trimmedKeyword.length === 0 ||
+        searchTarget.toLowerCase().includes(trimmedKeyword);
+
+      return matchesCategory && matchesKeyword;
+    });
+  }, [notices, selectedCategory, searchType, keyword]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredNotices.length / ITEMS_PER_PAGE),
+  );
+
+  const pagedNotices = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredNotices.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredNotices, currentPage]);
+
+  const pageNumbers = useMemo(() => {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }, [totalPages]);
+
   return (
     <main className="min-h-screen bg-[#f8fafc] px-6 py-12">
-      <section className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <section className="mx-auto max-w-5xl">
+        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="mb-2 inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
+            <span className="inline-flex rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
               청년홈즈 소식
-            </p>
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+            </span>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
               공지사항
             </h1>
-            <p className="mt-3 text-base text-slate-500">
+            <p className="mt-4 text-base text-slate-500">
               청년홈즈의 새로운 소식과 중요한 안내를 확인하세요.
             </p>
           </div>
 
-          <div className="flex w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:w-[360px]">
+          <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <select
               value={searchType}
               onChange={(event) =>
                 setSearchType(event.target.value as 'title' | 'content')
               }
-              className="border-r border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none"
+              className="h-14 border-r border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 outline-none"
             >
               <option value="title">제목</option>
-              <option value="content">제목+내용</option>
+              <option value="content">내용</option>
             </select>
 
-            <div className="relative flex-1">
+            <div className="flex h-14 items-center gap-3 px-4">
+              <Search className="h-4 w-4 text-slate-400" />
               <input
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder="검색어를 입력해주세요."
-                className="h-12 w-full px-4 pr-11 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                placeholder="검색어를 입력하세요"
+                className="w-64 bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
-              <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             </div>
           </div>
         </div>
 
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => {
-              const isActive = selectedCategory === category;
+        <div className="mb-7 flex flex-wrap gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          {categories.map((category) => {
+            const isActive = selectedCategory === category;
 
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
-                    isActive
-                      ? 'bg-sky-600 text-white shadow-sm'
-                      : 'bg-slate-50 text-slate-600 hover:bg-sky-50 hover:text-sky-700'
-                  }`}
-                >
-                  {category}
-                </button>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                className={`rounded-2xl px-6 py-3 text-sm font-bold transition ${
+                  isActive
+                    ? 'bg-sky-600 text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-600 hover:bg-sky-50 hover:text-sky-700'
+                }`}
+              >
+                {category}
+              </button>
+            );
+          })}
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -304,119 +288,106 @@ export default function NoticePage() {
             </p>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {pagedNotices.length > 0 ? (
-              pagedNotices.map((notice) => {
-                const style = categoryStyle[notice.category];
-                const Icon = style.icon;
+          {loading ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-base font-semibold text-slate-700">
+                공지사항을 불러오는 중입니다.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {pagedNotices.length > 0 ? (
+                pagedNotices.map((notice) => {
+                  const style = categoryStyle[notice.category];
+                  const Icon = style.icon;
 
-                return (
-                  <Link
-                    key={notice.id}
-                    href={`/site/notice/${notice.id}`}
-                    className="group block px-6 py-5 transition hover:bg-sky-50/60"
-                  >
-                    <div className="flex items-start justify-between gap-5">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${style.className}`}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                            {notice.category}
-                          </span>
-
-                          {notice.important && (
-                            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
-                              중요
+                  return (
+                    <Link
+                      key={notice.noticeId}
+                      href={`/site/notice/${notice.noticeId}`}
+                      className="group block px-6 py-5 transition hover:bg-sky-50/60"
+                    >
+                      <div className="flex items-start justify-between gap-5">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${style.className}`}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                              {notice.category}
                             </span>
-                          )}
 
-                          {notice.isNew && (
-                            <span className="rounded-full bg-pink-500 px-2 py-0.5 text-[11px] font-bold text-white">
-                              N
+                            {notice.important && (
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                중요
+                              </span>
+                            )}
+
+                            {isNewNotice(notice.createdAt) && (
+                              <span className="rounded-full bg-pink-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                                N
+                              </span>
+                            )}
+                          </div>
+
+                          <h2 className="truncate text-lg font-semibold text-slate-900 group-hover:text-sky-700">
+                            {notice.title}
+                          </h2>
+
+                          <p className="mt-2 line-clamp-1 text-sm text-slate-500">
+                            {notice.summary}
+                          </p>
+
+                          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                            <span className="inline-flex items-center gap-1">
+                              <Eye className="h-4 w-4" />
+                              {notice.viewCount}
                             </span>
-                          )}
+                            <span>{formatDate(notice.createdAt)}</span>
+                          </div>
                         </div>
 
-                        <h2 className="truncate text-lg font-semibold text-slate-900 group-hover:text-sky-700">
-                          {notice.title}
-                        </h2>
-
-                        <p className="mt-2 line-clamp-1 text-sm text-slate-500">
-                          {notice.summary}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-                          <span className="inline-flex items-center gap-1">
-                            <Eye className="h-4 w-4" />
-                            {notice.views}
-                          </span>
-                          <span>{notice.date}</span>
-                        </div>
+                        <ChevronRight className="mt-9 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-sky-600" />
                       </div>
-
-                      <ChevronRight className="mt-9 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-sky-600" />
-                    </div>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="px-6 py-16 text-center">
-                <p className="text-base font-semibold text-slate-700">
-                  검색 결과가 없습니다.
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  다른 검색어를 입력하거나 카테고리를 변경해 주세요.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 border-t border-slate-100 px-6 py-5">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
-                disabled={currentPage === 1}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                이전
-              </button>
-
-              {Array.from({ length: totalPages }, (_, index) => {
-                const pageNumber = index + 1;
-                const isActive = currentPage === pageNumber;
-
-                return (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNumber)}
-                    className={`h-10 w-10 rounded-xl text-sm font-bold transition ${
-                      isActive
-                        ? 'bg-sky-600 text-white shadow-sm'
-                        : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage((page) => Math.min(page + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                다음
-              </button>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="px-6 py-16 text-center">
+                  <p className="text-base font-semibold text-slate-700">
+                    검색 결과가 없습니다.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    다른 검색어를 입력하거나 카테고리를 변경해 주세요.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {!loading && totalPages > 1 && (
+          <div className="mt-8 flex justify-center gap-2">
+            {pageNumbers.map((page) => {
+              const isActive = currentPage === page;
+
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-10 w-10 rounded-full text-sm font-bold transition ${
+                    isActive
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-sky-50 hover:text-sky-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );

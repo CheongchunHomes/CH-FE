@@ -7,10 +7,11 @@ import {
   ArrowLeft,
   Eye,
   MapPin,
+  Trash2,
   User,
 } from 'lucide-react';
 
-import { get, ApiError } from '@/lib/api';
+import { get, request, ApiError } from '@/lib/api';
 
 interface CommunityPost {
   postId: number;
@@ -33,6 +34,7 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
 
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchPost = async () => {
@@ -53,6 +55,31 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
     }
   };
 
+  const handleDelete = async () => {
+    if (!post) return;
+
+    const confirmed = window.confirm('정말 이 커뮤니티 글을 삭제하시겠습니까?');
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+      setErrorMessage('');
+
+await request('DELETE', `/api/community/${id}`);
+
+      router.push('/site/community');
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('커뮤니티 글 삭제에 실패했습니다.');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     fetchPost();
   }, [id]);
@@ -60,14 +87,28 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <section className="mx-auto max-w-4xl">
-        <button
-          type="button"
-          onClick={() => router.push('/site/community')}
-          className="mb-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-100"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          목록으로
-        </button>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/site/community')}
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            목록으로
+          </button>
+
+          {post && !loading && !errorMessage && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-red-300"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting ? '삭제 중...' : '삭제'}
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div className="rounded-3xl bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
