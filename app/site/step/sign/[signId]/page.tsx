@@ -1,62 +1,60 @@
 "use client"
 
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { createPortal } from "react-dom"
-import { useEffect, useMemo, useRef, useState } from "react"
-import type { ChangeEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react"
-import { AlertCircle, ArrowLeft, FileText, Loader2, PenTool, X } from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react"
 
 import { ApiError } from "@/lib/api"
 import { useStepBar } from "@/app/site/step/components/StepLayoutShell"
 import { useAuth } from "@/lib/auth-context"
-import { getSignContract, type SignContractDocument, type SignStatus } from "@/lib/sign-api"
+import {
+  getCompletedPdfSignedUrl,
+  getSignContract,
+  type SignContractDocument,
+} from "@/lib/sign-api"
+import { PdfPreviewPanel, TenantPdfSigningDocument } from "@/components/sign/contract-pdf-panels"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-
-const statusLabels: Record<SignStatus, string> = {
-  ISSUED: "신청",
-  PROVIDER_SIGNED: "임대인 서명",
-  COMPLETED: "완료",
-  CANCELED: "취소",
-}
-
-const defaultSpecialTerms = `1.본 주택의 임대차에 관한 중개대상물확인·설명서 및 계약서상의 시설물 상태는 임대인이 고지한 사항과 임차인 및
-  공인중개사의 현장 확인 사항을 기초로 한 것이다.
-2.임대할 부분의 면적은 (공부상 전용면적 또는 연면적, 실측 면적)이다.
-3.임대인은 본 계약체결 당시 국세·지방세 체납, 근저당권 이자체납 사실이 없음을 고지한다.
-4.거래당사자는 본 계약과 관련하여 분쟁이 있는 경우 법원에 소를 제기하기 전에 먼저 주택임대차분쟁조정위원회에
-  조정을 신청할 수 있다.
- ※ 주택임대차분쟁조정위원회 조정을 통할 경우 60일(최대 90일) 이내 신속하게 조정 결과를 받아볼 수 있습니다.
-5.전세금반환보증 가입을 위해 임대인이 취해야 할 조치가 있는 경우 임대인은 성실히 협력하여야 하며, 임대인의
-  미협조 또는 책임있는 사유로 임차인의 보증보험 가입이 불가능한 경우 임차인은 본 계약을 해제할 수 있다. 단,
-  이 경우 본 계약의 해제에 따른 위약금 또는 별도의 손해배상책임을 묻지 아니하며, 수수된 금원은 원금으로
-  상환하여야 한다.
-6.주택임대차계약 신고는 계약체결일로부터 30일 이내 관할 주민센터를 방문 또는 부동산거래관리시스템
-  (https//rtms.molit.go.kr)을 통해 임대인과 임차인이 신고서에 공동으로 서명·날인하여 신고하거나,
-  임차인 또는 임대인이 계약서를 첨부하여 단독으로 신고도 가능합니다.
-7.본 계약에 명시되지 않은 사항은 주택임대차보호법 및 민법과 주택임대차계약의 일반관례에 따른다.
-8.첨부서류 : 중개대상물확인·설명서, 공제증서 사본 각 1부.`
-
-const maxWonDigitLength = 16
-
-type SignatureTarget = "provider" | "customer"
 
 export default function SignContractPage() {
   useStepBar(5)
+  const router = useRouter()
 
   const params = useParams<{ signId: string }>()
   const signId = useMemo(() => Number(params.signId), [params.signId])
-  const { status, refresh } = useAuth()
+  const { status, refresh, user } = useAuth()
 
   const [contract, setContract] = useState<SignContractDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const viewerRole = useMemo(() => {
+    if (!contract || !user) {
+      return null
+    }
+
+    if (contract.provider.userId === user.id) {
+      return "provider"
+    }
+
+    if (contract.customer.userId === user.id) {
+      return "customer"
+    }
+
+    return "other"
+  }, [contract, user])
+
+  useEffect(() => {
+    if (viewerRole === "provider" && contract) {
+      router.replace(`/site/my-page/sign/${contract.signId}`)
+    }
+  }, [contract, router, viewerRole])
+
+  const isRedirectingToLandlord = viewerRole === "provider"
 
   useEffect(() => {
     if (status === "loading") {
@@ -93,6 +91,7 @@ export default function SignContractPage() {
       try {
         const data = await getSignContract(signId)
         setContract(data)
+        setErrorMessage("")
       } catch (error) {
         const code = getApiErrorCode(error)
 
@@ -108,7 +107,7 @@ export default function SignContractPage() {
     }
 
     loadContract()
-  }, [refresh, signId, status])
+  }, [refresh, reloadToken, signId, status])
 
   if (!isAuthenticated && !isLoading) {
     return (
@@ -126,6 +125,25 @@ export default function SignContractPage() {
           <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const handleRefresh = () => setReloadToken((current) => current + 1)
+
+  if (isRedirectingToLandlord) {
+    return (
+      <Card className="border-slate-200/80 bg-white shadow-sm">
+        <CardContent className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+            <Loader2 className="animate-spin" size={22} />
+          </div>
+
+          <div>
+            <h1 className="text-xl font-bold text-slate-950">마이페이지 계약서로 이동 중입니다</h1>
+            <p className="mt-2 text-sm text-slate-500">임대인 계약서는 마이페이지에서 작성할 수 있습니다.</p>
+          </div>
         </CardContent>
       </Card>
     )
@@ -154,7 +172,31 @@ export default function SignContractPage() {
               {errorMessage}
             </div>
           ) : contract ? (
-            <ContractDocument contract={contract} />
+            viewerRole === "customer" ? (
+              contract.status === "ISSUED" ? (
+                <StatusMessageCard
+                  title="계약 대기"
+                  message="임대인이 계약서 PDF를 생성할 때까지 기다려 주세요."
+                />
+              ) : contract.status === "PROVIDER_SIGNED" ? (
+                <TenantPdfSigningDocument contract={contract} onRefresh={handleRefresh} />
+              ) : contract.status === "COMPLETED" ? (
+                <PdfPreviewPanel
+                  title="완료된 계약서"
+                  description="최종 계약 PDF를 확인하고 다운로드할 수 있습니다."
+                  fileId={contract.completedPdfFileId}
+                  loadSignedUrl={() => getCompletedPdfSignedUrl(contract.signId)}
+                />
+              ) : (
+                <StatusMessageCard title="계약 취소" message="취소된 계약서입니다." tone="destructive" />
+              )
+            ) : (
+              <StatusMessageCard
+                title="접근 제한"
+                message="이 계약서는 현재 사용자에게 공개되지 않았습니다."
+                tone="destructive"
+              />
+            )
           ) : null}
         </CardContent>
       </Card>
@@ -162,701 +204,28 @@ export default function SignContractPage() {
   )
 }
 
-function ContractDocument({ contract }: { contract: SignContractDocument }) {
-  const property = contract.property
-  const [leaseEndDate, setLeaseEndDate] = useState(() => getDefaultLeaseEndDate(property.moveInDate))
-  const [contractAmount, setContractAmount] = useState("")
-  const [interimAmount1, setInterimAmount1] = useState("")
-  const [interimAmount2, setInterimAmount2] = useState("")
-  const [balanceAmount, setBalanceAmount] = useState("")
-  const [signatureTarget, setSignatureTarget] = useState<SignatureTarget | null>(null)
-  const [signatures, setSignatures] = useState<Record<SignatureTarget, string | null>>({
-    provider: null,
-    customer: null,
-  })
-  const depositWon = formatWonInput(property.depositAmount === null || property.depositAmount === undefined ? "" : String(property.depositAmount * 10000))
-  const leaseMonthCount = useMemo(
-    () => calculateMonthCount(property.moveInDate, leaseEndDate),
-    [leaseEndDate, property.moveInDate]
-  )
-
-  const requestSignature = (target: SignatureTarget) => {
-    setSignatureTarget(target)
-  }
-
-  const applySignature = (dataUrl: string) => {
-    if (!signatureTarget) return
-    setSignatures((current) => ({ ...current, [signatureTarget]: dataUrl }))
-    setSignatureTarget(null)
-  }
-
+function StatusMessageCard({
+  title,
+  message,
+  tone = "default",
+}: {
+  title: string
+  message: string
+  tone?: "default" | "destructive"
+}) {
   return (
-    <>
-      <article className="mx-auto max-w-5xl overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-950 shadow-sm">
-        <header className="border-b border-slate-300 bg-slate-950 px-5 py-4 text-white md:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <FileText size={22} className="text-sky-300" />
-              <div>
-                <h2 className="text-xl font-bold">부동산(다세대주택) 전세 계약서</h2>
-                <p className="mt-1 text-xs text-slate-300">문서번호 #{contract.signId}</p>
-              </div>
-            </div>
-
-            <Badge variant={contract.status === "CANCELED" ? "destructive" : "secondary"} className="w-fit">
-              {statusLabels[contract.status]}
-            </Badge>
-          </div>
-        </header>
-
-        <div className="space-y-6 p-5 md:p-8">
-          <ContractSection title="1. 부동산 표시">
-            <DocumentTable>
-              <DocumentRow label="소재지">
-                <div className="grid gap-2 md:grid-cols-[1fr_74px_74px]">
-                  <ReadOnlyField label="소재지 주소" value={property.address} hideLabel />
-                  <BlankField label="동" hideLabel suffix="동" />
-                  <BlankField label="호" hideLabel suffix="호" />
-                </div>
-              </DocumentRow>
-              <DocumentRow label="건물">
-                <div className="grid gap-2 md:grid-cols-[1fr_1fr_120px]">
-                  <ReadOnlyField label="용도" value={property.buildingUse} />
-                  <ReadOnlyField label="면적" value={formatArea(property.supplyAreaM2)} />
-                </div>
-              </DocumentRow>
-              <DocumentRow label="">
-                <div className="grid gap-2 md:grid-cols-[1fr_180px]">
-                  <BlankField label="임대할 부분" />
-                  <ReadOnlyField label="면적" value={formatArea(property.exclusiveAreaM2)} />
-                </div>
-              </DocumentRow>
-            </DocumentTable>
-          </ContractSection>
-
-          <ContractSection title="2. 계약 내용">
-            <div className="space-y-4 text-sm leading-6 text-slate-700">
-              <Clause title="제1조 [목적]">
-                위 부동산의 임대차에 관하여 임대인과 임차인은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.
-              </Clause>
-
-              <DocumentTable>
-                <DocumentRow label="보증금">
-                  <MoneyLine>
-                    <MoneyText>일금</MoneyText>
-                    <MoneyField className="min-w-0 flex-1" label="보증금" value={depositWon} readOnly />
-                    <MoneyText>원정</MoneyText>
-                  </MoneyLine>
-                </DocumentRow>
-                <DocumentRow label="계약금">
-                  <MoneyLine>
-                    <MoneyText>일금</MoneyText>
-                    <MoneyField className="min-w-0 flex-1" label="계약금" value={contractAmount} onChange={setContractAmount} />
-                    <MoneyText>원정</MoneyText>
-                    <MoneyText>은 계약시에 지급하고 영수함.</MoneyText>
-                  </MoneyLine>
-                </DocumentRow>
-                <DocumentRow label="중도금">
-                  <div className="space-y-2">
-                    <PaymentLine label="중도금 1" dateLabel="중도금 1 지급일" value={interimAmount1} onChange={setInterimAmount1} />
-                    <PaymentLine label="중도금 2" dateLabel="중도금 2 지급일" value={interimAmount2} onChange={setInterimAmount2} />
-                  </div>
-                </DocumentRow>
-                <DocumentRow label="잔금">
-                  <PaymentLine label="잔금" dateLabel="잔금 지급일" value={balanceAmount} onChange={setBalanceAmount} />
-                </DocumentRow>
-              </DocumentTable>
-
-              <Clause title="제2조 [존속기간]">
-                <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
-                  <span>임대인은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로</span>
-                  <ReadOnlyField className="w-full md:w-44" label="임차인 인도일" value={formatDate(property.moveInDate)} hideLabel />
-                  <span>일까지 임차인에게 인도하며, 임대차 기간은 인도일로부터</span>
-                  <BlankField
-                    className="w-full md:w-44"
-                    label="임대차 종료일"
-                    type="date"
-                    value={leaseEndDate}
-                    onChange={(event) => setLeaseEndDate(event.target.value)}
-                    hideLabel
-                  />
-                  <span>일</span>
-                  <ReadOnlyField className="w-full md:w-32" label="임대차 기간" value={leaseMonthCount} hideLabel />
-                  <span>개월</span>
-                  <span>까지로 한다.</span>
-                </div>
-              </Clause>
-
-              <Clause title="제3조 [용도변경 및 전대 등]">
-                임차인은 임대인의 동의없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.
-              </Clause>
-              <Clause title="제4조 [계약의 해지]">임차인이 제3조를 위반했을 때 임대인은 즉시 본 계약을 해지 할 수 있다.</Clause>
-              <Clause title="제5조 [계약의 종료]">
-                임대차계약이 종료된 경우 임차인은 위 부동산을 원상으로 회복하여 임대인에게 반환한다. 이러한 경우 임대인은 보증금을 임차인에게 반환하고, 연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.
-              </Clause>
-              <Clause title="제6조 [계약의 해제]">
-                임차인이 임대인에게 중도금이 없을때는 잔금을 지급하기 전까지 임대인은 계약금의 배액을 상환하고, 임차인은 계약금을 포기하고 이 계약을 해제할 수 있다.
-              </Clause>
-              <Clause title="제7조 [채무불이행과 손해배상]">
-                임대인 또는 임차인은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행 한 자에 대하여 서면으로 최고하고 계약을 해제 할 수 있다. 그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.
-              </Clause>
-              <Clause title="제8조 [중개보수]">
-                개업공인중개사는 임대인 또는 임차인의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다. 공동중개인 경우에 임대인과 임차인은 자신이 중개의뢰한 개업공인중개사에게 각각 중개보수를 지급한다.
-              </Clause>
-              <Clause title="제9조 [중개대상물확인설명서 교부 등]">
-                개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래당사자 쌍방에게 교부한다.
-              </Clause>
-            </div>
-          </ContractSection>
-
-          <ContractSection title="3. 특약사항">
-            <Textarea className="min-h-96 resize-y bg-white leading-6" defaultValue={defaultSpecialTerms} />
-          </ContractSection>
-
-          <ContractSection title="4. 임대인 정보">
-            <PartyFields
-              party={contract.provider}
-              signature={signatures.provider}
-              onSign={() => requestSignature("provider")}
-            />
-          </ContractSection>
-
-          <ContractSection title="5. 임차인 정보">
-            <PartyFields
-              party={contract.customer}
-              signature={signatures.customer}
-              onSign={() => requestSignature("customer")}
-            />
-          </ContractSection>
-
-          <ContractSection title="6. 개업 공인중개사">
-            <AgentFields />
-          </ContractSection>
+    <Card className={`border-slate-200/80 bg-white shadow-sm ${tone === "destructive" ? "border-rose-200" : ""}`}>
+      <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${tone === "destructive" ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
+          <AlertCircle size={22} />
         </div>
-      </article>
-
-      <SignatureDialog
-        open={signatureTarget !== null}
-        onClose={() => setSignatureTarget(null)}
-        onConfirm={applySignature}
-      />
-    </>
-  )
-}
-
-function ContractSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h3 className="border-b border-slate-300 pb-2 text-base font-bold text-slate-950">{title}</h3>
-      {children}
-    </section>
-  )
-}
-
-function SignatureField({
-  signature,
-  onSign,
-}: {
-  signature: string | null
-  onSign: () => void
-}) {
-  return (
-    <div className="flex min-w-0 flex-nowrap items-center gap-3">
-      <SignatureMark signature={signature} />
-      <Button type="button" variant="outline" onClick={onSign} className="shrink-0">
-        <PenTool className="mr-2 h-4 w-4" />
-        전자결제
-      </Button>
-    </div>
-  )
-}
-
-function SignatureMark({
-  signature,
-  pendingLabel = "전자서명 대기",
-}: {
-  signature: string | null
-  pendingLabel?: string
-}) {
-  if (signature) {
-    return <img src={signature} alt="전자서명" className="h-8 w-auto object-contain" />
-  }
-
-  return <span className="whitespace-nowrap text-sm text-slate-400">{pendingLabel}</span>
-}
-
-function SignatureDialog({
-  open,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean
-  onClose: () => void
-  onConfirm: (dataUrl: string) => void
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const drawingRef = useRef(false)
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-    const width = rect.width || 720
-    const height = 320
-    canvas.width = width * dpr
-    canvas.height = height * dpr
-
-    const context = canvas.getContext("2d")
-    if (!context) return
-
-    context.setTransform(dpr, 0, 0, dpr, 0, 0)
-    context.clearRect(0, 0, width, height)
-    context.lineCap = "round"
-    context.lineJoin = "round"
-    context.strokeStyle = "#1d4ed8"
-    context.lineWidth = 3
-
-    drawingRef.current = false
-    lastPointRef.current = null
-  }, [open])
-
-  const getPoint = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return null
-
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
-  }
-
-  const startDraw = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const point = getPoint(event)
-    if (!point) return
-
-    drawingRef.current = true
-    lastPointRef.current = point
-  }
-
-  const moveDraw = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return
-
-    const canvas = canvasRef.current
-    const context = canvas?.getContext("2d")
-    const point = getPoint(event)
-    if (!canvas || !context || !point || !lastPointRef.current) return
-
-    context.beginPath()
-    context.moveTo(lastPointRef.current.x, lastPointRef.current.y)
-    context.lineTo(point.x, point.y)
-    context.stroke()
-    lastPointRef.current = point
-  }
-
-  const endDraw = () => {
-    drawingRef.current = false
-    lastPointRef.current = null
-  }
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext("2d")
-    if (!canvas || !context) return
-
-    context.clearRect(0, 0, canvas.width, canvas.height)
-  }
-
-  if (!open) return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4 py-6">
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold tracking-[0.22em] text-blue-600">전자결제</p>
-            <h3 className="mt-2 text-2xl font-black text-slate-950">자필 서명</h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-            aria-label="서명 창 닫기"
-          >
-            <X className="h-4 w-4" />
-          </button>
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+          <p className="text-sm text-slate-500">{message}</p>
         </div>
-
-        <div className="mt-5 rounded-2xl border border-dashed border-blue-200 bg-blue-50/40 p-3 md:p-4">
-          <canvas
-            ref={canvasRef}
-            onPointerDown={startDraw}
-            onPointerMove={moveDraw}
-            onPointerUp={endDraw}
-            onPointerLeave={endDraw}
-            className="h-80 w-full touch-none rounded-xl bg-white"
-          />
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-          <Button type="button" variant="outline" onClick={clearCanvas}>
-            초기화
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
-            취소
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              const canvas = canvasRef.current
-              if (!canvas) return
-              onConfirm(canvas.toDataURL("image/png"))
-            }}
-          >
-            확인
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+      </CardContent>
+    </Card>
   )
-}
-
-function Clause({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <span className="font-semibold text-slate-950">{title}</span>{" "}
-      {children}
-    </div>
-  )
-}
-
-function DocumentTable({ children }: { children: ReactNode }) {
-  return <div className="space-y-3 text-sm">{children}</div>
-}
-
-function DocumentRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-2 md:grid-cols-[84px_1fr] md:items-start">
-      <div className="pt-1 text-balance font-semibold text-slate-500">
-        {label}
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
-  )
-}
-
-function MoneyLine({ children }: { children: ReactNode }) {
-  return <div className="flex min-w-0 flex-col gap-2 md:flex-row md:items-start">{children}</div>
-}
-
-function MoneyText({ children }: { children: ReactNode }) {
-  return <span className="flex h-10 shrink-0 items-center">{children}</span>
-}
-
-function PaymentLine({
-  label,
-  dateLabel,
-  value,
-  onChange,
-}: {
-  label: string
-  dateLabel: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <MoneyLine>
-      <MoneyText>일금</MoneyText>
-      <MoneyField className="min-w-0 flex-1" label={label} value={value} onChange={onChange} />
-      <MoneyText>원정</MoneyText>
-      <MoneyText>은</MoneyText>
-      <BlankField className="w-full md:w-44" label={dateLabel} type="date" hideLabel />
-      <MoneyText>에 지급한다.</MoneyText>
-    </MoneyLine>
-  )
-}
-
-function MoneyField({
-  label,
-  value,
-  onChange,
-  readOnly = false,
-  className,
-}: {
-  label: string
-  value: string
-  onChange?: (value: string) => void
-  readOnly?: boolean
-  className?: string
-}) {
-  return (
-    <label className={className}>
-      <span className="sr-only">{label}</span>
-      <Input
-        inputMode="numeric"
-        readOnly={readOnly}
-        value={value}
-        onChange={(event) => onChange?.(formatWonInput(event.target.value))}
-        className={readOnly ? "bg-slate-100" : "bg-white"}
-      />
-      <span className="mt-1 block min-h-5 text-xs font-medium text-slate-500">
-        {formatKoreanWon(value)}
-      </span>
-    </label>
-  )
-}
-
-type ContractPartyWithBirthDate = SignContractDocument["provider"] & {
-  birthDate?: string | null
-}
-
-function PartyFields({
-  party,
-  signature,
-  onSign,
-}: {
-  party: ContractPartyWithBirthDate
-  signature: string | null
-  onSign: () => void
-}) {
-  return (
-    <div className="grid gap-3 md:grid-cols-4">
-      <ReadOnlyField className="md:col-span-3" label="주소" value={party.address} />
-      <ReadOnlyField label="생년월일" value={formatDate(party.birthDate)} />
-      <ReadOnlyField label="전화번호" value={party.phone} />
-      <div className="md:col-span-3">
-        <span className="mb-1 block text-xs font-semibold text-slate-500">성명 / 서명</span>
-        <div className="flex min-w-0 flex-nowrap items-center gap-3">
-          <ReadOnlyField className="sm:w-44" label="성명" value={party.realName} hideLabel />
-          <SignatureField signature={signature} onSign={onSign} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AgentFields() {
-  return (
-    <BrokerOfficeBlock title="개업 공인중개사" />
-  )
-}
-
-function BrokerOfficeBlock({ title }: { title: string }) {
-  return (
-    <div className="grid gap-2 md:grid-cols-[112px_1fr]">
-      <div className="flex items-center text-xs font-semibold text-slate-500 md:pb-2">{title}</div>
-      <div className="space-y-3">
-        <ReadOnlyField label="사무소 소재지" value="서울 마포구 백범로 23" />
-        <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-          <ReadOnlyField label="사무소 명칭" value="한국ICT인재개발원" />
-          <ReadOnlyField label="대표자 명" value="쟈스민" />
-        </div>
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.2fr]">
-          <ReadOnlyField label="전화 번호" value="01011110000" />
-          <ReadOnlyField label="등록 번호" value="12345-2026-00123" />
-          <ReadOnlyField label="소속공인중개사" value="청춘홈즈공인중개사" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ReadOnlyField({
-  label,
-  value,
-  className,
-  hideLabel = false,
-}: {
-  label: string
-  value?: string | number | null
-  className?: string
-  hideLabel?: boolean
-}) {
-  return (
-    <label className={className}>
-      {!hideLabel && <span className="mb-1 block text-xs font-semibold text-slate-500">{label}</span>}
-      <Input
-        aria-label={hideLabel ? label : undefined}
-        readOnly
-        value={value === null || value === undefined || value === "" ? "" : String(value)}
-        className="bg-slate-100"
-      />
-    </label>
-  )
-}
-
-function BlankField({
-  label,
-  type = "text",
-  placeholder,
-  suffix,
-  className,
-  hideLabel = false,
-  value,
-  onChange,
-}: {
-  label: string
-  type?: string
-  placeholder?: string
-  suffix?: string
-  className?: string
-  hideLabel?: boolean
-  value?: string
-  onChange?: (event: ChangeEvent<HTMLInputElement>) => void
-}) {
-  return (
-    <label className={className}>
-      {!hideLabel && <span className="mb-1 block text-xs font-semibold text-slate-500">{label}</span>}
-      <div className="flex items-center gap-2">
-        <Input
-          aria-label={hideLabel ? label : undefined}
-          type={type}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          className="bg-white"
-        />
-        {suffix && <span className="shrink-0 text-xs font-semibold text-slate-500">{suffix}</span>}
-      </div>
-    </label>
-  )
-}
-
-function formatDate(value?: string | null) {
-  if (!value) {
-    return ""
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return date.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-}
-
-function formatArea(value?: number | null) {
-  if (value === null || value === undefined) {
-    return ""
-  }
-
-  return `${value}㎡`
-}
-
-function calculateMonthCount(startValue?: string | null, endValue?: string | null) {
-  if (!startValue || !endValue) {
-    return ""
-  }
-
-  const startDate = new Date(startValue)
-  const endDate = new Date(endValue)
-
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
-    return ""
-  }
-
-  const monthCount =
-    (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-    endDate.getMonth() -
-    startDate.getMonth()
-
-  return String(endDate.getDate() < startDate.getDate() ? monthCount - 1 : monthCount)
-}
-
-function getDefaultLeaseEndDate(startValue?: string | null) {
-  if (!startValue) {
-    return ""
-  }
-
-  const startDate = new Date(startValue)
-
-  if (Number.isNaN(startDate.getTime())) {
-    return ""
-  }
-
-  const endDate = new Date(startDate)
-  endDate.setMonth(endDate.getMonth() + 24)
-
-  const year = endDate.getFullYear()
-  const month = String(endDate.getMonth() + 1).padStart(2, "0")
-  const day = String(endDate.getDate()).padStart(2, "0")
-
-  return `${year}-${month}-${day}`
-}
-
-function formatWonInput(value: string) {
-  const digits = value
-    .replace(/[^\d]/g, "")
-    .replace(/^0+(?=\d)/, "")
-    .slice(0, maxWonDigitLength)
-
-  if (!digits) {
-    return ""
-  }
-
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-}
-
-function formatKoreanWon(value: string) {
-  const digits = value
-    .replace(/[^\d]/g, "")
-    .replace(/^0+(?=\d)/, "")
-    .slice(0, maxWonDigitLength)
-
-  if (!digits) {
-    return ""
-  }
-
-  return `${toKoreanNumber(digits)}원`
-}
-
-function toKoreanNumber(digits: string) {
-  const digitLabels = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
-  const unitLabels = ["", "십", "백", "천"]
-  const groupLabels = ["", "만", "억", "조", "경"]
-  const groups: string[] = []
-
-  for (let end = digits.length; end > 0; end -= 4) {
-    groups.unshift(digits.slice(Math.max(0, end - 4), end))
-  }
-
-  return groups
-    .map((group, groupIndex) => {
-      const groupNumber = Number(group)
-
-      if (groupNumber === 0) {
-        return ""
-      }
-
-      const groupText = group
-        .padStart(4, "0")
-        .split("")
-        .map((digit, digitIndex) => {
-          const digitNumber = Number(digit)
-
-          if (digitNumber === 0) {
-            return ""
-          }
-
-          return `${digitLabels[digitNumber]}${unitLabels[3 - digitIndex]}`
-        })
-        .join("")
-
-      return `${groupText}${groupLabels[groups.length - groupIndex - 1]}`
-    })
-    .filter(Boolean)
-    .join(" ")
 }
 
 function getApiErrorCode(error: unknown) {
