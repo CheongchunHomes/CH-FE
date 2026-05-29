@@ -23,6 +23,10 @@ export default function BannerModal() {
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
+    const closedToday = sessionStorage.getItem("bannerClosedDate")
+    const today = new Date().toDateString()
+    if (closedToday === today) return
+
     get<BannerDto[]>("/api/banners", { cache: "no-store" })
       .then((data) => {
         if (data && data.length > 0) {
@@ -33,16 +37,26 @@ export default function BannerModal() {
       .catch(() => {})
   }, [])
 
+  const [hideToday, setHideToday] = useState(false)
+
+  const handleClose = () => {
+    if (hideToday) {
+      sessionStorage.setItem("bannerClosedDate", new Date().toDateString())
+    }
+    setIsOpen(false)
+  }
+
   if (!isOpen || banners.length === 0) return null
 
   const current = banners[currentIndex]
   const hasMultiple = banners.length > 1
 
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: "rgba(15,23,42,0.45)" }}
-      onClick={() => setIsOpen(false)}
+      onClick={() => handleClose()}
     >
       <div
         className="w-full max-w-sm overflow-hidden rounded-2xl bg-white"
@@ -56,7 +70,7 @@ export default function BannerModal() {
             <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug">{current.title}</h2>
           </div>
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={() => handleClose()}
             className="ml-4 mt-0.5 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X size={16} />
@@ -97,7 +111,16 @@ export default function BannerModal() {
         )}
 
         {/* 하단 버튼 */}
-        <div className="flex justify-end px-6 pb-5 pt-2">
+        <div className="flex items-center justify-between px-6 pb-5 pt-2">
+          <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hideToday}
+              onChange={(e) => setHideToday(e.target.checked)}
+              className="accent-blue-600"
+            />
+            오늘 그만보기
+          </label>
           {current.linkUrl ? (
 
             <a href={current.linkUrl}
@@ -107,14 +130,14 @@ export default function BannerModal() {
             </a>
             ) : (
             <button
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
-        >
-          확인
-        </button>
-        )}
+            >
+              확인
+            </button>
+          )}
+        </div>
       </div>
     </div>
-</div>
-)
+  )
 }
