@@ -11,3 +11,7 @@ export {
   uploadPrivateFile,
 } from "@/lib/api/files"
 export type { FileContentType, FileSignedUrlResponse, FileUploadUrlRequest, FileUploadUrlResponse } from "@/lib/api/files"
+export { createLoanApplication } from "@/lib/api/loan-applications"
+export type { LoanApplicationCreateRequest, LoanApplicationResponse } from "@/lib/api/loan-applications"
+export { getUnreadAlarmNotifications, markAlarmNotificationAsRead } from "@/lib/alarm-notifications-api"
+export type { AlarmNotification } from "@/lib/alarm-notifications-api"
