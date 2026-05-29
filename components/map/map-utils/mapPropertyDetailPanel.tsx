@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MapListing } from "@/lib/map/map-types";
+import { resolveMapImageUrl } from "@/lib/map/map-image";
 import { createSign } from "@/lib/sign-api";
 
 type MapPropertyDetailPanelProps = {
@@ -40,6 +41,7 @@ export default function MapPropertyDetailPanel({
   const securityFacilities = Array.isArray(listing.securityFacilities)
     ? listing.securityFacilities
     : [];
+  const thumbnailUrl = resolveMapImageUrl(listing.thumbnailUrl);
 
   const handleConfirmContractRequest = async () => {
     try {
@@ -91,9 +93,9 @@ export default function MapPropertyDetailPanel({
 
         {/* 대표 이미지 영역입니다. */}
         <div className="h-64 bg-slate-200">
-          {listing.thumbnailUrl ? (
+          {thumbnailUrl ? (
             <img
-              src={listing.thumbnailUrl}
+              src={thumbnailUrl}
               alt={listing.title}
               className="h-full w-full object-cover"
             />

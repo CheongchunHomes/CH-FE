@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { get, request, ApiError } from '@/lib/api';
 
 interface CommunityPost {
   postId: number;
@@ -19,9 +20,11 @@ interface CommunityPost {
 
 export default function CommunityEditPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
 
   const postId = Number(params.id);
+  const isAdminMode = searchParams.get('admin') === '1';
 
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [title, setTitle] = useState('');
@@ -32,29 +35,27 @@ export default function CommunityEditPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || Number.isNaN(postId)) return;
 
     const fetchPost = async () => {
       try {
         setLoading(true);
 
-        const response = await fetch(`/api/community/${postId}`, {
-          method: 'GET',
-          credentials: 'include',
+        const data = await get<CommunityPost>(`/api/community/${postId}`, {
+          cache: 'no-store',
         });
-
-        if (!response.ok) {
-          throw new Error('게시글을 불러오지 못했습니다.');
-        }
-
-        const data: CommunityPost = await response.json();
 
         setPost(data);
         setTitle(data.title ?? '');
         setRegion(data.region ?? '');
         setContent(data.content ?? '');
       } catch (error) {
-        console.error(error);
+        if (error instanceof ApiError) {
+          console.error('게시글 조회 실패:', error.message);
+        } else {
+          console.error(error);
+        }
+
         alert('게시글을 불러오지 못했습니다.');
         router.push('/site/community');
       } finally {
@@ -83,30 +84,30 @@ export default function CommunityEditPage() {
       return;
     }
 
+    const apiPath = isAdminMode
+      ? `/api/community/admin/${postId}`
+      : `/api/community/${postId}`;
+
     try {
       setSaving(true);
 
-      const response = await fetch(`/api/community/${postId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          region,
-          content,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('게시글 수정에 실패했습니다.');
-      }
+    await request('PUT', apiPath, {
+     body: {
+      title,
+      region,
+      content,
+    },
+  });
 
       alert('게시글이 수정되었습니다.');
-      router.push(`/site/community/${postId}`);
+      router.push(isAdminMode ? '/site/community?admin=1' : `/site/community/${postId}`);
     } catch (error) {
-      console.error(error);
+      if (error instanceof ApiError) {
+        console.error('게시글 수정 실패:', error.message);
+      } else {
+        console.error(error);
+      }
+
       alert('게시글 수정에 실패했습니다.');
     } finally {
       setSaving(false);
@@ -143,16 +144,18 @@ export default function CommunityEditPage() {
           type="button"
           variant="ghost"
           className="gap-2"
-          onClick={() => router.back()}
+          onClick={() => router.push(isAdminMode ? '/site/community?admin=1' : `/site/community/${postId}`)}
         >
           <ArrowLeft size={18} />
-          뒤로가기
+          {isAdminMode ? '관리 목록으로' : '뒤로가기'}
         </Button>
       </div>
 
       <section className="rounded-2xl border bg-white p-8 shadow-sm">
         <div className="mb-8">
-          <p className="text-sm font-medium text-blue-600">동네별 커뮤니티</p>
+          <p className="text-sm font-medium text-blue-600">
+            {isAdminMode ? '관리자 커뮤니티 관리' : '동네별 커뮤니티'}
+          </p>
           <h1 className="mt-2 text-2xl font-bold text-gray-900">게시글 수정</h1>
           <p className="mt-2 text-sm text-gray-500">
             제목, 지역, 내용을 수정한 뒤 저장해주세요.
@@ -198,7 +201,7 @@ export default function CommunityEditPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push(`/site/community/${postId}`)}
+              onClick={() => router.push(isAdminMode ? '/site/community?admin=1' : `/site/community/${postId}`)}
             >
               취소
             </Button>
