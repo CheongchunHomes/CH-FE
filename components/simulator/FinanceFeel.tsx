@@ -1,116 +1,50 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Slider } from "@/components/ui/slider"
+import { useRouter }  from "next/navigation"
+import { Slider }     from "@/components/ui/slider"
 import { ChevronDown, ChevronUp, TrendingUp, CreditCard } from "lucide-react"
-import { get } from "@/lib/api"
+import { get }        from "@/lib/api"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
+  Pagination, PaginationContent, PaginationItem,
+  PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination"
-
+import {
+  calcSchedule, calcInterestOnly, calcDsr,
+  formatCurrency, formatWon,
+  RepayRow, FinanceSnapshot,
+} from "@/lib/simulatorUtils"
 
 // 대출 상품 타입 (대출파트 LoanProduct 엔티티 기준)
 interface LoanProduct {
-  loanId: number
-  name: string
-  provider: string
-  loanType: string
-  interestRate: number | null
+  loanId:         number
+  name:           string
+  provider:       string
+  loanType:       string
+  interestRate:    number | null
   interestRateMin: number | null
-  maxAmount: number | null
-  incomeLimit: number | null
-  conditions: string | null
-  policyLoan: boolean
-  visible: boolean
+  maxAmount:       number | null
+  incomeLimit:     number | null
+  conditions:      string | null
+  policyLoan:      boolean
+  visible:         boolean
 }
 
-// DSR 구간별 캐릭터
 const DSR_LEVELS = [
-  {
-    max: 20,
-    img: "/images/simulator/finance/relaxed.png",
-    label: "여유로워요",
-    sub: "대출 부담이 적어요. 추가 저축 여력이 있어요.",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-100",
-  },
-  {
-    max: 40,
-    img: "/images/simulator/finance/normal.png",
-    label: "감당 가능해요",
-    sub: "적정 수준이에요. 지출 관리가 필요해요.",
-    color: "text-yellow-600",
-    bg: "bg-yellow-50",
-    border: "border-yellow-100",
-  },
-  {
-    max: 60,
-    img: "/images/simulator/finance/stressed.png",
-    label: "조금 버거워요",
-    sub: "DSR 40% 초과예요. 대출 축소를 고려해봐요.",
-    color: "text-orange-500",
-    bg: "bg-orange-50",
-    border: "border-orange-100",
-  },
-  {
-    max: Infinity,
-    img: "/images/simulator/finance/crushed.png",
-    label: "위험 수준이에요",
-    sub: "DSR 60% 초과. 금융기관 대출이 어려울 수 있어요.",
-    color: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-100",
-  },
+  { max: 10,       label: "완전 여유",  color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100",   img: "/images/simulator/finance/relaxed.png",  sub: "오늘 먹고 싶은 거 그냥 시켜도 되는 달이에요."                     },
+  { max: 20,       label: "여유",       color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100",   img: "/images/simulator/finance/relaxed.png",  sub: "월급날보다 대출 갚는 날이 더 신나는 삶이에요."                     },
+  { max: 30,       label: "적정",       color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-100", img: "/images/simulator/finance/normal.png",   sub: "친구 생일 선물, 고민은 하지만 챙길 수는 있어요."                   },
+  { max: 40,       label: "살짝 빠듯",  color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-100", img: "/images/simulator/finance/normal.png",   sub: "배달비 3,000원이 아깝기 시작하는 금액이에요."                      },
+  { max: 50,       label: "빠듯",       color: "text-orange-500", bg: "bg-orange-50", border: "border-orange-100", img: "/images/simulator/finance/stressed.png", sub: "이번 달 생일인 친구가 3명이 넘지 않길 바라야 해요."                 },
+  { max: 60,       label: "꽤 버거움",  color: "text-orange-500", bg: "bg-orange-50", border: "border-orange-100", img: "/images/simulator/finance/stressed.png", sub: "점심 메뉴 고를 때 가격을 먼저 보게 되는 달이에요."                  },
+  { max: 70,       label: "버거움",     color: "text-orange-500", bg: "bg-orange-50", border: "border-orange-100", img: "/images/simulator/finance/stressed.png", sub: "퇴근길에 편의점 들르는 게 사치처럼 느껴져요."                      },
+  { max: 80,       label: "위험 신호",  color: "text-red-500",    bg: "bg-red-50",    border: "border-red-100",    img: "/images/simulator/finance/crushed.png",  sub: "카드값 문자가 오면 일단 숨부터 참게 돼요."                         },
+  { max: 90,       label: "위험",       color: "text-red-500",    bg: "bg-red-50",    border: "border-red-100",    img: "/images/simulator/finance/crushed.png",  sub: "내일은 어떻게 버티지, 일에도 집중이 안 되는 달이에요."              },
+  { max: 100,      label: "매우 위험",  color: "text-red-500",    bg: "bg-red-50",    border: "border-red-100",    img: "/images/simulator/finance/crushed.png",  sub: "월급은 통장을 스쳐가고, 하루하루 시들어가는 느낌이에요."            },
+  { max: 120,      label: "심각",       color: "text-red-500",    bg: "bg-red-50",    border: "border-red-100",    img: "/images/simulator/finance/crushed.png",  sub: "버는 족족 나가고, 남는 게 없어요. 지금 구조를 바꿔야 해요."         },
+  { max: Infinity, label: "불가능",     color: "text-red-500",    bg: "bg-red-50",    border: "border-red-100",    img: "/images/simulator/finance/crushed.png",  sub: "지금 이 대출은 삶을 갉아먹고 있어요. 당장 줄여야 해요."             },
 ]
-
-// 상환 스케줄 계산 (원리금균등)
-function calcSchedule(principal: number, annualRate: number, months: number) {
-  if (!principal || !annualRate || !months) return []
-  const r = annualRate / 100 / 12
-  const monthly = r === 0
-    ? principal / months
-    : (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
-
-  const rows = []
-  let balance = principal
-  for (let i = 1; i <= months; i++) {
-    const interest = balance * r
-    const repayment = Math.round(monthly - interest)
-    const payment = Math.round(monthly)
-    balance = Math.max(balance - repayment, 0)
-    rows.push({ seq: i, repayment, interest: Math.round(interest), payment, balance: Math.round(balance) })
-  }
-  return rows
-}
-
-// 이자만 상환 월납입
-function calcInterestOnly(principal: number, annualRate: number) {
-  return Math.round((principal * (annualRate / 100)) / 12)
-}
-
-function fmt(value: number): string {
-  if (!value) return "0원"
-  const eok = Math.floor(value / 100000000)
-  const man = Math.floor((value % 100000000) / 10000)
-  const cheon = Math.floor((value % 10000) / 1000)
-  let result = ""
-  if (eok > 0) result += `${eok}억 `
-  if (man > 0) result += `${man}만 `
-  if (cheon > 0) result += `${cheon}천`
-  return (result.trim() || "0") + "원"
-}
-
-function fmtNum(n: number) {
-  return n.toLocaleString() + "원"
-}
 
 // DSR 설명 아코디언
 function DsrInfo() {
@@ -122,19 +56,14 @@ function DsrInfo() {
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium text-blue-600">DSR이란?</span>
-          <span className="text-[10px] text-gray-400">총부채원리금상환비율</span>
+          <span className="text-xs font-bold text-blue-600">DSR이란?</span>
+          <span className="text-[10px] font-semibold text-gray-400">총부채원리금상환비율</span>
         </div>
-        {open
-          ? <ChevronUp size={14} className="text-gray-400" />
-          : <ChevronDown size={14} className="text-gray-400" />
-        }
+        {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
       </button>
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
-          <p className="text-xs text-gray-600 leading-relaxed">
-            월 소득 중 모든 대출 상환액이 차지하는 비율이에요.
-          </p>
+          <p className="text-xs text-gray-600 leading-relaxed">월 소득 중 모든 대출 상환액이 차지하는 비율이에요.</p>
           <div className="bg-gray-50 rounded-xl px-4 py-3">
             <p className="text-xs font-medium text-gray-700 mb-1">예시</p>
             <p className="text-xs text-gray-500">
@@ -143,10 +72,10 @@ function DsrInfo() {
           </div>
           <div className="space-y-1.5">
             {[
-              { range: "20% 이하",  label: "여유로운 수준",           color: "text-blue-600",   bg: "bg-blue-50" },
-              { range: "20~40%",    label: "적정 수준 (금융기관 권장)", color: "text-yellow-600", bg: "bg-yellow-50" },
-              { range: "40% 초과",  label: "대출 심사 제한",           color: "text-orange-500", bg: "bg-orange-50" },
-              { range: "60% 초과",  label: "대부분 대출 불가",          color: "text-red-500",    bg: "bg-red-50" },
+              { range: "20% 이하", label: "여유로운 수준",            color: "text-blue-600",   bg: "bg-blue-50"   },
+              { range: "20~40%",   label: "적정 수준 (금융기관 권장)", color: "text-yellow-600", bg: "bg-yellow-50" },
+              { range: "40% 초과", label: "대출 심사 제한",            color: "text-orange-500", bg: "bg-orange-50" },
+              { range: "60% 초과", label: "대부분 대출 불가",          color: "text-red-500",    bg: "bg-red-50"    },
             ].map((item) => (
               <div key={item.range} className={`flex items-center justify-between px-3 py-2 rounded-lg ${item.bg}`}>
                 <span className="text-xs font-bold text-gray-700">DSR {item.range}</span>
@@ -160,12 +89,12 @@ function DsrInfo() {
   )
 }
 
-// 상환 스케줄 테이블 컴포넌트
-function ScheduleTable({ rows }: { rows: ReturnType<typeof calcSchedule> }) {
-  const PAGE_SIZE = 12
+// 상환 스케줄 테이블
+function ScheduleTable({ rows }: { rows: RepayRow[] }) {
+  const PAGE_SIZE  = 12
   const [page, setPage] = useState(0)
   const totalPages = Math.ceil(rows.length / PAGE_SIZE)
-  const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const pageRows   = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   return (
     <div className="space-y-2">
@@ -189,17 +118,15 @@ function ScheduleTable({ rows }: { rows: ReturnType<typeof calcSchedule> }) {
           {pageRows.map((row, i) => (
             <tr key={row.seq} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
               <td className="py-2 px-3 text-gray-500">{row.seq}회</td>
-              <td className="py-2 px-3 text-right text-gray-700">{fmtNum(row.repayment)}</td>
-              <td className="py-2 px-3 text-right text-red-400">{fmtNum(row.interest)}</td>
-              <td className="py-2 px-3 text-right font-medium text-gray-900">{fmtNum(row.payment)}</td>
-              <td className="py-2 px-3 text-right text-gray-500">{fmtNum(row.balance)}</td>
+              <td className="py-2 px-3 text-right text-gray-700">{formatWon(row.repayment)}</td>
+              <td className="py-2 px-3 text-right text-red-400">{formatWon(row.interest)}</td>
+              <td className="py-2 px-3 text-right font-medium text-gray-900">{formatWon(row.payment)}</td>
+              <td className="py-2 px-3 text-right text-gray-500">{formatWon(row.balance)}</td>
             </tr>
           ))}
           </tbody>
         </table>
       </div>
-
-      {/* shadcn Pagination */}
       {totalPages > 1 && (
         <Pagination>
           <PaginationContent>
@@ -213,11 +140,7 @@ function ScheduleTable({ rows }: { rows: ReturnType<typeof calcSchedule> }) {
             </PaginationItem>
             {Array.from({ length: totalPages }).map((_, i) => (
               <PaginationItem key={i}>
-                <PaginationLink
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); setPage(i) }}
-                  isActive={page === i}
-                >
+                <PaginationLink href="#" onClick={(e) => { e.preventDefault(); setPage(i) }} isActive={page === i}>
                   {i + 1}
                 </PaginationLink>
               </PaginationItem>
@@ -238,29 +161,24 @@ function ScheduleTable({ rows }: { rows: ReturnType<typeof calcSchedule> }) {
 }
 
 // 추천 대출 상품 아코디언 아이템
-function LoanAccordionItem({ loan, monthlyIncome }: {
-  loan: LoanProduct
-  monthlyIncome: number
-}) {
-  const [open, setOpen] = useState(false)
-  const [method, setMethod] = useState<"equal" | "interest">("interest")  // 이게 빠진 거야
+function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthlyIncome: number }) {
+  const [open,   setOpen]   = useState(false)
+  const [method, setMethod] = useState<"equal" | "interest">("equal")
   const [months, setMonths] = useState(24)
-  const rate = Number(loan.interestRate) || 0
+
+  // [FIX] null 방어: interestRate → interestRateMin → 기본값 3.5% 순 fallback
+  const rate    = loan.interestRate ?? loan.interestRateMin ?? 3.5
   const balance = loan.maxAmount ?? 0
 
-  const schedule = method === "equal" ? calcSchedule(balance, rate, months) : []
-  const monthlyPayment = method === "equal"
-    ? (schedule[0]?.payment ?? 0)
-    : calcInterestOnly(balance, rate)
-  const totalInterest = method === "equal"
+  const schedule       = method === "equal" ? calcSchedule(balance, rate, months) : []
+  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(balance, rate)
+  const totalInterest  = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
     : calcInterestOnly(balance, rate) * months
-  const dsrContrib = monthlyIncome > 0 ? Math.round((monthlyPayment / monthlyIncome) * 100) : 0
+  const dsrContrib = calcDsr(monthlyPayment, monthlyIncome)
 
-  {/* ── 추천 대출 상품 ── */}
   return (
     <div className="border border-gray-100 rounded-2xl overflow-hidden">
-      {/* 헤더 */}
       <div
         className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setOpen(!open)}
@@ -270,37 +188,29 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
           <div>
             <p className="text-sm font-bold text-gray-900">{loan.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              최대 {fmt(loan.maxAmount ?? 0)} · 연 {loan.interestRateMin ?? loan.interestRate}~{loan.interestRate}%
+              최대 {formatWon(loan.maxAmount ?? 0)} · 연 {loan.interestRateMin ?? loan.interestRate}~{loan.interestRate}%
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <p className="text-sm font-bold text-blue-600">{fmtNum(monthlyPayment)}</p>
+            <p className="text-sm font-bold text-blue-600">{formatWon(monthlyPayment)}</p>
             <p className="text-[10px] text-gray-400">월 납입</p>
           </div>
           {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
         </div>
       </div>
 
-      {/* 상세 */}
       {open && (
         <div className="px-5 pb-5 pt-0 border-t border-gray-100 space-y-4">
-
-          {/* 상환 방식 + 기간 — 세그먼트 탭 */}
           <div className="space-y-3 pt-4">
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">상환 방식</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {(["interest", "equal"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMethod(m)}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                    }`}
-                  >
-                    {m === "interest" ? "원금거치상환" : "원리금균등상환"}
+                {(["equal", "interest"] as const).map((m) => (
+                  <button key={m} onClick={() => setMethod(m)}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+                    {m === "equal" ? "원리금균등상환" : "원금거치상환"}
                   </button>
                 ))}
               </div>
@@ -309,13 +219,8 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
               <p className="text-xs text-gray-500">상환 기간</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 {[12, 24, 36, 60, 120].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMonths(m)}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      months === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                    }`}
-                  >
+                  <button key={m} onClick={() => setMonths(m)}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${months === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
                     {m}개월
                   </button>
                 ))}
@@ -323,36 +228,43 @@ function LoanAccordionItem({ loan, monthlyIncome }: {
             </div>
           </div>
 
-          {/* 요약 */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-0">
-            {/*<div className="flex justify-between items-center py-1.5 border-b border-gray-100">*/}
-            {/*  <p className="text-xs text-gray-500">총 이자</p>*/}
-            {/*  <p className="text-sm font-bold text-red-500">{fmtNum(totalInterest)}</p>*/}
-            {/*</div>*/}
-            <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-              <p className="text-xs text-gray-500">연 이자</p>
-              <p className="text-sm font-bold text-red-500">{fmtNum(Math.round(totalInterest / (months / 12)))}</p>
+            {/* 대출금액 — 기준점 */}
+            <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+              <p className="text-xs font-bold text-gray-400">대출금액</p>
+              <p className="text-sm font-bold text-gray-900">{formatWon(balance)}</p>
             </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-              <p className="text-xs text-gray-500">월 납입액</p>
-              <p className="text-sm font-bold text-gray-900">{fmtNum(monthlyPayment)}</p>
-            </div>
-            <div className="flex justify-between items-center py-1.5">
-              <p className="text-xs text-gray-500">매일로 나누면</p>
-              <p className="text-sm font-bold text-gray-900">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
-            </div>
-          </div>
-
-          {/* 일상 환산 + DSR 기여도 */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex justify-between items-center">
-            <p className="text-xs text-blue-600">매일로 나누면</p>
-            <p className="text-xs font-bold text-blue-600">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
+            {method === "equal" ? (
+              <>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                  <p className="text-xs font-bold text-gray-400">월 납입액</p>
+                  <p className="text-sm font-bold text-red-500">{formatWon(monthlyPayment)}</p>
+                </div>
+                <div className="flex justify-between items-center py-1.5">
+                  <p className="text-xs font-bold text-gray-400">총 이자</p>
+                  <p className="text-sm font-bold text-gray-400">{formatWon(totalInterest)}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                  <p className="text-sm font-bold text-gray-400">월 납입액 (이자만)</p>
+                  <p className="text-sm font-bold text-red-500">{formatWon(monthlyPayment)}</p>
+                </div>
+                <div className="flex justify-between items-center py-1.5">
+                  <p className="text-xs font-bold text-gray-400">연 이자</p>
+                  <p className="text-sm font-medium text-gray-400">{formatWon(Math.round(totalInterest / (months / 12)))}</p>
+                </div>
+              </>
+            )}
             {monthlyIncome > 0 && (
-              <p className="text-xs font-medium text-blue-500">DSR 기여 {dsrContrib}%</p>
+              <div className="flex justify-between items-center py-1.5 border-t border-gray-100 mt-1">
+                <p className="text-xs font-bold text-gray-400">DSR 기여</p>
+                <p className="text-xs font-bold text-blue-500">{dsrContrib}%</p>
+              </div>
             )}
           </div>
 
-          {/* 상환 스케줄 */}
           {method === "equal" && schedule.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-500">상환 스케줄</p>
@@ -372,82 +284,57 @@ interface FinanceFeelProps {
 export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const router = useRouter()
 
-  // 연봉 → 월소득 자동입력
+  // [FIX] 단위 버그 수정: annualIncome은 원 단위(DB 기준) → /12로 월소득(원) 변환
+  // 기존: Math.round(annualIncome / 12) * 10000 → 연봉 3600만원이 300억으로 계산되던 버그
   const defaultMonthlyIncome = userProfile?.annualIncome
-    ? Math.round(userProfile.annualIncome / 12) * 10000  // 만원 단위 → 원 단위
-    : 3000000  // 기본값 300만원 (원 단위)
+    ? Math.round(userProfile.annualIncome / 12)
+    : 3_000_000
 
-// sessionStorage에서 이전 값 복원
   const savedFinance = (() => {
-    try { return JSON.parse(sessionStorage.getItem("financeSnapshot") ?? "null") } catch { return null }
+    try { return JSON.parse(sessionStorage.getItem("financeSnapshot") ?? "null") as FinanceSnapshot | null }
+    catch { return null }
   })()
 
-// DSR 시뮬레이터 state
-  const [loanAmount, setLoanAmount]       = useState(savedFinance?.loanAmount   ?? 120000000)
-  const [annualRate, setAnnualRate]       = useState(savedFinance?.annualRate    ?? 3.5)
-  const [monthlyIncome, setMonthlyIncome] = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome)
-  const [repayMonths, setRepayMonths]     = useState(savedFinance?.repayMonths   ?? 60)
+  const [loanAmount,     setLoanAmount]     = useState(savedFinance?.loanAmount    ?? 120_000_000)
+  const [annualRate,     setAnnualRate]     = useState(savedFinance?.annualRate    ?? 3.5)
+  const [monthlyIncome,  setMonthlyIncome]  = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome)
+  const [repayMonths,    setRepayMonths]    = useState(savedFinance?.repayMonths   ?? 60)
   const [method, setMethod] = useState<"equal" | "interest">(
     savedFinance?.method === "equal" || savedFinance?.method === "interest"
-      ? savedFinance.method
-      : "interest"
+      ? savedFinance.method : "equal"
   )
+  const [loans,        setLoans]       = useState<LoanProduct[]>([])
+  const [loanLoading,  setLoanLoading] = useState(true)
+  const [showDetail,   setShowDetail]  = useState(false)  // 요약 카드 상세보기 토글
 
-// 추천 대출 상품 state
-  const [loans, setLoans] = useState<LoanProduct[]>([])
-  const [loanLoading, setLoanLoading] = useState(true)
-
-  // 계산
-  const schedule = method === "equal"
-    ? calcSchedule(loanAmount, annualRate, repayMonths)
-    : []
-  const monthlyPayment = method === "equal"
-    ? (schedule[0]?.payment ?? 0)
-    : calcInterestOnly(loanAmount, annualRate)
-  const dsr = monthlyIncome > 0 ? Math.round((monthlyPayment / monthlyIncome) * 100) : 0
-
-  const dsrLevel = DSR_LEVELS.find((l) => dsr < l.max) ?? DSR_LEVELS[DSR_LEVELS.length - 1]
-  const totalInterest = method === "equal"
+  // 슬라이더 실시간 계산 — 프론트 유지 (API 이관 불필요)
+  const schedule       = method === "equal" ? calcSchedule(loanAmount, annualRate, repayMonths) : []
+  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(loanAmount, annualRate)
+  const dsr            = calcDsr(monthlyPayment, monthlyIncome)
+  const dsrLevel       = DSR_LEVELS.find((l) => dsr < l.max) ?? DSR_LEVELS[DSR_LEVELS.length - 1]
+  const totalInterest  = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
     : calcInterestOnly(loanAmount, annualRate) * repayMonths
 
-  // financeSnapshot → sessionStorage 저장 (탭4 AI 프롬프트용)
+  // financeSnapshot → sessionStorage (탭4 AI 프롬프트용)
   useEffect(() => {
-    const snapshot = {
-      loanAmount,
-      annualRate,
-      monthlyIncome,
-      repayMonths,
-      method,
-      monthlyPayment,
-      dsr,
-      dsrLabel: dsrLevel.label,
-      totalInterest,
+    const snapshot: FinanceSnapshot = {
+      loanAmount, annualRate, monthlyIncome, repayMonths, method,
+      monthlyPayment, dsr, dsrLabel: dsrLevel.label, totalInterest,
     }
     sessionStorage.setItem("financeSnapshot", JSON.stringify(snapshot))
   }, [loanAmount, annualRate, monthlyIncome, repayMonths, method,
     monthlyPayment, dsr, dsrLevel.label, totalInterest])
 
-// 추천 대출 상품 조회
   useEffect(() => {
     get<LoanProduct[]>("/api/loan-products")
       .then((data) => setLoans(
         data.filter((loan) => {
-          // 1. 소득 기준
-          const incomeOk = loan.incomeLimit == null ||
-            (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
-
-          // 2. 신혼부부 전용 제외 (미혼이면)
-          const marriageOk = userProfile?.married ||
-            !loan.name.includes("신혼부부")
-
-          // 3. 신생아 특례 제외 (영유아 자녀 없으면)
-          const childOk = userProfile?.hasYoungChild ||
-            !loan.name.includes("신생아")
-
+          const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
+          const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
+          const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
           return incomeOk && marriageOk && childOk
-        })
-          .slice(0, 5)
+        }).slice(0, 5)
       ))
       .catch(() => setLoans([]))
       .finally(() => setLoanLoading(false))
@@ -464,60 +351,43 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
         </div>
         <p className="text-xs text-gray-500 mb-3">대출 조건을 조정해서 내 상환 부담을 체감해봐요</p>
 
-        {/* DSR 설명 아코디언 */}
         <DsrInfo />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
           {/* 좌: 입력 */}
           <div className="space-y-5">
 
-            {/* 대출금액 */}
             <div className="space-y-2">
               <div className="flex justify-between">
                 <p className="text-xs text-gray-500">대출금액</p>
-                <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+                <p className="text-sm font-bold text-gray-900">{formatCurrency(loanAmount)}</p>
               </div>
-              <Slider
-                min={10000000}
-                max={500000000}
-                step={5000000}
-                value={[loanAmount]}
-                onValueChange={([v]) => setLoanAmount(v)}
-              />
+              <Slider min={10_000_000} max={500_000_000} step={5_000_000} value={[loanAmount]} onValueChange={([v]) => setLoanAmount(v)} />
               <div className="flex justify-between">
                 <span className="text-[10px] text-gray-400">1,000만원</span>
                 <span className="text-[10px] text-gray-400">5억원</span>
               </div>
             </div>
 
-            {/* 금리 */}
             <div className="space-y-2">
               <div className="flex justify-between">
                 <p className="text-xs text-gray-500">연 금리</p>
                 <p className="text-sm font-bold text-gray-900">{annualRate}%</p>
               </div>
-              <Slider
-                min={1}
-                max={10}
-                step={0.1}
-                value={[annualRate]}
-                onValueChange={([v]) => setAnnualRate(Math.round(v * 10) / 10)}
-              />
+              <Slider min={1} max={10} step={0.1} value={[annualRate]} onValueChange={([v]) => setAnnualRate(Math.round(v * 10) / 10)} />
               <div className="flex justify-between">
                 <span className="text-[10px] text-gray-400">1%</span>
                 <span className="text-[10px] text-gray-400">10%</span>
               </div>
             </div>
 
-            {/* 월소득 */}
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">월 소득</p>
               <div className="relative">
                 <input
                   type="number"
                   value={monthlyIncome === 0 ? "" : Math.round(monthlyIncome / 10000)}
-                  onChange={(e) => setMonthlyIncome((Number(e.target.value) || 0) * 10000)}
+                  onChange={(e) => setMonthlyIncome(Math.max(0, (Number(e.target.value) || 0) * 10000))}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
@@ -529,92 +399,98 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               </p>
             </div>
 
-            {/* 상환 방식 */}
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">상환 방식</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {(["interest", "equal"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMethod(m)}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                    }`}
-                  >
-                    {m === "interest" ? "원금거치상환" : "원리금균등상환"}
+                {(["equal", "interest"] as const).map((m) => (
+                  <button key={m} onClick={() => setMethod(m)}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${method === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+                    {m === "equal" ? "원리금균등상환" : "원금거치상환"}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* 상환 기간 */}
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500">상환 기간</p>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 {[12, 24, 36, 60, 120].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setRepayMonths(m)}
-                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      repayMonths === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
-                    }`}
-                  >
+                  <button key={m} onClick={() => setRepayMonths(m)}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${repayMonths === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
                     {m}개월
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* 요약 */}
             <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-0">
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-                <p className="text-xs text-gray-500">대출금액</p>
-                <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+              {/* 대출금액 — 기준점 */}
+              <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                <p className="text-xs font-bold text-gray-400">대출금액</p>
+                <p className="text-sm font-bold text-gray-900">{formatWon(loanAmount)}</p>
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-                <p className="text-xs text-gray-500">연 이자</p>
-                <p className="text-sm font-bold text-red-500">{fmtNum(Math.round(totalInterest / (repayMonths / 12)))}</p>
-              </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-                <p className="text-xs text-gray-500">월 납입액</p>
-                <p className="text-sm font-bold text-gray-900">{fmtNum(monthlyPayment)}</p>
-              </div>
+
+              {/* 월 납입액 — 핵심 */}
               <div className="flex justify-between items-center py-1.5">
-                <p className="text-xs text-gray-500">매일로 나누면</p>
-                <p className="text-sm font-bold text-gray-900">{fmtNum(Math.round(monthlyPayment / 30))}/일</p>
+                <p className="text-xs font-bold text-gray-400">{method === "equal" ? "월 납입액" : "월 납입액 (이자만)"}</p>
+                <p className="text-sm font-bold text-red-500">{formatWon(monthlyPayment)}</p>
               </div>
+
+              {/* 상세보기 토글 */}
+              <button
+                onClick={() => setShowDetail(!showDetail)}
+                className="w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-bold text-gray-400 hover:text-gray-600 transition-colors border-t border-gray-100"
+              >
+                {showDetail ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                {showDetail ? "접기" : "상세보기"}
+              </button>
+
+              {showDetail && (
+                <div className="border-t border-gray-100 pt-1">
+                  <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                    <p className="text-xs font-bold text-gray-400">매일로 나누면</p>
+                    <p className="text-sm font-bold text-gray-500">{formatWon(Math.round(monthlyPayment / 30))}</p>
+                  </div>
+                  {method === "equal" ? (
+                    <>
+                      <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                        <p className="text-xs font-bold text-gray-400">총 이자</p>
+                        <p className="text-sm font-bold text-gray-400">{formatWon(totalInterest)}</p>
+                      </div>
+                      <div className="flex justify-between items-center py-1.5">
+                        <p className="text-xs font-bold text-gray-400">총 상환액</p>
+                        <p className="text-sm font-bold text-gray-400">{formatWon(monthlyPayment * repayMonths)}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between items-center py-1.5">
+                      <p className="text-xs text-gray-400">연 이자</p>
+                      <p className="text-sm font-medium text-gray-400">{formatWon(Math.round(totalInterest / (repayMonths / 12)))}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* 우: 캐릭터 + DSR */}
           <div className="flex flex-col items-center justify-center gap-4">
             <div className={`w-full rounded-2xl border ${dsrLevel.border} ${dsrLevel.bg} flex flex-col items-center py-8 px-6 gap-3`}>
-              <img
-                src={dsrLevel.img}
-                alt={dsrLevel.label}
-                className="w-80 h-60 object-contain transition-all duration-300"
-              />
+              <img src={dsrLevel.img} alt={dsrLevel.label} className="w-80 h-60 object-contain transition-all duration-300" />
               <div className="text-center">
                 <p className={`text-2xl font-bold ${dsrLevel.color}`}>DSR {dsr}%</p>
                 <p className={`text-sm font-bold mt-1 ${dsrLevel.color}`}>{dsrLevel.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{dsrLevel.sub}</p>
               </div>
             </div>
 
-            {/* DSR 체감 문구 */}
-            <div className="w-full rounded-xl px-4 py-3 border border-gray-100 bg-gray-50">
-              <p className={`text-xs font-bold mb-1 ${
-                dsr > 60 ? "text-red-500" : dsr > 40 ? "text-orange-500" : dsr > 20 ? "text-yellow-600" : "text-blue-600"
-              }`}>
+            <div className="w-full rounded-xl px-4 py-3 border border-gray-100 bg-gray-50 text-center">
+              <p className={`text-xs font-bold ${dsrLevel.color}`}>
+                {dsrLevel.sub}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
                 대출이 월급의 {dsr}%를 가져가요
               </p>
-              {monthlyIncome > 0 && (
-                <p className="text-xs font-semibold text-gray-500">
-                  남은 {fmt(monthlyIncome - monthlyPayment)}으로 식비·교통·생활비 다 해결해야 해요
-                </p>
-              )}
             </div>
-
 
             <button
               onClick={() => router.push("/site/simulator?tab=assetPlan")}
@@ -626,13 +502,13 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
         </div>
       </div>
 
+      {/* ── 추천 대출 상품 ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-1.5 mb-1">
           <CreditCard size={14} className="text-blue-600" />
           <p className="text-sm font-bold text-gray-900">이런 대출 어때요?</p>
         </div>
         <p className="text-xs text-gray-500 mb-5">조건에 맞는 대출 상품으로 상환 부담을 시뮬레이션해봐요</p>
-
         <div className="space-y-3">
           {loanLoading ? (
             <p className="text-sm text-gray-400 text-center py-4">대출 상품을 불러오는 중입니다...</p>
@@ -640,11 +516,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
             <p className="text-sm text-gray-400 text-center py-4">추천 대출 상품이 없습니다.</p>
           ) : (
             loans.map((loan) => (
-              <LoanAccordionItem
-                key={loan.loanId}
-                loan={loan}
-                monthlyIncome={monthlyIncome}
-              />
+              <LoanAccordionItem key={loan.loanId} loan={loan} monthlyIncome={monthlyIncome} />
             ))
           )}
         </div>

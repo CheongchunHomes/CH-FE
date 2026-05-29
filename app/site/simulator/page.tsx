@@ -1,125 +1,122 @@
-// app/site/simulator/page.tsx 전체
+// app/site/simulator/page.tsx
 
 "use client"
 
 import { useState, useEffect } from "react"
 import { get, post, request } from "@/lib/api"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import AssetPlan from "@/components/simulator/AssetPlan"
+import AssetPlan      from "@/components/simulator/AssetPlan"
 import HousingCompare from "@/components/simulator/HousingCompare"
-import FinanceFeel from "@/components/simulator/FinanceFeel"
-import Roadmap from "@/components/simulator/Roadmap"
-import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
+import FinanceFeel    from "@/components/simulator/FinanceFeel"
+import Roadmap        from "@/components/simulator/Roadmap"
+import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorUtils"
 import { useSearchParams, useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 
 // 폼 초기값
 const EMPTY_FORM: AssetPlanForm = {
-  category: "HOUSING",
-  planName: "",
-  baseAsset: null,
-  goalAmount: null,
+  category:      "HOUSING",
+  planName:      "",
+  baseAsset:     null,
+  goalAmount:    null,
   monthlySaving: null,
-  startDate: null,
-  endDate: null,
-  isCompleted: false,
+  startDate:     null,
+  endDate:       null,
+  isCompleted:   false,
 }
 
 export default function SimulatorPage() {
-  // 탭01 저장된 플랜 목록
-  const [plans, setPlans] = useState<AssetPlanData[]>([])
-  // 탭01 폼 입력값
-  const [form, setForm] = useState<AssetPlanForm>(EMPTY_FORM)
-  // 수정 중인 플랜 id (null이면 생성 모드)
+  const [plans,         setPlans]         = useState<AssetPlanData[]>([])
+  const [form,          setForm]           = useState<AssetPlanForm>(EMPTY_FORM)
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null)
-  // 플랜 목록 로딩 상태
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading,     setIsLoading]     = useState(false)
+  const [userProfile,   setUserProfile]   = useState<DiagnosisForm | null>(null)
+  // 로그인 여부 — layout/navbar와 공유하는 useAuth() 사용
+  // 진단 미완료 유저(userProfile null)여도 로그인이면 탭4 진입 허용
+  const { status } = useAuth()
+  const isLoggedIn = status === "authenticated" || status === "reauthRequired"
 
-  const [userProfile, setUserProfile] = useState<DiagnosisForm | null>(null)
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab    = searchParams.get("tab") ?? "assetPlan"
 
-// 프로필 조회(비로그인 시 null)와 플랜 목록 독립 호출
   useEffect(() => {
+    // 진단 프로필 조회 — 진단 완료면 data, 미완료면 404(null 유지)
     get<DiagnosisForm>("/api/diagnosis/profile")
       .then(setUserProfile)
       .catch(() => {})
-    fetchPlans()
+
+    void fetchPlans()
   }, [])
 
-  // 탭 상태 URL 쿼리로 관리 (?tab=assetPlan)
-  // 로그인 여부 — userProfile로 판단
-  const isLoggedIn = userProfile !== null
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const activeTab = searchParams.get("tab") ?? "assetPlan"
-
-  // GET /api/simulator/asset-plans — 유저 플랜 전체 목록
+  // GET /api/simulator/asset-plans
   async function fetchPlans() {
     setIsLoading(true)
     try {
       const data = await get<AssetPlanData[]>("/api/simulator/asset-plans", { cache: "no-store" })
-      setPlans(data)
+      setPlans(data ?? [])
+    } catch {
+      // 비로그인 시 401 — 빈 배열 유지
+      setPlans([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  // POST /api/simulator/asset-plans — 새 플랜 생성
+  // POST /api/simulator/asset-plans
   async function handleCreate() {
     await post("/api/simulator/asset-plans", form)
     setForm(EMPTY_FORM)
-    fetchPlans()
+    await fetchPlans()
   }
 
-  // 수정 버튼 클릭 시 — 해당 플랜 값을 폼에 세팅하고 수정 모드로 전환
+  // 수정 모드 진입 — 플랜 값을 폼에 세팅
   function handleEditStart(plan: AssetPlanData) {
     setEditingPlanId(plan.planId)
     setForm({
-      category: plan.category,
-      planName: plan.planName,
-      baseAsset: plan.baseAsset,
-      goalAmount: plan.goalAmount,
+      category:      plan.category,
+      planName:      plan.planName,
+      baseAsset:     plan.baseAsset,
+      goalAmount:    plan.goalAmount,
       monthlySaving: plan.monthlySaving,
-      startDate: plan.startDate,
-      endDate: plan.endDate,
-       isCompleted: plan.isCompleted,
+      startDate:     plan.startDate,
+      endDate:       plan.endDate,
+      isCompleted:   plan.isCompleted,
     })
   }
 
-  // PUT /api/simulator/asset-plans/:id — 플랜 수정
+  // PUT /api/simulator/asset-plans/:id
   async function handleUpdate() {
     if (!editingPlanId) return
-    await request("PUT", `/api/simulator/asset-plans/${editingPlanId}`, {
-      body: form
-    })
+    await request("PUT", `/api/simulator/asset-plans/${editingPlanId}`, { body: form })
     setEditingPlanId(null)
     setForm(EMPTY_FORM)
-    fetchPlans()
+    await fetchPlans()
   }
-      // 달성 여부
-    async function handleToggleComplete(planId: number, isCompleted: boolean) {
-      const plan = plans.find(p => p.planId === planId)
-      if (!plan) return
 
-      // 로컬 state 먼저 업데이트
-      setPlans(prev => prev.map(p =>
-        p.planId === planId ? { ...p, isCompleted } : p
-      ))
+  // 달성 토글 — 낙관적 업데이트
+  async function handleToggleComplete(planId: number, isCompleted: boolean) {
+    const plan = plans.find((p) => p.planId === planId)
+    if (!plan) return
 
-      // 백엔드 업데이트
-      const { planId: _, createdAt: __, ...planForm } = plan
-      await request("PUT", `/api/simulator/asset-plans/${planId}`, {
-        body: { ...planForm, isCompleted }
-      })
-    }
+    // 로컬 state 먼저 반영
+    setPlans((prev) => prev.map((p) => p.planId === planId ? { ...p, isCompleted } : p))
 
-  // DELETE /api/simulator/asset-plans/:id — 플랜 삭제
+    // 백엔드 동기화
+    const { planId: _, createdAt: __, ...planForm } = plan
+    await request("PUT", `/api/simulator/asset-plans/${planId}`, {
+      body: { ...planForm, isCompleted },
+    })
+  }
+
+  // DELETE /api/simulator/asset-plans/:id
   async function handleDelete(planId: number) {
     await request("DELETE", `/api/simulator/asset-plans/${planId}`)
-    fetchPlans()
+    await fetchPlans()
   }
 
-
-  // 수정 취소 — editingPlanId 초기화 + 폼 초기화
+  // 수정 취소
   function handleEditCancel() {
     setEditingPlanId(null)
     setForm(EMPTY_FORM)
@@ -141,6 +138,8 @@ export default function SimulatorPage() {
         <Tabs
           value={activeTab}
           onValueChange={(tab) => {
+            // [FIX] 탭4 차단 기준 = 로그인 여부만
+            // 진단 미완료(userProfile null)여도 로그인이면 진입 허용
             if (tab === "roadmap" && !isLoggedIn) {
               router.push("/login?redirect=/site/simulator?tab=roadmap")
               return
@@ -148,13 +147,11 @@ export default function SimulatorPage() {
             router.push(`/site/simulator?tab=${tab}`)
           }}
         >
-
-          {/* 탭바 */}
           <TabsList className="w-full">
-            <TabsTrigger value="assetPlan" className="flex-1">자산 플랜</TabsTrigger>
+            <TabsTrigger value="assetPlan"      className="flex-1">자산 플랜</TabsTrigger>
             <TabsTrigger value="housingCompare" className="flex-1">주거 비교</TabsTrigger>
-            <TabsTrigger value="financeFeel" className="flex-1">금융 체감</TabsTrigger>
-            <TabsTrigger value="roadmap" className="flex-1">청춘 플랜</TabsTrigger>
+            <TabsTrigger value="financeFeel"    className="flex-1">금융 체감</TabsTrigger>
+            <TabsTrigger value="roadmap"        className="flex-1">청춘 플랜</TabsTrigger>
           </TabsList>
 
           {/* 탭01 자산 플랜 */}
@@ -171,7 +168,7 @@ export default function SimulatorPage() {
               onDelete={handleDelete}
               onEditCancel={handleEditCancel}
               onToggleComplete={handleToggleComplete}
-              />
+            />
           </TabsContent>
 
           {/* 탭02 주거 비교 */}
@@ -184,14 +181,12 @@ export default function SimulatorPage() {
             <FinanceFeel userProfile={userProfile} />
           </TabsContent>
 
-          {/* 탭04 전략 로드맵 */}
+          {/* 탭04 청춘 플랜 — userProfile null이어도 렌더링, 내부에서 graceful 처리 */}
           <TabsContent value="roadmap">
             <Roadmap />
           </TabsContent>
-
         </Tabs>
       </div>
-
     </div>
   )
 }

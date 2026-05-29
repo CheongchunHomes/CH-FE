@@ -1,38 +1,30 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 import {
-  HourglassIcon,
-  Layers,
-  TrendingUp,
-  Pencil,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  Lightbulb
-} from "lucide-react";
-import { AssetPlanData, AssetPlanForm } from "@/lib/simulatorTypes"
-import { Switch } from "@/components/ui/switch"
-import { Calendar } from "@/components/ui/calendar"
+  HourglassIcon, Layers, TrendingUp, Pencil,
+  Trash2, ChevronDown, ChevronUp, CheckCircle2, Lightbulb,
+} from "lucide-react"
+import {
+  AssetPlanData, AssetPlanForm,
+  formatCurrency, calcProgress, calcSavingBreakdown,
+  calcDday, isOverdue, getEulReul,
+} from "@/lib/simulatorUtils"
+import { Switch }    from "@/components/ui/switch"
+import { Calendar }  from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
+import { Button }    from "@/components/ui/button"
 import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { format }    from "date-fns"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
-import { get, post } from "@/lib/api";
-import { useRouter} from "next/navigation";
+import { Badge }     from "@/components/ui/badge"
+import { get }       from "@/lib/api"
+import { useRouter } from "next/navigation"
 
 // ─ 카테고리 목록
 const CATEGORIES = [
@@ -46,7 +38,6 @@ const CATEGORIES = [
   { value: "OTHER",       emoji: "🎯", label: "기타" },
 ]
 
-// ─ 카테고리별 이미지
 const CATEGORY_IMAGES: Record<string, string> = {
   HOUSING:     "/images/simulator/asset/housing.png",
   TRAVEL:      "/images/simulator/asset/travel.png",
@@ -61,120 +52,27 @@ const CATEGORY_IMAGES: Record<string, string> = {
 // 추천 제도 ID (청년주택드림 청약통장, 청년내일저축계좌)
 const WHITELIST_IDS = [515, 20]
 
-
-
-// ─ 카테고리별 콘텐츠
 const CATEGORY_CONTENT: Record<string, {
-  shock: string
-  sub: string
+  shock: string; sub: string
   placeholder: { planName: string; baseAsset: string; goalAmount: string }
   dailyUnit: string
 }> = {
-  HOUSING: {
-    shock: "드디어 내 공간, 현실로 만들어봐요",
-    sub: "보증금 한 발짝씩 모으면 어느새 내 집 앞이에요",
-    placeholder: { planName: "전세 보증금 마련", baseAsset: "5,000,000", goalAmount: "50,000,000" },
-    dailyUnit: "아메리카노",
-  },
-  TRAVEL: {
-    shock: "이번 여행 참으면 월세 한 달 아껴요",
-    sub: "근데 그래도 가고 싶죠? 그럼 목표부터 세워봐요",
-    placeholder: { planName: "여름 유럽 여행", baseAsset: "500,000", goalAmount: "3,000,000" },
-    dailyUnit: "편의점 도시락",
-  },
-  CAR: {
-    shock: "이 차 값이면 서울 전세 보증금이에요",
-    sub: "그래도 핸들 잡고 싶죠? 목표 세우면 현실이 달라져요",
-    placeholder: { planName: "첫 차 구입", baseAsset: "2,000,000", goalAmount: "15,000,000" },
-    dailyUnit: "주유비",
-  },
-  ELECTRONICS: {
-    shock: "최신폰 한 번 참으면 청약통장 2년치예요",
-    sub: "그래도 갖고 싶죠? 일단 모아보면 생각이 바뀔 수도 있어요",
-    placeholder: { planName: "맥북 구입", baseAsset: "300,000", goalAmount: "2,500,000" },
-    dailyUnit: "카페 라떼",
-  },
-  WEDDING: {
-    shock: "결혼 준비, 미리 모으면 신혼집이 달라져요",
-    sub: "웨딩 비용보다 신혼집이 더 중요하다는 거 알잖아요",
-    placeholder: { planName: "결혼 준비 자금", baseAsset: "3,000,000", goalAmount: "30,000,000" },
-    dailyUnit: "외식비",
-  },
-  FASHION: {
-    shock: "옷값 아끼면 관리비 걱정 없는 집 살 수 있어요",
-    sub: "스타일은 유지하면서 목표도 세워봐요",
-    placeholder: { planName: "시즌 쇼핑 예산", baseAsset: "100,000", goalAmount: "500,000" },
-    dailyUnit: "택시비",
-  },
-  EDUCATION: {
-    shock: "자격증 하나가 연봉을 바꾸고 집을 바꿔요",
-    sub: "배움에 투자하는 돈은 아깝지 않아요",
-    placeholder: { planName: "자격증 취득 비용", baseAsset: "200,000", goalAmount: "1,000,000" },
-    dailyUnit: "구독 서비스",
-  },
-  OTHER: {
-    shock: "작은 절약이 쌓이면 내 집이 돼요",
-    sub: "목표가 생기면 소비가 달라져요",
-    placeholder: { planName: "나만의 목표", baseAsset: "100,000", goalAmount: "1,000,000" },
-    dailyUnit: "커피",
-  },
+  HOUSING:     { shock: "드디어 내 공간, 현실로 만들어봐요",          sub: "보증금 한 발짝씩 모으면 어느새 내 집 앞이에요",        placeholder: { planName: "전세 보증금 마련",  baseAsset: "5,000,000",  goalAmount: "50,000,000" }, dailyUnit: "아메리카노" },
+  TRAVEL:      { shock: "이번 여행 참으면 월세 한 달 아껴요",          sub: "근데 그래도 가고 싶죠? 그럼 목표부터 세워봐요",        placeholder: { planName: "여름 유럽 여행",    baseAsset: "500,000",    goalAmount: "3,000,000"  }, dailyUnit: "편의점 도시락" },
+  CAR:         { shock: "이 차 값이면 서울 전세 보증금이에요",          sub: "그래도 핸들 잡고 싶죠? 목표 세우면 현실이 달라져요",  placeholder: { planName: "첫 차 구입",        baseAsset: "2,000,000",  goalAmount: "15,000,000" }, dailyUnit: "주유비" },
+  ELECTRONICS: { shock: "최신폰 한 번 참으면 청약통장 2년치예요",       sub: "그래도 갖고 싶죠? 일단 모아보면 생각이 바뀔 수도 있어요", placeholder: { planName: "맥북 구입",         baseAsset: "300,000",    goalAmount: "2,500,000"  }, dailyUnit: "카페 라떼" },
+  WEDDING:     { shock: "결혼 준비, 미리 모으면 신혼집이 달라져요",     sub: "웨딩 비용보다 신혼집이 더 중요하다는 거 알잖아요",    placeholder: { planName: "결혼 준비 자금",    baseAsset: "3,000,000",  goalAmount: "30,000,000" }, dailyUnit: "외식비" },
+  FASHION:     { shock: "옷값 아끼면 관리비 걱정 없는 집 살 수 있어요", sub: "스타일은 유지하면서 목표도 세워봐요",                 placeholder: { planName: "시즌 쇼핑 예산",   baseAsset: "100,000",    goalAmount: "500,000"    }, dailyUnit: "택시비" },
+  EDUCATION:   { shock: "자격증 하나가 연봉을 바꾸고 집을 바꿔요",      sub: "배움에 투자하는 돈은 아깝지 않아요",                  placeholder: { planName: "자격증 취득 비용", baseAsset: "200,000",    goalAmount: "1,000,000"  }, dailyUnit: "구독 서비스" },
+  OTHER:       { shock: "작은 절약이 쌓이면 내 집이 돼요",             sub: "목표가 생기면 소비가 달라져요",                       placeholder: { planName: "나만의 목표",      baseAsset: "100,000",    goalAmount: "1,000,000"  }, dailyUnit: "커피" },
 }
 
-// ─ 유틸
-function formatCurrency(value: number): string {
-  if (!value) return "0원"
-  const eok = Math.floor(value / 100000000)
-  const man = Math.floor((value % 100000000) / 10000)
-  const cheon = Math.floor((value % 10000) / 1000)
-  let result = ""
-  if (eok > 0) result += `${eok}억 `
-  if (man > 0) result += `${man}만 `
-  if (cheon > 0) result += `${cheon}천`
-  return result.trim() + "원"
+interface PolicyListDTO {
+  policyId: number; title: string; summary: string
+  mainCategory: string; subCategory: string; status: string
+  applyPeriod: string; supervisingInstitution: string; region: string | null
 }
 
-
-function calcProgress(baseAsset: number, goalAmount: number): number {
-  if (!goalAmount) return 0
-  return Math.min(Math.round((baseAsset / goalAmount) * 100), 100)
-}
-
-function calcSavingBreakdown(baseAsset: number, goalAmount: number, startDate: string, endDate: string) {
-  const remaining = goalAmount - baseAsset
-  if (remaining <= 0) return null
-  const start = new Date(startDate)
-  const target = new Date(endDate)
-  const totalDays = Math.ceil((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-  if (totalDays <= 0) return null
-  return {
-    daily:    Math.ceil(remaining / totalDays),
-    weekly:   Math.ceil(remaining / Math.ceil(totalDays / 7)),
-    monthly:  Math.ceil(remaining / Math.max(Math.ceil(totalDays / 30), 1)),
-    totalDays,
-  }
-}
-
-function isOverdue(endDate: string | null): boolean {
-  if (!endDate) return false
-  return new Date(endDate) < new Date()
-}
-
-function calcDday(endDate: string | null): string {
-  if (!endDate) return ""
-  const diff = Math.ceil((new Date(endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-  if (diff < 0) return "기간 초과"
-  if (diff === 0) return "D-Day"
-  return `D-${diff}`
-}
-
-function getEulReul(word: string): string {
-  if (!word) return "을"
-  const code = word[word.length - 1].charCodeAt(0)
-  if (code < 0xAC00 || code > 0xD7A3) return "을"
-  return (code - 0xAC00) % 28 > 0 ? "을" : "를"
-}
-
-// ─ Props
 interface Props {
   plans: AssetPlanData[]
   form: AssetPlanForm
@@ -189,64 +87,50 @@ interface Props {
   onToggleComplete: (planId: number, isCompleted: boolean) => void
 }
 
-// 정책 목록 API 응답 타입 (GET /api/policies)
-interface PolicyListDTO {
-  policyId: number;
-  title: string;
-  summary: string;
-  mainCategory: string;
-  subCategory: string;
-  status: string;
-  applyPeriod: string;
-  supervisingInstitution: string;
-  region: string | null;
-}
-
-
 export default function AssetPlan({
                                     plans, form, setForm, editingPlanId, isLoading,
                                     onCreate, onEditStart, onUpdate, onDelete, onEditCancel, onToggleComplete,
                                   }: Props) {
-  const [hideAmount, setHideAmount] = useState(false)
-  const [sortBy, setSortBy] = useState<"date" | "status">("status")
-  const [openPlanId, setOpenPlanId] = useState<number | null>(null)
-  const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
+  const router = useRouter()
+  const [hideAmount, setHideAmount]     = useState(false)
+  const [sortBy, setSortBy]             = useState<"date" | "status">("status")
+  const [openPlanId, setOpenPlanId]     = useState<number | null>(null)
+  const [tipPolicies, setTipPolicies]   = useState<PolicyListDTO[]>([])
+  // [FIX] 로딩/에러 상태 분리 — 이전엔 length===0이 로딩중인지 빈 결과인지 구분 불가
+  const [tipLoading, setTipLoading]     = useState(true)
 
-  const content = CATEGORY_CONTENT[form.category]
-  const ph = content.placeholder
+  const content = CATEGORY_CONTENT[form.category] ?? CATEGORY_CONTENT["OTHER"]
+  const ph      = content.placeholder
 
   function updateForm(key: keyof AssetPlanForm, value: unknown) {
     setForm({ ...form, [key]: value })
   }
 
-  function handleSubmit() {
-    editingPlanId ? onUpdate() : onCreate()
-  }
-
-  // 정책 상세 페이지로 이동
-  const router = useRouter()
-
-
   useEffect(() => {
+    setTipLoading(true)
     get<{ content: PolicyListDTO[] }>("/api/policies", {
-      query: { keyword: "저축", size: 100 }
+      query: { keyword: "저축", size: 100 },
     })
       .then((res) => {
-        const filtered = (res.content ?? [])
-          .filter(p => WHITELIST_IDS.includes(p.policyId))
+        const filtered = (res.content ?? []).filter((p) => WHITELIST_IDS.includes(p.policyId))
         setTipPolicies(filtered.slice(0, 3))
       })
-      .catch(() => {})
+      .catch(() => setTipPolicies([]))
+      .finally(() => setTipLoading(false))
   }, [])
 
-  // 저축 분석
+  // 저축 리포트 집계
   const completedPlans = plans.filter((p) => p.isCompleted)
-  const totalSaved = completedPlans.reduce((sum, p) => sum + (p.goalAmount ?? 0), 0)
-  const totalMonths = plans.reduce((sum, p) => {
+  const totalSaved     = completedPlans.reduce((sum, p) => sum + (p.goalAmount ?? 0), 0)
+  const totalMonths    = plans.reduce((sum, p) => {
     if (!p.endDate) return sum
     const created = new Date(p.createdAt)
-    const target = new Date(p.endDate)
-    return sum + Math.max((target.getFullYear() - created.getFullYear()) * 12 + (target.getMonth() - created.getMonth()), 0)
+    const target  = new Date(p.endDate)
+    if (isNaN(created.getTime()) || isNaN(target.getTime())) return sum
+    return sum + Math.max(
+      (target.getFullYear() - created.getFullYear()) * 12 + (target.getMonth() - created.getMonth()),
+      0,
+    )
   }, 0)
   const dailyAvg = totalMonths > 0 ? Math.ceil(totalSaved / (totalMonths * 30)) : 0
 
@@ -258,18 +142,16 @@ export default function AssetPlan({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
 
-      {/* ── 좌측: 입력 폼 (4단계 흐름) ── */}
+      {/* ── 좌측: 입력 폼 ── */}
       <div className="space-y-4">
 
-        {/* step1: 카테고리 선택 */}
+        {/* step1: 카테고리 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
           <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 1</p>
           <div>
             <p className="text-base font-bold text-gray-900">목표가 생기면 저축 속도가 달라져요</p>
             <p className="text-xs text-gray-400 mt-0.5">뭘 위해 모을지 정하는 것부터 시작이에요</p>
           </div>
-
-          {/* 카테고리 그리드 4x2 — 이미지 버튼 */}
           <div className="grid grid-cols-4 gap-2">
             {CATEGORIES.map((cat) => (
               <button
@@ -284,30 +166,20 @@ export default function AssetPlan({
                 <img
                   src={CATEGORY_IMAGES[cat.value]}
                   alt={cat.label}
-                  className={`w-full aspect-square object-cover transition-transform duration-300 ${
-                    form.category === cat.value ? "animate-spring" : ""
-                  }`}
+                  className="w-full aspect-square object-cover"
                 />
                 <span className={`text-[10px] py-1 font-medium w-full text-center ${
                   form.category === cat.value ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-500"
                 }`}>
-        {cat.label}
-      </span>
+                  {cat.label}
+                </span>
               </button>
             ))}
           </div>
-
-          {/* 각성 문구 */}
           <div className="bg-blue-50 rounded-xl px-4 py-3">
             <p className="text-sm font-semibold text-blue-700">{content.shock}</p>
             <p className="text-xs text-blue-400 mt-1">{content.sub}</p>
           </div>
-
-          {/* 각성 문구 강조v */}
-          {/*<div className="bg-blue-500 text-white px-4 py-3 rounded-2xl">
-            <p className="text-sm font-semibold">{content.shock}</p>
-            <p className="text-xs text-blue-200 mt-1">{content.sub}</p>
-          </div>*/}
         </div>
 
         {/* step2: 금액 입력 */}
@@ -318,7 +190,7 @@ export default function AssetPlan({
             <p className="text-xs text-gray-400 mt-0.5">목표가 구체적일수록 달성 확률이 3배 높아요</p>
           </div>
 
-          {/* 카테고리 + 플랜명 */}
+          {/* 카테고리 셀렉트 + 플랜명 */}
           <div className="flex items-center gap-2">
             <div className="relative">
               <select
@@ -352,7 +224,9 @@ export default function AssetPlan({
                 value={form.baseAsset ? form.baseAsset.toLocaleString() : ""}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/,/g, "")
-                  if (!isNaN(Number(raw))) updateForm("baseAsset", Number(raw))
+                  const num = Number(raw)
+                  // [FIX] 음수 방어
+                  if (!isNaN(num) && num >= 0) updateForm("baseAsset", num)
                 }}
                 onBlur={() => {
                   if (form.baseAsset) updateForm("baseAsset", Math.floor(form.baseAsset / 1000) * 1000)
@@ -375,7 +249,8 @@ export default function AssetPlan({
                 value={form.goalAmount ? form.goalAmount.toLocaleString() : ""}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/,/g, "")
-                  if (!isNaN(Number(raw))) updateForm("goalAmount", Number(raw))
+                  const num = Number(raw)
+                  if (!isNaN(num) && num >= 0) updateForm("goalAmount", num)
                 }}
                 onBlur={() => {
                   if (form.goalAmount) updateForm("goalAmount", Math.floor(form.goalAmount / 1000) * 1000)
@@ -398,10 +273,7 @@ export default function AssetPlan({
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {form.startDate && form.endDate
                     ? `${format(new Date(form.startDate), "yyyy.MM.dd")} ~ ${format(new Date(form.endDate), "yyyy.MM.dd")}`
-                    : form.startDate
-                      ? format(new Date(form.startDate), "yyyy.MM.dd")
-                      : <span className="text-gray-400">기간 선택</span>
-                  }
+                    : "기간 선택"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -409,188 +281,174 @@ export default function AssetPlan({
                   mode="range"
                   selected={{
                     from: form.startDate ? new Date(form.startDate) : undefined,
-                    to: form.endDate ? new Date(form.endDate) : undefined,
+                    to:   form.endDate   ? new Date(form.endDate)   : undefined,
                   }}
                   onSelect={(range) => {
-                    setForm({
-                      ...form,
-                      startDate: range?.from ? format(range.from, "yyyy-MM-dd") : null,
-                      endDate: range?.to ? format(range.to, "yyyy-MM-dd") : null,
-                    })
+                    updateForm("startDate", range?.from ? format(range.from, "yyyy-MM-dd") : null)
+                    updateForm("endDate",   range?.to   ? format(range.to,   "yyyy-MM-dd") : null)
                   }}
-                  fromYear={new Date().getFullYear()}
-                  toYear={new Date().getFullYear() + 10}
-                  captionLayout="dropdown"
+                  initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
         </div>
 
-        {/* step3: 이렇게 모으면 돼요 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 3</p>
-          <div>
-            <p className="text-base font-bold text-gray-900">이렇게만 하면 돼요</p>
-           {/* <p className="text-xs text-gray-400 mt-0.5">매일 이것만 아끼면 목표일에 딱 맞게 모여요</p>*/}
-          </div>
-
-          {breakdown ? (
-            <>
-              {/* 말풍선 */}
-              {form.planName && form.goalAmount && (
-                <div className="relative bg-blue-500 text-white text-xs font-medium px-4 py-2.5 rounded-2xl">
-                  ✨ {form.planName}{getEulReul(form.planName)} 목표로 {formatCurrency(form.goalAmount)} 저축 시작!
-                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-blue-500" />
-                </div>
-              )}
-
-              {/* 3열 저축액 */}
-              <div className="grid grid-cols-3 divide-x divide-gray-100 bg-gray-50 rounded-xl py-3">
-                <div className="text-center space-y-1">
-                  <p className="text-xs text-gray-400">매일</p>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(breakdown.daily)}</p>
-                </div>
-                <div className="text-center space-y-1">
-                  <p className="text-xs text-gray-400">매주</p>
-                  <p className="text-sm font-bold text-blue-600">{formatCurrency(breakdown.weekly)}</p>
-                </div>
-                <div className="text-center space-y-1">
-                  <p className="text-xs text-gray-400">매달</p>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(breakdown.monthly)}</p>
-                </div>
-              </div>
-
-              {/* 일상 환산 */}
-              <p className="text-xs text-gray-400 text-center">
-                매일 {content.dailyUnit} 한 잔 아끼는 것부터 시작해봐요 ☕
+        {/* step3: 저축 분석 */}
+        {breakdown && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 3</p>
+            <div>
+              <p className="text-base font-bold text-gray-900">이렇게 모으면 돼요</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {content.dailyUnit}{getEulReul(content.dailyUnit)} 참으면 목표가 가까워져요
               </p>
-            </>
-          ) : (
-            <div className="bg-gray-50 rounded-xl py-6 text-center">
-              <p className="text-xs text-gray-400">목표 금액과 기간을 입력하면 저축 플랜이 나와요</p>
             </div>
-          )}
-          {/* 저장 버튼 */}
-          <div className="flex gap-2 pt-1">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-xs text-gray-400 mb-1">매일</p>
+                <p className="text-sm font-bold text-gray-900">{formatCurrency(breakdown.daily)}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-xs text-gray-400 mb-1">매주</p>
+                <p className="text-sm font-bold text-gray-900">{formatCurrency(breakdown.weekly)}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                <p className="text-xs text-blue-400 mb-1">매달</p>
+                <p className="text-sm font-bold text-blue-700">{formatCurrency(breakdown.monthly)}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              총 {breakdown.totalDays}일 · {Math.max(Math.ceil(breakdown.totalDays / 30), 1)}개월 플랜
+            </p>
+          </div>
+        )}
+
+        {/* step4: 저장 */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+          <p className="text-xs text-gray-400 font-medium tracking-wide">STEP 4</p>
+          <p className="text-base font-bold text-gray-900">플랜 저장하기</p>
+          <div className="flex gap-2">
             {editingPlanId && (
               <button
                 onClick={onEditCancel}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
               >
                 취소
               </button>
             )}
             <button
-              onClick={handleSubmit}
-              disabled={!form.planName || !form.goalAmount}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={() => editingPlanId ? onUpdate() : onCreate()}
+              disabled={isLoading || !form.planName || !form.goalAmount}
+              className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {editingPlanId ? "수정 완료" : "플랜 저장"}
+              {isLoading ? "저장 중..." : editingPlanId ? "수정 완료" : "플랜 저장"}
             </button>
           </div>
         </div>
-
-
       </div>
 
-      {/* ── 우측: 플랜 목록 + 분석 ── */}
+      {/* ── 우측: 플랜 목록 ── */}
       <div className="space-y-4">
 
-        {/* 플랜 목록 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        {/* 정렬 + 금액 숨기기 */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            {(["status", "date"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSortBy(s)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  sortBy === s ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                {s === "status" ? "상태순" : "날짜순"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">금액 숨기기</span>
+            <Switch checked={hideAmount} onCheckedChange={setHideAmount} />
+          </div>
+        </div>
 
-          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <Layers size={16} className="text-blue-500" />
-              <p className="text-sm font-bold text-gray-800">저축 플랜</p>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setSortBy("date")}
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                    sortBy === "date" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  날짜순
-                </button>
-                <button
-                  onClick={() => setSortBy("status")}
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                    sortBy === "status" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  진행상태
-                </button>
+        {/* 플랜 없을 때 */}
+        {plans.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
+            <div className="flex justify-center mb-3">
+              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+                <Layers size={24} className="text-blue-300" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">금액 가리기</span>
-              <Switch checked={hideAmount} onCheckedChange={setHideAmount} />
-            </div>
+            <p className="text-sm font-bold text-gray-900 mb-1">아직 저축 플랜이 없어요</p>
+            <p className="text-xs text-gray-400">첫 번째 목표를 세워볼까요?</p>
           </div>
-
-          {isLoading ? (
-            <div className="text-center py-8 text-gray-400 text-sm">불러오는 중...</div>
-          ) : plans.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 text-sm">
-              아직 저장된 플랜이 없어요. 첫 플랜을 만들어보세요!
-            </div>
-          ) : (
-            <div className="p-5 space-y-3">
-              {[...plans].sort((a, b) => {
+        ) : (
+          <div className="space-y-3">
+            {[...plans]
+              .sort((a, b) => {
                 if (sortBy === "status") {
-                  const aC = a.isCompleted || isOverdue(a.endDate)
-                  const bC = b.isCompleted || isOverdue(b.endDate)
-                  return aC === bC ? 0 : aC ? 1 : -1
+                  if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1
+                  return 0
                 }
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              }).map((plan) => {
-                const progress = calcProgress(plan.baseAsset ?? 0, plan.goalAmount ?? 0)
-                const isOpen = openPlanId === plan.planId
-                const cat = CATEGORIES.find((c) => c.value === plan.category)
-                const categoryLabel = cat ? `${cat.emoji} ${cat.label}` : plan.category
-                const completed = plan.isCompleted || isOverdue(plan.endDate)
-                const dday = calcDday(plan.endDate)
+              })
+              .map((plan) => {
+                const progress     = calcProgress(plan.baseAsset ?? 0, plan.goalAmount ?? 0)
+                const dday         = calcDday(plan.endDate)
+                const overdue      = isOverdue(plan.endDate)
+                const completed    = plan.isCompleted
+                const isOpen       = openPlanId === plan.planId
                 const planBreakdown = plan.startDate && plan.endDate && plan.goalAmount
                   ? calcSavingBreakdown(plan.baseAsset ?? 0, plan.goalAmount, plan.startDate, plan.endDate)
                   : null
 
                 return (
-                  <div key={plan.planId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-
-                    {/* 아코디언 헤더 */}
+                  <div
+                    key={plan.planId}
+                    className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                      completed ? "border-gray-100 opacity-60" : overdue ? "border-red-100" : "border-gray-100"
+                    }`}
+                  >
+                    {/* 헤더 */}
                     <div
                       className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => setOpenPlanId(isOpen ? null : plan.planId)}
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge variant={completed ? "default" : "outline"} className="text-xs">
-                          {categoryLabel}
-                        </Badge>
-                        <p className={`font-medium text-sm ${completed ? "text-gray-400 line-through" : "text-gray-900"}`}>
-                          {plan.planName}
-                        </p>
-                        {dday && <span className="text-xs text-blue-500 font-medium">{dday}</span>}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <img
+                          src={CATEGORY_IMAGES[plan.category] ?? CATEGORY_IMAGES["OTHER"]}
+                          alt={plan.category}
+                          className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{plan.planName}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {completed  && <Badge variant="secondary"    className="text-[10px] px-1.5 py-0">완료</Badge>}
+                            {overdue && !completed && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">기간초과</Badge>}
+                            {!completed && !overdue && dday && (
+                              <span className="text-[10px] font-medium text-blue-500">{dday}</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {hideAmount ? "•••••원" : formatCurrency(plan.goalAmount ?? 0)}
-                        </p>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gray-900">
+                            {hideAmount ? "••••" : formatCurrency(plan.goalAmount ?? 0)}
+                          </p>
+                          <p className="text-[10px] text-blue-500 font-medium">{progress}%</p>
+                        </div>
                         {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                       </div>
                     </div>
 
-                    {/* 아코디언 상세 */}
+                    {/* 상세 */}
                     {isOpen && (
-                      <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
-
-                        {/* 타임라인 */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-500">{hideAmount ? "••••••" : formatCurrency(plan.baseAsset ?? 0)}</span>
-                            <span className="text-gray-500">{hideAmount ? "••••••" : formatCurrency(plan.goalAmount ?? 0)}</span>
-                          </div>
-                          <div className="relative w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="px-5 pb-5 pt-0 border-t border-gray-100 space-y-3">
+                        {/* 진행률 바 */}
+                        <div className="space-y-1.5 pt-3">
+                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
                           </div>
                           <div className="flex justify-between text-xs text-gray-400">
@@ -602,9 +460,10 @@ export default function AssetPlan({
 
                         {/* 페이스 카드 */}
                         {planBreakdown && (() => {
+                          // [FIX] startDate 유효성 검증 후 비교
                           const start = plan.startDate ? new Date(plan.startDate) : null
                           const today = new Date()
-                          if (start && today < start) return (
+                          if (start && !isNaN(start.getTime()) && today < start) return (
                             <div className="border border-gray-100 rounded-xl p-3 text-center">
                               <p className="text-xs text-gray-400">아직 시작 전이에요</p>
                               <p className="text-sm font-medium text-gray-500 mt-1">{plan.startDate} 부터 시작돼요</p>
@@ -653,15 +512,13 @@ export default function AssetPlan({
                                 onClick={() => onEditStart(plan)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                               >
-                                <Pencil size={13} />
-                                수정
+                                <Pencil size={13} />수정
                               </button>
                             )}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
-                                  <Trash2 size={13} />
-                                  삭제
+                                  <Trash2 size={13} />삭제
                                 </button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -682,9 +539,8 @@ export default function AssetPlan({
                   </div>
                 )
               })}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 저축 리포트 */}
         {plans.length > 0 && (
@@ -717,11 +573,12 @@ export default function AssetPlan({
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-500 font-medium">달성 <span className="text-blue-500 font-bold">{hideAmount ? "•••" : formatCurrency(totalSaved)}</span></span>
-              <span className="text-gray-500 font-medium">진행중 <span className="text-gray-700 font-bold">{hideAmount ? "•••" : formatCurrency(plans.filter(p => !p.isCompleted && !isOverdue(p.endDate)).reduce((sum, p) => sum + (p.goalAmount ?? 0), 0))}</span></span>
+              <span className="text-gray-500 font-medium">진행중 <span className="text-gray-700 font-bold">{hideAmount ? "•••" : formatCurrency(plans.filter((p) => !p.isCompleted && !isOverdue(p.endDate)).reduce((sum, p) => sum + (p.goalAmount ?? 0), 0))}</span></span>
             </div>
             {(() => {
               const upcoming = plans
-                .filter(p => !p.isCompleted && !isOverdue(p.endDate) && p.endDate)
+                // [FIX] endDate 빈 문자열 방어 — 기존엔 endDate!로 non-null assertion
+                .filter((p) => !p.isCompleted && !isOverdue(p.endDate) && !!p.endDate)
                 .sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime())[0]
               if (!upcoming) return null
               return (
@@ -738,22 +595,23 @@ export default function AssetPlan({
           </div>
         )}
 
-        {/* 플랜 tip. 이런 제도도 있어요 */}
+        {/* 플랜 Tip */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-1.5">
             <Lightbulb size={14} className="text-blue-500" />
-          <p className="text-xs text-gray-400 font-medium tracking-wide">플랜 Tip</p>
+            <p className="text-xs text-gray-400 font-medium tracking-wide">플랜 Tip</p>
           </div>
           <p className="text-base font-bold text-gray-900">이런 제도도 있어요</p>
-          {tipPolicies.length === 0 ? (
+          {/* [FIX] 로딩/빈결과 구분 */}
+          {tipLoading ? (
             <p className="text-xs text-gray-400">불러오는 중...</p>
+          ) : tipPolicies.length === 0 ? (
+            <p className="text-xs text-gray-400">관련 제도를 찾지 못했어요</p>
           ) : (
             <div className="space-y-2">
               {tipPolicies.map((p, i) => (
-                // 카드 클릭 시 정책 상세 페이지로 이동
                 <div
                   key={p.policyId}
-                  // 카드 클릭 시 정책 상세 페이지로 이동
                   onClick={() => router.push(`/site/policies/${p.policyId}`)}
                   className="rounded-xl p-3 border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                 >

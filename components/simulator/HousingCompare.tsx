@@ -1,28 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { get } from "@/lib/api"
-import { useRouter } from "next/navigation"
+import { get }        from "@/lib/api"
+import { useRouter }  from "next/navigation"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { MapPin, Home, Target, Lightbulb, ArrowRight, TrendingDown, ArrowLeftRight } from "lucide-react";
+import { MapPin, Home, Target, Lightbulb, TrendingDown, ArrowLeftRight } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
+import { formatManwon, HousingSnapshot } from "@/lib/simulatorUtils"
+import { Badge } from "@/components/ui/badge"
 
 interface PolicyListDTO {
-  policyId: number
-  title: string
-  summary: string
-  mainCategory: string
-  subCategory: string
-  status: string
-  applyPeriod: string
-  supervisingInstitution: string
+  policyId: number; title: string; summary: string
+  mainCategory: string; subCategory: string; status: string
+  applyPeriod: string; supervisingInstitution: string
 }
 
 const SIZES = [
-  { value: 20, label: "원룸",   sqm: "20㎡", img: "/images/simulator/housing/oneroom.png" },
-  { value: 33, label: "투룸",   sqm: "33㎡", img: "/images/simulator/housing/tworoom.png" },
-  { value: 59, label: "빌라",   sqm: "59㎡", img: "/images/simulator/housing/villa.png" },
+  { value: 20, label: "원룸",   sqm: "20㎡", img: "/images/simulator/housing/oneroom.png"   },
+  { value: 33, label: "투룸",   sqm: "33㎡", img: "/images/simulator/housing/tworoom.png"   },
+  { value: 59, label: "빌라",   sqm: "59㎡", img: "/images/simulator/housing/villa.png"     },
   { value: 84, label: "아파트", sqm: "84㎡", img: "/images/simulator/housing/apartment.png" },
 ]
 
@@ -43,19 +40,10 @@ const JEONSE_DEPOSIT_BY_REGION: Record<Region, Record<number, number>> = {
 }
 
 const SIZE_COPY: Record<number, { title: string; sub: string }> = {
-  20: { title: "지금은 베이스캠프",      sub: "좁아도 괜찮아. 여기서 시작하는 거야" },
-  33: { title: "드디어 거실이 생겼다",   sub: "침실과 공간이 분리되는 순간 삶이 달라져요" },
-  59: { title: "이제 초대할 수 있는 집", sub: "내 힘으로 일궈낸 공간, 당당해도 돼요" },
-  84: { title: "도시를 내려다보는 저녁", sub: "언젠가 반드시. 그날을 위해 지금 시작해요" },
-}
-
-function fmt(value: number): string {
-  if (!value) return "0원"
-  const eok = Math.floor(value / 10000)
-  const man = value % 10000
-  if (eok > 0 && man > 0) return `${eok}억 ${man}만원`
-  if (eok > 0) return `${eok}억원`
-  return `${value}만원`
+  20: { title: "지금은 베이스캠프",      sub: "좁아도 괜찮아. 여기서 시작하는 거야"         },
+  33: { title: "드디어 거실이 생겼다",   sub: "침실과 공간이 분리되는 순간 삶이 달라져요"   },
+  59: { title: "이제 초대할 수 있는 집", sub: "내 힘으로 일궈낸 공간, 당당해도 돼요"       },
+  84: { title: "도시를 내려다보는 저녁", sub: "언젠가 반드시. 그날을 위해 지금 시작해요"   },
 }
 
 interface HousingCompareProps {
@@ -64,18 +52,23 @@ interface HousingCompareProps {
 
 export default function HousingCompare({ userProfile }: HousingCompareProps) {
   const saved = (() => {
-    try { return JSON.parse(sessionStorage.getItem("housingSnapshot") ?? "null") } catch { return null }
+    try { return JSON.parse(sessionStorage.getItem("housingSnapshot") ?? "null") as HousingSnapshot | null }
+    catch { return null }
   })()
 
-  const [region, setRegion]                     = useState<Region>(saved?.region ?? "서울")
+  const [region, setRegion]                     = useState<Region>(saved?.region as Region ?? "서울")
   const [currentSize, setCurrentSize]           = useState(saved?.currentSize ?? 20)
-  const [currentRentInput, setCurrentRentInput] = useState(saved?.currentRent ? String(saved.currentRent) : String(MONTHLY_RENT_BY_REGION["서울"][20]))
-  const currentRent = Number(currentRentInput) || 0
-  const [targetSize, setTargetSize]             = useState(saved?.targetSize ?? 84)
-  const [imgVisible, setImgVisible]             = useState(true)
-  const [tipPolicies, setTipPolicies]           = useState<PolicyListDTO[]>([])
-  const [loanAmount, setLoanAmount]             = useState(saved?.loanAmount ?? 0)
-  const [savingAmount, setSavingAmount]         = useState(saved?.savingAmount ?? MONTHLY_RENT_BY_REGION["서울"][20])
+  const [currentRentInput, setCurrentRentInput] = useState(
+    saved?.currentRent ? String(saved.currentRent) : String(MONTHLY_RENT_BY_REGION["서울"][20])
+  )
+  const currentRent = Math.max(Number(currentRentInput) || 0, 0)
+  const [targetSize, setTargetSize]   = useState(saved?.targetSize ?? 84)
+  const [imgVisible, setImgVisible]   = useState(true)
+  const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
+  const [loanAmount, setLoanAmount]   = useState(saved?.loanAmount ?? 0)
+  const [savingAmount, setSavingAmount] = useState(
+    saved?.savingAmount ?? MONTHLY_RENT_BY_REGION["서울"][20]
+  )
 
   const router = useRouter()
 
@@ -85,8 +78,11 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
     setSavingAmount(MONTHLY_RENT_BY_REGION[region][size])
   }
 
+  // [FIX] 지역 변경 시 currentRent·savingAmount도 해당 지역 기준으로 갱신
   function handleRegionChange(r: Region) {
     setRegion(r)
+    setCurrentRentInput(String(MONTHLY_RENT_BY_REGION[r][currentSize]))
+    setSavingAmount(MONTHLY_RENT_BY_REGION[r][currentSize])
   }
 
   function handleTargetSizeChange(size: number) {
@@ -94,60 +90,53 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
     setTimeout(() => { setTargetSize(size); setImgVisible(true) }, 180)
   }
 
-useEffect(() => {
-  get<{ content: PolicyListDTO[] }>("/api/policies", {
-    query: { subCategory: "월세지원", size: 100, region: userProfile?.desiredCity ?? undefined }
-  })
-    .then((res) =>
-      setTipPolicies(
-        (res.content ?? [])
-          .filter((p) =>
-            (p.title.includes("월세") || p.title.includes("전세") || p.title.includes("보증금") ||
-              p.summary?.includes("월세") || p.summary?.includes("전세")) &&
-            (p.title.includes("청년") || p.summary?.includes("청년"))
-          )
-          .slice(0, 3)
+  useEffect(() => {
+    get<{ content: PolicyListDTO[] }>("/api/policies", {
+      query: { subCategory: "월세지원", size: 100, region: userProfile?.desiredCity ?? undefined },
+    })
+      .then((res) =>
+        setTipPolicies(
+          (res.content ?? [])
+            .filter((p) =>
+              (p.title.includes("월세") || p.title.includes("전세") || p.title.includes("보증금") ||
+                p.summary?.includes("월세") || p.summary?.includes("전세")) &&
+              (p.title.includes("청년") || p.summary?.includes("청년"))
+            )
+            .slice(0, 3)
+        )
       )
-    )
-    .catch(() => {})
-}, [userProfile])
+      .catch(() => {})
+  }, [userProfile])
 
   // 계산
-  const targetDeposit = JEONSE_DEPOSIT_BY_REGION[region][targetSize]
-  const targetRent    = MONTHLY_RENT_BY_REGION[region][targetSize]
-  const tenYearWaste  = currentRent * 12 * 10
-  const monthlyGap    = targetRent - currentRent
+  const targetDeposit  = JEONSE_DEPOSIT_BY_REGION[region][targetSize]
+  const targetRent     = MONTHLY_RENT_BY_REGION[region][targetSize]
+  const tenYearWaste   = currentRent * 12 * 10
+  const monthlyGap     = targetRent - currentRent
+  // [FIX] 데드코드였던 savingSwitch10 — 기존 JSX에서 실제로 사용하므로 유지
   const savingSwitch10 = currentRent * 12 * 10
 
-  const yearsToGoal   = savingAmount > 0 ? Math.ceil(targetDeposit / (savingAmount * 12)) : 0
-  const yearsWithLoan = savingAmount > 0
-    ? Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (savingAmount * 12))
+  // [FIX] savingAmount 음수 방어
+  const safeSaving    = Math.max(savingAmount, 0)
+  const yearsToGoal   = safeSaving > 0 ? Math.ceil(targetDeposit / (safeSaving * 12)) : 0
+  const yearsWithLoan = safeSaving > 0
+    ? Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (safeSaving * 12))
     : 0
   const loanCoversAll = targetDeposit <= loanAmount
   const yearsSaved    = yearsToGoal - yearsWithLoan
 
-    // housingSnapshot → sessionStorage 저장 (탭4 AI 프롬프트용)
-    useEffect(() => {
-      const snapshot = {
-        region,
-        currentSize,
-        currentRent,
-        targetSize,
-        targetDeposit,
-        targetRent,
-        tenYearWaste,
-        monthlyGap,
-        savingAmount,
-        loanAmount,
-        yearsToGoal,
-        yearsWithLoan,
-        yearsSaved,
-        loanCoversAll,
-      }
-      sessionStorage.setItem("housingSnapshot", JSON.stringify(snapshot))
-    }, [region, currentSize, currentRent, targetSize, targetDeposit, targetRent,
-      tenYearWaste, monthlyGap, savingAmount, loanAmount, yearsToGoal, yearsWithLoan,
-      yearsSaved, loanCoversAll])
+  // housingSnapshot → sessionStorage 저장 (탭4 AI 프롬프트용)
+  useEffect(() => {
+    const snapshot: HousingSnapshot = {
+      region, currentSize, currentRent, targetSize,
+      targetDeposit, targetRent, tenYearWaste, monthlyGap,
+      savingAmount: safeSaving, loanAmount,
+      yearsToGoal, yearsWithLoan, yearsSaved, loanCoversAll,
+    }
+    sessionStorage.setItem("housingSnapshot", JSON.stringify(snapshot))
+  }, [region, currentSize, currentRent, targetSize, targetDeposit, targetRent,
+    tenYearWaste, monthlyGap, safeSaving, loanAmount, yearsToGoal, yearsWithLoan,
+    yearsSaved, loanCoversAll])
 
   return (
     <TooltipProvider>
@@ -186,7 +175,9 @@ useEffect(() => {
                         {s.label}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={6}><p className="text-xs">{s.sqm}</p></TooltipContent>
+                    <TooltipContent side="top" sideOffset={6}>
+                      <p className="text-xs">{s.sqm}</p>
+                    </TooltipContent>
                   </Tooltip>
                 ))}
               </div>
@@ -198,7 +189,8 @@ useEffect(() => {
                   <input
                     type="number"
                     value={currentRentInput}
-                    onChange={(e) => setCurrentRentInput(e.target.value)}
+                    // [FIX] 음수 방어
+                    onChange={(e) => setCurrentRentInput(String(Math.max(0, Number(e.target.value) || 0)))}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
@@ -222,21 +214,22 @@ useEffect(() => {
                   <p className="text-xs font-medium text-gray-500">매달 나가는 돈</p>
                   <p className="text-xl font-bold text-gray-900">{currentRent}만원</p>
                 </div>
-                <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                <div className="flex justify-between items-center py-1">
                   <p className="text-xs font-medium text-gray-500">1년이면</p>
-                  <p className="text-xs font-bold text-gray-900">{(currentRent * 12).toLocaleString()}만원 소멸</p>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-gray-100">
-                  <p className="text-xs font-medium text-gray-500">하루로 나누면</p>
-                  <p className="text-xs font-bold text-gray-900">{Math.round((currentRent * 10000) / 30).toLocaleString()}원/일</p>
+                  <p className="text-base font-bold text-red-500">{formatManwon(currentRent * 12)}</p>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <p className="text-xs font-medium text-gray-500">10년이면</p>
-                  <p className="text-base font-bold text-red-500">{fmt(tenYearWaste)} 소멸</p>
+                  <p className="text-xs font-bold text-gray-900">{formatManwon(tenYearWaste)}</p>
                 </div>
+                <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                  <p className="text-xs font-medium text-gray-500">하루로 나누면</p>
+                  <p className="text-xs font-bold text-gray-900">{Math.round((currentRent * 10000) / 30).toLocaleString()}원</p>
+                </div>
+
               </div>
 
-              {/* 전환 제안  */}
+              {/* 전환 제안 */}
               <div className="flex items-center gap-1.5">
                 <TrendingDown size={14} className="text-blue-500" />
                 <p className="text-sm font-bold text-gray-900">지금 새고 있는 돈</p>
@@ -246,13 +239,13 @@ useEffect(() => {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-gray-50 rounded-xl px-3 py-3 text-center">
                     <p className="text-[10px] font-medium text-gray-400">지금처럼 월세로</p>
-                    <p className="text-sm font-bold text-gray-500 mt-1">10년 후 0원</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">전부 소멸</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">10년 후 0원</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">전부 소멸</p>
                   </div>
                   <div className="bg-blue-50 rounded-xl px-3 py-3 text-center">
-                    <p className="text-[10px] font-medium text-blue-400">저축으로 전환하면</p>
-                    <p className="text-sm font-bold text-blue-600 mt-1">{fmt(savingSwitch10)}</p>
-                    <p className="text-[10px] text-blue-500 mt-0.5">
+                    <p className="text-[10px] font-medium text-gray-400">저축으로 전환하면</p>
+                    <p className="text-sm font-bold text-blue-600 mt-1">{formatManwon(savingSwitch10)}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
                       목표 보증금의 {Math.min(Math.round((savingSwitch10 / targetDeposit) * 100), 100)}%
                     </p>
                   </div>
@@ -276,7 +269,7 @@ useEffect(() => {
                   </div>
                   <p className="text-xs font-medium text-gray-500 mt-0.5">지역 기준으로 시세 차이가 있어요</p>
                 </div>
-                {/* 지역 선택 */}
+                {/* [FIX] 지역 선택 — 우측 상단 배치 유지, 변경 시 currentRent·savingAmount 갱신 */}
                 <div className="flex items-center gap-1">
                   {(["서울", "경기", "광역시", "기타"] as const).map((r) => (
                     <button
@@ -302,7 +295,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* 목표 이미지 + 하단 숫자 인라인 */}
+              {/* 목표 이미지 */}
               <div
                 className="flex flex-col bg-gray-50 rounded-xl overflow-hidden"
                 style={{ height: 320 }}
@@ -345,13 +338,13 @@ useEffect(() => {
                 ))}
               </div>
 
-              {/* 감성 카피 — title 단독, 숫자 별도 줄 */}
+              {/* 감성 카피 */}
               <div className={`transition-opacity duration-200 ${imgVisible ? "opacity-100" : "opacity-0"}`}>
                 <p className="text-sm font-bold text-gray-900">{SIZE_COPY[targetSize].title}</p>
                 <p className="text-xs font-medium text-gray-500 mt-0.5">{SIZE_COPY[targetSize].sub}</p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-xs font-medium text-gray-400">전세</span>
-                  <span className="text-xs font-bold text-blue-600">{fmt(targetDeposit)}</span>
+                  <span className="text-xs font-bold text-blue-600">{formatManwon(targetDeposit)}</span>
                   <span className="text-gray-200">·</span>
                   <span className="text-xs font-medium text-gray-400">월세</span>
                   <span className="text-xs font-bold text-gray-700">{targetRent}만원</span>
@@ -373,9 +366,7 @@ useEffect(() => {
                       <span className="text-xs font-medium text-gray-500">목표 월세</span>
                       <span className="text-sm font-bold text-blue-600">{targetRent}만원</span>
                     </div>
-                    <span className="inline-flex items-center text-[11px] font-medium text-red-500 bg-red-50 rounded-full px-2 py-0.5">
-                      월 {monthlyGap}만원 gap
-                    </span>
+                    <Badge variant="destructive">월 {monthlyGap}만원 gap</Badge>
                   </div>
                 )}
               </div>
@@ -395,64 +386,47 @@ useEffect(() => {
             {/* 좌: 시나리오 2-카드 */}
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
-                {/* 순수 저축 */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs font-medium text-gray-500 mb-2">순수 저축만</p>
-                  <p className="text-2xl font-bold text-gray-400">
-                    {savingAmount > 0 ? `${yearsToGoal}년` : "–"}
+                <div className="bg-gray-50 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-0.5 h-full">
+                  <p className="text-xs font-medium text-gray-400">매년 {(safeSaving * 12).toLocaleString()}만원씩
                   </p>
-                  <p className="text-[11px] font-medium text-gray-400 mt-1.5">
-                    {savingAmount > 0
-                      ? `${savingAmount}만원 × 12 = ${(savingAmount * 12).toLocaleString()}만원/년`
-                      : "저축 금액을 입력해주세요"}
+                  <p className="text-2xl font-bold text-gray-900 my-0.5">
+                    {safeSaving > 0 ? `${yearsToGoal}년` : "–"}
                   </p>
+                  <p className="text-xs font-medium text-gray-400">을 모아야 해요</p>
                 </div>
-
-                {/* 대출 시나리오 */}
-                <div className="bg-white border border-blue-200 rounded-xl p-4">
-                  <p className="text-xs font-medium text-gray-500 mb-2">
-                    대출 {loanAmount > 0 ? fmt(loanAmount) : "0원"} 끼면
+                <div className="bg-blue-50 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-0.5 h-full">
+                  <p className="text-xs font-medium text-gray-400">
+                    대출 {loanAmount > 0 ? formatManwon(loanAmount) : "0원"} 끼면
                   </p>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <div className="flex items-baseline justify-center gap-1.5 my-0.5">
                     <p className="text-2xl font-bold text-blue-600">
-                      {loanCoversAll ? "바로 가능" : savingAmount > 0 ? `${yearsWithLoan}년` : "–"}
+                      {loanCoversAll ? "바로 가능" : safeSaving > 0 ? `${yearsWithLoan}년` : "–"}
                     </p>
-                    {loanAmount > 0 && savingAmount > 0 && !loanCoversAll && yearsSaved > 0 && (
-                      <span className="inline-flex items-center text-[11px] font-medium text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">
-                        ↓ {yearsSaved}년 단축
-                      </span>
+                    {!loanCoversAll && yearsSaved > 0 && (
+                      <p className="text-xs font-bold text-blue-500">↓ {yearsSaved}년 단축</p>
                     )}
                     {loanCoversAll && (
-                      <span className="inline-flex items-center text-[11px] font-medium text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">
-                        ↓ {yearsToGoal}년 단축
-                      </span>
+                      <p className="text-xs font-bold text-blue-50000">↓ {yearsToGoal}년 단축</p>
                     )}
                   </div>
-                  <p className="text-[11px] font-medium text-blue-400 mt-1.5">
+                  <p className="text-xs font-medium text-gray-400">
                     {loanAmount === 0
                       ? "슬라이더를 움직여봐요"
-                      : loanCoversAll
-                        ? `목표 보증금 ${fmt(targetDeposit)} 충당 가능`
-                        : `(${fmt(targetDeposit)} - ${fmt(loanAmount)}) ÷ ${(savingAmount * 12).toLocaleString()}만원/년`}
+                      : `월 ${safeSaving}만원 저축 기준`}
                   </p>
                 </div>
               </div>
 
-              {/* 단축 요약 */}
               <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
                 <p className="text-xs font-medium text-gray-500">대출을 활용하면</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {loanAmount === 0
-                    ? "대출 금액을 설정해보세요"
-                    : loanCoversAll
-                      ? `${yearsToGoal}년 단축 · 바로 이사 가능`
-                      : yearsSaved > 0
-                        ? `${yearsSaved}년 단축`
+                  {loanAmount === 0 ? "대출 금액을 설정해보세요"
+                    : loanCoversAll ? `${yearsToGoal}년 단축 · 바로 이사 가능`
+                      : yearsSaved > 0 ? `${yearsSaved}년 단축`
                         : "대출 효과가 크지 않아요"}
                 </p>
               </div>
 
-              {/* CTA: 대출 체감만, 블루 */}
               <button
                 onClick={() => router.push("/site/simulator?tab=financeFeel")}
                 className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
@@ -461,12 +435,13 @@ useEffect(() => {
               </button>
             </div>
 
+
             {/* 우: 입력 */}
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl px-4 py-3">
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <p className="text-xs font-medium text-gray-500">목표 전세 보증금</p>
-                  <p className="text-sm font-bold text-gray-900">{fmt(targetDeposit)}</p>
+                  <p className="text-sm font-bold text-gray-900">{formatManwon(targetDeposit)}</p>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-1">
@@ -484,7 +459,8 @@ useEffect(() => {
                     <input
                       type="number"
                       value={savingAmount}
-                      onChange={(e) => setSavingAmount(Number(e.target.value) || 0)}
+                      // [FIX] 음수 방어
+                      onChange={(e) => setSavingAmount(Math.max(0, Number(e.target.value) || 0))}
                       className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200 pr-8 text-right"
                     />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">만원</span>
@@ -492,11 +468,10 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* 대출 슬라이더 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-gray-500">전세대출</p>
-                  <p className="text-sm font-bold text-gray-900">{fmt(loanAmount)}</p>
+                  <p className="text-sm font-bold text-gray-900">{formatManwon(loanAmount)}</p>
                 </div>
                 <Slider
                   min={0}
@@ -508,12 +483,24 @@ useEffect(() => {
                 />
                 <div className="flex justify-between">
                   <span className="text-[10px] text-gray-400">0원</span>
-                  <span className="text-[10px] text-gray-400">{fmt(Math.min(targetDeposit, 50000))}</span>
+                  <span className="text-[10px] text-gray-400">{formatManwon(Math.min(targetDeposit, 50000))}</span>
                 </div>
+
+                {/* 계산식 요약 — 슬라이더 아래 */}
+                {safeSaving > 0 && (
+                  <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
+                    <p className="text-xs text-gray-500">
+                      {!loanCoversAll && (
+                        <>저축 <span className="font-bold text-gray-900">{formatManwon(safeSaving * 12 * yearsWithLoan)}</span> + </>
+                      )}
+                      대출 <span className="font-bold text-gray-900">{formatManwon(loanAmount)}</span>
+                      {" = "}
+                      목표 <span className="font-bold text-blue-600">{formatManwon(targetDeposit)}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-
-
           </div>
         </div>
 
