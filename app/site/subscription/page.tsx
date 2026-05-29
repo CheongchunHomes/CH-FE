@@ -2,157 +2,147 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {get,ApiError} from "@/lib/api"
+import { ApiError, get } from "@/lib/api";
 
+type MainCategory = "apt" | "office" | "public";
 
 type AnnouncementItem = {
   id: number;
-  type: string;
+  type: string | null;
   title: string;
-  region: string;
-  applyStartDate: string;
-  applyEndDate: string;
-  status: string;
-  address: string;
-  recruitmentType: string;
-  sourceType: string;
+  region: string | null;
+  applyStartDate: string | null;
+  applyEndDate: string | null;
+  status: string | null;
+  address: string | null;
+  recruitmentType: string | null;
+  sourceType: string | null;
 };
 
-const categoryMap = {
-  special: "아파트",
-  first: "다가구주택",
-  second: "연립주택",
-  
-};
+const categories: {
+  value: MainCategory;
+  label: string;
+}[] = [
+  {
+    value: "apt",
+    label: "APT",
+  },
+  {
+    value: "office",
+    label: "오피스텔 / 생숙 / 도시형 / 민간임대",
+  },
+  {
+    value: "public",
+    label: "공공분양 / 공공임대",
+  },
+];
 
 export default function SubscriptionPage() {
-  return (
-    <div className="w-full p-6">
-      <Tabs defaultValue="apt" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="apt">APT</TabsTrigger>
-          <TabsTrigger value="office">
-            오피스텔 / 생숙 / 도시형 / 민간임대
-          </TabsTrigger>
-          <TabsTrigger value="public">공공지원 민간임대</TabsTrigger>
-        </TabsList>
+  const router = useRouter();
 
-        <TabsContent value="apt" className="mt-6">
-          <AptInnerTabs />
-        </TabsContent>
-
-        <TabsContent value="office" className="mt-6">
-          <EmptyBox text="현재 표시할 공고가 없습니다." />
-        </TabsContent>
-
-        <TabsContent value="public" className="mt-6">
-          <EmptyBox text="현재 표시할 공고가 없습니다." />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function AptInnerTabs() {
-  const [activeTab, setActiveTab] = useState("special");
+  const [mainCategory, setMainCategory] = useState<MainCategory>("apt");
   const [items, setItems] = useState<AnnouncementItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const recruitmentType = categoryMap[activeTab as keyof typeof categoryMap];
-    fetchAnnouncements(recruitmentType);
-  }, [activeTab]);
+    fetchAnnouncements(mainCategory);
+  }, [mainCategory]);
 
-  async function fetchAnnouncements(recruitmentType: string) {
+  async function fetchAnnouncements(category: MainCategory) {
+    console.log("[청약 공고 조회 요청]", category);
+
     setLoading(true);
 
- try {
-  const response = await fetch(
-     `/api/subscription?recruitmentType=${encodeURIComponent(recruitmentType)}`,
-    {
-      method: "GET",
-      cache: "no-store",
+    try {
+      const data = await get<AnnouncementItem[]>("/api/subscription", {
+        query: {
+          category,
+        },
+        cache: "no-store",
+      });
+
+      console.log("[청약 공고 조회 결과]", category, data.length);
+
+      setItems(data);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error("청약 공고 조회 실패:", error.status, error.message);
+      } else {
+        console.error("청약 공고 조회 실패:", error);
+      }
+
+      setItems([]);
+    } finally {
+      setLoading(false);
     }
-  );
-
-  if (!response.ok) {
-    throw new Error(`API 요청 실패: ${response.status}`);
   }
 
-  const data = await response.json();
-  setItems(data);
-} catch (error) {
-  console.error("공고 조회 실패:", error);
-  setItems([]);
-} finally {
-  setLoading(false);
-}
-  }
-
-  return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="special">APT 특별공급</TabsTrigger>
-        <TabsTrigger value="first">APT 1순위</TabsTrigger>
-        <TabsTrigger value="second">APT 2순위</TabsTrigger>
-        <TabsTrigger value="remain">APT 잔여세대</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value={activeTab} className="mt-5">
-        {loading ? (
-          <EmptyBox text="공고를 불러오는 중입니다." />
-        ) : (
-          <AnnouncementList items={items} />
-        )}
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-function AnnouncementList({ items }: { items: AnnouncementItem[] }) {
-  if (items.length === 0) {
-    return <EmptyBox text="청약가능한 공고가 없습니다." />;
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {items.map((item) => (
-        <AnnouncementCard key={item.id} item={item} />
-      ))}
-    </div>
-  );
-}
-
-function AnnouncementCard({ item }: { item: AnnouncementItem }) {
-  const router = useRouter();
-
-  const goDetailPage = () => {
-    router.push(`/site/subscription/${item.id}`);
+  const goDetailPage = (id: number) => {
+    router.push(`/site/subscription/${id}`);
   };
 
   return (
-    <div className="rounded-xl border bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-      <div className="mb-3 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-        {item.status}
+    <div className="w-full p-6">
+      <div className="grid w-full grid-cols-3 rounded-lg bg-slate-100 p-1">
+        {categories.map((category) => (
+          <button
+            key={category.value}
+            type="button"
+            onClick={() => setMainCategory(category.value)}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+              mainCategory === category.value
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:bg-white/60"
+            }`}
+          >
+            {category.label}
+          </button>
+        ))}
       </div>
 
-      <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
+      <div className="mt-6">
+        {loading ? (
+          <EmptyBox text="공고를 불러오는 중입니다." />
+        ) : items.length === 0 ? (
+          <EmptyBox text="청약가능한 공고가 없습니다." />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <div className="mb-3 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                  {item.status ?? "상태 미정"}
+                </div>
 
-      <div className="mt-3 space-y-1 text-sm text-gray-600">
-        <p>대상: {item.type}</p>
-        <p>지역: {item.region}</p>
-        <p>접수일: {item.applyStartDate} ~ {item.applyEndDate}</p>
-        <p>주소: {item.address}</p>
+                <h3 className="line-clamp-2 text-lg font-bold text-gray-900">
+                  {item.title}
+                </h3>
+
+                <div className="mt-3 space-y-1 text-sm text-gray-600">
+                  <p>출처: {item.sourceType ?? "-"}</p>
+                  <p>유형: {item.recruitmentType ?? item.type ?? "-"}</p>
+                  <p>지역: {item.region ?? "-"}</p>
+                  <p>
+                    접수일: {item.applyStartDate ?? "-"} ~{" "}
+                    {item.applyEndDate ?? "-"}
+                  </p>
+                  <p className="line-clamp-2">주소: {item.address ?? "-"}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => goDetailPage(item.id)}
+                  className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  상세 보기
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      <button
-        type="button"
-        onClick={goDetailPage}
-        className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
-      >
-        상세 보기
-      </button>
     </div>
   );
 }

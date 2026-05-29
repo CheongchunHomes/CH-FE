@@ -1,1 +1,1 @@
-export { GET } from "@/lib/api/server"
+export { GET, DELETE } from '@/lib/api/server';

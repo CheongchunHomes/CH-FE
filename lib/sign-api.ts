@@ -63,6 +63,12 @@ export async function getMySigns(): Promise<SignDocument[]> {
   })
 }
 
+export async function createSign(propertyId: number): Promise<SignDocument> {
+  return post<SignDocument>("/api/sign", {
+    propertyId,
+  })
+}
+
 export async function getSignContract(signId: number): Promise<SignContractDocument> {
   return get<SignContractDocument>(`/api/sign/${signId}/contract`, {
     cache: "no-store",
@@ -92,12 +98,6 @@ export async function getProviderSignedPdfSignedUrl(signId: number): Promise<Fil
 export async function getCompletedPdfSignedUrl(signId: number): Promise<FileSignedUrlResponse> {
   return get<FileSignedUrlResponse>(`/api/sign/${signId}/completed-pdf/signed-url`, {
     cache: "no-store",
-  })
-}
-
-export async function createSign(propertyId: number): Promise<SignDocument> {
-  return post<SignDocument>("/api/sign", {
-    propertyId,
   })
 }
 

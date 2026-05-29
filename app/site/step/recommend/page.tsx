@@ -287,7 +287,7 @@ useEffect(() => {
                         <p className="font-medium text-gray-900 truncate">{a.title}</p>
                         <p className="text-xs text-gray-500">{a.region} · {a.status} · {a.applyEndDate ? a.applyEndDate + ' 마감' : ''}</p>
                       </div>
-                      <button type="button" onClick={() => setModalAnnouncement(a)} className="ml-2 shrink-0 text-xs text-blue-600 hover:underline">상세</button>
+                      <button type="button" onClick={() => setModalAnnouncement(a)} className="ml-2 shrink-0 text-xs text-blue-600 hover:underline">상세보기</button>
                     </div>
                   ))}
                   <div className="flex justify-center border-t border-gray-100 py-3">
@@ -348,7 +348,7 @@ useEffect(() => {
           )}
           <div className="flex gap-2 pt-2">
             <Button asChild className="flex-1">
-              <a href={`/site/announcements/${modalAnnouncement?.announcementId}`}>
+              <a href={`/site/subscription/${modalAnnouncement?.announcementId}`}>
                 공고 상세보기 →
               </a>
             </Button>
