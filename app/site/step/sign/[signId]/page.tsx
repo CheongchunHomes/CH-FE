@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -8,11 +8,7 @@ import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react"
 import { ApiError } from "@/lib/api"
 import { useStepBar } from "@/app/site/step/components/StepLayoutShell"
 import { useAuth } from "@/lib/auth-context"
-import {
-  getCompletedPdfSignedUrl,
-  getSignContract,
-  type SignContractDocument,
-} from "@/lib/sign-api"
+import { getSignContract, getSignFileSignedUrl, type SignContractDocument } from "@/lib/sign-api"
 import { PdfPreviewPanel, TenantPdfSigningDocument } from "@/components/sign/contract-pdf-panels"
 
 import { Button } from "@/components/ui/button"
@@ -21,7 +17,6 @@ import { Card, CardContent } from "@/components/ui/card"
 export default function SignContractPage() {
   useStepBar(5)
   const router = useRouter()
-
   const params = useParams<{ signId: string }>()
   const signId = useMemo(() => Number(params.signId), [params.signId])
   const { status, refresh, user } = useAuth()
@@ -33,18 +28,9 @@ export default function SignContractPage() {
   const [reloadToken, setReloadToken] = useState(0)
 
   const viewerRole = useMemo(() => {
-    if (!contract || !user) {
-      return null
-    }
-
-    if (contract.provider.userId === user.id) {
-      return "provider"
-    }
-
-    if (contract.customer.userId === user.id) {
-      return "customer"
-    }
-
+    if (!contract || !user) return null
+    if (contract.provider.userId === user.id) return "provider"
+    if (contract.customer.userId === user.id) return "customer"
     return "other"
   }, [contract, user])
 
@@ -54,32 +40,27 @@ export default function SignContractPage() {
     }
   }, [contract, router, viewerRole])
 
-  const isRedirectingToLandlord = viewerRole === "provider"
-
   useEffect(() => {
     if (status === "loading") {
       setIsLoading(true)
       return
     }
-
     if (status === "reauthRequired") {
       setIsAuthenticated(true)
       setIsLoading(false)
       return
     }
-
     if (status !== "authenticated") {
       setIsAuthenticated(false)
       setIsLoading(false)
       setContract(null)
       return
     }
-
     if (!Number.isFinite(signId)) {
       setIsAuthenticated(true)
       setIsLoading(false)
       setContract(null)
-      setErrorMessage("올바르지 않은 결제 서류 번호입니다.")
+      setErrorMessage("올바르지 않은 계약 번호입니다.")
       return
     }
 
@@ -91,15 +72,12 @@ export default function SignContractPage() {
       try {
         const data = await getSignContract(signId)
         setContract(data)
-        setErrorMessage("")
       } catch (error) {
         const code = getApiErrorCode(error)
-
         if (code === "REAUTH_REQUIRED") {
           await refresh()
           return
         }
-
         setErrorMessage(error instanceof Error ? error.message : "계약서를 불러오지 못했습니다.")
       } finally {
         setIsLoading(false)
@@ -116,12 +94,10 @@ export default function SignContractPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
             <AlertCircle size={22} />
           </div>
-
           <div>
-            <h1 className="text-xl font-bold text-slate-950">로그인이 필요합니다</h1>
+            <h1 className="text-xl font-bold text-slate-950">로그인이 필요합니다.</h1>
             <p className="mt-2 text-sm text-slate-500">계약서를 확인하려면 먼저 로그인해 주세요.</p>
           </div>
-
           <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
@@ -130,24 +106,23 @@ export default function SignContractPage() {
     )
   }
 
-  const handleRefresh = () => setReloadToken((current) => current + 1)
-
-  if (isRedirectingToLandlord) {
+  if (viewerRole === "provider") {
     return (
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-8 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-600">
             <Loader2 className="animate-spin" size={22} />
           </div>
-
           <div>
-            <h1 className="text-xl font-bold text-slate-950">마이페이지 계약서로 이동 중입니다</h1>
-            <p className="mt-2 text-sm text-slate-500">임대인 계약서는 마이페이지에서 작성할 수 있습니다.</p>
+            <h1 className="text-xl font-bold text-slate-950">마이페이지 계약서로 이동 중입니다.</h1>
+            <p className="mt-2 text-sm text-slate-500">임대인 계약서는 마이페이지에서 작성합니다.</p>
           </div>
         </CardContent>
       </Card>
     )
   }
+
+  const handleRefresh = () => setReloadToken((current) => current + 1)
 
   return (
     <div className="space-y-4">
@@ -168,34 +143,33 @@ export default function SignContractPage() {
               계약서를 불러오는 중입니다.
             </div>
           ) : errorMessage ? (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700">
-              {errorMessage}
-            </div>
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700">{errorMessage}</div>
           ) : contract ? (
             viewerRole === "customer" ? (
               contract.status === "ISSUED" ? (
-                <StatusMessageCard
-                  title="계약 대기"
-                  message="임대인이 계약서 PDF를 생성할 때까지 기다려 주세요."
-                />
+                <StatusMessageCard title="계약 대기" message="임대인 확인이 끝나면 여기에서 계약서를 볼 수 있습니다." />
               ) : contract.status === "PROVIDER_SIGNED" ? (
-                <TenantPdfSigningDocument contract={contract} onRefresh={handleRefresh} />
+                contract.contract ? (
+                  <TenantPdfSigningDocument contract={contract} onRefresh={handleRefresh} />
+                ) : (
+                  <StatusMessageCard title="계약 정보를 불러올 수 없습니다." message="저장된 임대인 확정 계약 조건이 없어 서명 화면을 표시할 수 없습니다." tone="destructive" />
+                )
               ) : contract.status === "COMPLETED" ? (
-                <PdfPreviewPanel
-                  title="완료된 계약서"
-                  description="최종 계약 PDF를 확인하고 다운로드할 수 있습니다."
-                  fileId={contract.completedPdfFileId}
-                  loadSignedUrl={() => getCompletedPdfSignedUrl(contract.signId)}
-                />
+                contract.contract?.completedPdfFileId != null ? (
+                  <PdfPreviewPanel
+                    title="완료된 계약서"
+                    description="최종 계약 PDF를 확인하고 다운로드할 수 있습니다."
+                    fileId={contract.contract.completedPdfFileId}
+                    loadSignedUrl={() => getSignFileSignedUrl(contract.signId, contract.contract!.completedPdfFileId!)}
+                  />
+                ) : (
+                  <StatusMessageCard title="계약 정보를 불러올 수 없습니다." message="완료된 계약서 정보가 없어 PDF를 표시할 수 없습니다." tone="destructive" />
+                )
               ) : (
-                <StatusMessageCard title="계약 취소" message="취소된 계약서입니다." tone="destructive" />
+                <StatusMessageCard title="계약 취소" message="취소된 계약입니다." tone="destructive" />
               )
             ) : (
-              <StatusMessageCard
-                title="접근 제한"
-                message="이 계약서는 현재 사용자에게 공개되지 않았습니다."
-                tone="destructive"
-              />
+              <StatusMessageCard title="접근 권한" message="이 계약서는 현재 사용자에게 공개되지 않습니다." tone="destructive" />
             )
           ) : null}
         </CardContent>
@@ -204,15 +178,7 @@ export default function SignContractPage() {
   )
 }
 
-function StatusMessageCard({
-  title,
-  message,
-  tone = "default",
-}: {
-  title: string
-  message: string
-  tone?: "default" | "destructive"
-}) {
+function StatusMessageCard({ title, message, tone = "default" }: { title: string; message: string; tone?: "default" | "destructive" }) {
   return (
     <Card className={`border-slate-200/80 bg-white shadow-sm ${tone === "destructive" ? "border-rose-200" : ""}`}>
       <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
@@ -229,10 +195,7 @@ function StatusMessageCard({
 }
 
 function getApiErrorCode(error: unknown) {
-  return error instanceof ApiError &&
-    error.payload &&
-    typeof error.payload === "object" &&
-    "code" in error.payload
+  return error instanceof ApiError && error.payload && typeof error.payload === "object" && "code" in error.payload
     ? (error.payload as { code?: string }).code
     : undefined
 }

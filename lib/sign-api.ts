@@ -43,10 +43,25 @@ export type SignContractDocument = {
   property: ContractProperty
   provider: ContractParty
   customer: ContractParty
-  providerSignedPdfFileId: number | null
-  completedPdfFileId: number | null
-  providerSignedAt: string | null
-  customerSignedAt: string | null
+  contract: {
+    leaseEndDate: string | null
+    contractAmount: number | null
+    interimAmount1: number | null
+    interimAmount1Date: string | null
+    interimAmount2: number | null
+    interimAmount2Date: string | null
+    balanceAmount: number | null
+    balanceDate: string | null
+    specialTerms: string | null
+    buildingDong: string | null
+    unitHo: string | null
+    rentedPart: string | null
+    providerSignatureFileId: number | null
+    customerSignatureFileId: number | null
+    completedPdfFileId: number | null
+    providerSignedAt: string | null
+    customerSignedAt: string | null
+  } | null
 }
 
 export type BrokerSignDocument = {
@@ -75,12 +90,34 @@ export async function getSignContract(signId: number): Promise<SignContractDocum
   })
 }
 
-export async function providerSign(signId: number, input: { providerSignedPdfFileId: number }): Promise<void> {
-  return post<void, { providerSignedPdfFileId: number }>(`/api/sign/${signId}/provider-sign`, input)
+export type ProviderSignInput = {
+  leaseEndDate: string
+  contractAmount: number | null
+  interimAmount1: number | null
+  interimAmount1Date: string | null
+  interimAmount2: number | null
+  interimAmount2Date: string | null
+  balanceAmount: number | null
+  balanceDate: string | null
+  specialTerms: string
+  buildingDong: string
+  unitHo: string
+  rentedPart: string
+  providerSignatureFileId: number
 }
 
-export async function customerSign(signId: number, input: { completedPdfFileId: number }): Promise<void> {
-  return post<void, { completedPdfFileId: number }>(`/api/sign/${signId}/customer-sign`, input)
+export async function providerSign(signId: number, input: ProviderSignInput): Promise<void> {
+  return post<void, ProviderSignInput>(`/api/sign/${signId}/provider-sign`, input)
+}
+
+export async function customerSign(
+  signId: number,
+  input: { customerSignatureFileId: number; completedPdfFileId: number },
+): Promise<void> {
+  return post<void, { customerSignatureFileId: number; completedPdfFileId: number }>(
+    `/api/sign/${signId}/customer-sign`,
+    input,
+  )
 }
 
 export async function getBrokerSign(): Promise<BrokerSignDocument> {
@@ -89,14 +126,8 @@ export async function getBrokerSign(): Promise<BrokerSignDocument> {
   })
 }
 
-export async function getProviderSignedPdfSignedUrl(signId: number): Promise<FileSignedUrlResponse> {
-  return get<FileSignedUrlResponse>(`/api/sign/${signId}/provider-signed-pdf/signed-url`, {
-    cache: "no-store",
-  })
-}
-
-export async function getCompletedPdfSignedUrl(signId: number): Promise<FileSignedUrlResponse> {
-  return get<FileSignedUrlResponse>(`/api/sign/${signId}/completed-pdf/signed-url`, {
+export async function getSignFileSignedUrl(signId: number, fileId: number): Promise<FileSignedUrlResponse> {
+  return get<FileSignedUrlResponse>(`/api/sign/${signId}/files/${fileId}/signed-url`, {
     cache: "no-store",
   })
 }

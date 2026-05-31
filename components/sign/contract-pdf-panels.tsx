@@ -1,84 +1,83 @@
-"use client"
+﻿"use client"
 
 import { createPortal } from "react-dom"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react"
-import { Loader2, PenTool, X } from "lucide-react"
-import { PDFDocument } from "pdf-lib"
+import { AlertCircle, Loader2, PenTool, X } from "lucide-react"
 
 import { uploadPrivateFile } from "@/lib/api"
 import type { FileSignedUrlResponse } from "@/lib/api"
+import { customerSign, getBrokerSign, getSignFileSignedUrl, type SignContractDocument } from "@/lib/sign-api"
 import {
-  customerSign,
-  getProviderSignedPdfSignedUrl,
-  type SignContractDocument,
-} from "@/lib/sign-api"
+  buildContractPdf,
+  ContractDocument,
+  createContractDocumentDraftFromSavedContract,
+  dataUrlToFile,
+} from "@/components/sign/contract-document"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
-const CONTRACT_PDF_NAME = "contract.pdf"
-const TENANT_SIGNATURE_POSITION = {
-  pageIndex: -1,
-  x: 372,
-  y: 92,
-  width: 120,
-  height: 42,
-} as const
-
-export function TenantPdfSigningDocument({
-  contract,
-  onRefresh,
-}: {
-  contract: SignContractDocument
-  onRefresh: () => void
-}) {
-  const [providerPdfUrl, setProviderPdfUrl] = useState("")
+export function TenantPdfSigningDocument({ contract, onRefresh }: { contract: SignContractDocument; onRefresh: () => void }) {
+  const previewRef = useRef<HTMLDivElement | null>(null)
   const [signature, setSignature] = useState<string | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
-  const [isLoadingPreview, setIsLoadingPreview] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
+  const [providerSignatureUrl, setProviderSignatureUrl] = useState<string | null>(null)
+  const [brokerSignatureUrl, setBrokerSignatureUrl] = useState<string | null>(null)
+
+  const draft = useMemo(() => {
+    if (!contract.contract) {
+      return null
+    }
+
+    return createContractDocumentDraftFromSavedContract(contract, {
+      providerSignature: providerSignatureUrl,
+      brokerSignUrl: brokerSignatureUrl,
+      customerSignature: signature,
+    })
+  }, [brokerSignatureUrl, contract, providerSignatureUrl, signature])
 
   useEffect(() => {
     let canceled = false
 
-    async function loadPreview() {
-      if (contract.providerSignedPdfFileId == null) {
-        setErrorMessage("임대인이 생성한 계약서 PDF를 찾을 수 없습니다.")
-        setIsLoadingPreview(false)
+    async function loadAssets() {
+      if (!contract.contract) {
         return
       }
 
-      setIsLoadingPreview(true)
-
       try {
-        const response = await getProviderSignedPdfSignedUrl(contract.signId)
-        if (!canceled) {
-          setProviderPdfUrl(response.signedUrl)
-          setErrorMessage("")
+        const [providerSignature, brokerSign] = await Promise.all([
+          contract.contract.providerSignatureFileId != null
+            ? getSignFileSignedUrl(contract.signId, contract.contract.providerSignatureFileId)
+            : Promise.resolve(null),
+          getBrokerSign(),
+        ])
+
+        if (canceled) {
+          return
         }
+
+        setProviderSignatureUrl(providerSignature?.signedUrl ?? null)
+        setBrokerSignatureUrl(brokerSign.signedUrl)
       } catch (error) {
         if (!canceled) {
-          setErrorMessage(error instanceof Error ? error.message : "계약서 PDF를 불러오지 못했습니다.")
-        }
-      } finally {
-        if (!canceled) {
-          setIsLoadingPreview(false)
+          setErrorMessage(error instanceof Error ? error.message : "서명 이미지를 불러오지 못했습니다.")
         }
       }
     }
 
-    loadPreview()
+    loadAssets()
 
     return () => {
       canceled = true
     }
-  }, [contract.providerSignedPdfFileId, contract.signId])
+  }, [contract])
 
   const handleComplete = async () => {
-    if (!providerPdfUrl) {
-      setErrorMessage("계약서 PDF를 먼저 불러와 주세요.")
+    if (!contract.contract || !draft) {
+      setErrorMessage("저장된 계약 조건을 찾을 수 없습니다.")
       return
     }
 
@@ -87,40 +86,19 @@ export function TenantPdfSigningDocument({
       return
     }
 
+    if (!previewRef.current) {
+      setErrorMessage("계약 문서를 찾을 수 없습니다.")
+      return
+    }
+
     setIsSubmitting(true)
     setErrorMessage("")
 
     try {
-      const pdfBytes = await fetch(providerPdfUrl).then((response) => response.arrayBuffer())
-      const pdfDoc = await PDFDocument.load(pdfBytes)
-      const imageBytes = await fetch(signature).then((response) => response.arrayBuffer())
-      const embeddedImage = await pdfDoc.embedPng(imageBytes)
-      const pages = pdfDoc.getPages()
-      const pageIndex =
-        TENANT_SIGNATURE_POSITION.pageIndex < 0
-          ? Math.max(0, pages.length + TENANT_SIGNATURE_POSITION.pageIndex)
-          : TENANT_SIGNATURE_POSITION.pageIndex
-      const page = pages[pageIndex]
-
-      if (!page) {
-        throw new Error("서명 위치를 찾을 수 없습니다.")
-      }
-
-      page.drawImage(embeddedImage, {
-        x: TENANT_SIGNATURE_POSITION.x,
-        y: TENANT_SIGNATURE_POSITION.y,
-        width: TENANT_SIGNATURE_POSITION.width,
-        height: TENANT_SIGNATURE_POSITION.height,
-      })
-
-      const completedPdfBytes = await pdfDoc.save()
-      const completedPdfBuffer = new ArrayBuffer(completedPdfBytes.byteLength)
-      new Uint8Array(completedPdfBuffer).set(completedPdfBytes)
-      const completedFile = new File([completedPdfBuffer], CONTRACT_PDF_NAME, {
-        type: "application/pdf",
-      })
+      const customerSignatureFileId = await uploadPrivateFile(dataUrlToFile(signature, "customer-signature.png"))
+      const completedFile = await buildContractPdf(previewRef.current)
       const completedPdfFileId = await uploadPrivateFile(completedFile)
-      await customerSign(contract.signId, { completedPdfFileId })
+      await customerSign(contract.signId, { customerSignatureFileId, completedPdfFileId })
       onRefresh()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "임차인 서명 완료 처리에 실패했습니다.")
@@ -129,21 +107,28 @@ export function TenantPdfSigningDocument({
     }
   }
 
+  if (!contract.contract || !draft) {
+    return <ContractDataErrorCard message="저장된 임대인 확정 계약 조건이 없어 서명 화면을 표시할 수 없습니다." />
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <PdfPreviewPanel
-        title="임대인 서명 완료 계약서"
-        description="계약서 PDF를 미리 보고 임차인 서명을 완료할 수 있습니다."
-        fileId={contract.providerSignedPdfFileId}
-        signedUrl={providerPdfUrl}
-        isLoading={isLoadingPreview}
-      />
+      <ContractDocument contract={contract} draft={draft} readOnly />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-[-10000px] top-0 z-[-1] h-auto w-fit overflow-hidden bg-white"
+      >
+        <div ref={previewRef}>
+          <ContractDocument contract={contract} draft={draft} readOnly mode="pdf" />
+        </div>
+      </div>
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="space-y-4 p-5 md:p-8">
           <div className="space-y-2">
             <h3 className="text-base font-semibold text-slate-950">임차인 서명</h3>
-            <p className="text-sm text-slate-500">계약서의 고정된 서명 위치에 임차인 서명을 삽입합니다.</p>
+            <p className="text-sm text-slate-500">확정된 계약서에 임차인 서명을 추가한 뒤 최종 PDF를 생성합니다.</p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
@@ -157,15 +142,8 @@ export function TenantPdfSigningDocument({
                 <PenTool className="mr-2 h-4 w-4" />
                 서명 입력
               </Button>
-              <Button type="button" onClick={handleComplete} disabled={isSubmitting || isLoadingPreview || !signature}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 animate-spin" size={16} />
-                    완료 처리 중
-                  </>
-                ) : (
-                  "서명 완료"
-                )}
+              <Button type="button" onClick={handleComplete} disabled={isSubmitting || !signature}>
+                {isSubmitting ? <><Loader2 className="mr-2 animate-spin" size={16} />완료 처리 중</> : "서명 완료"}
               </Button>
             </div>
           </div>
@@ -183,6 +161,22 @@ export function TenantPdfSigningDocument({
         }}
       />
     </div>
+  )
+}
+
+function ContractDataErrorCard({ message }: { message: string }) {
+  return (
+    <Card className="border-rose-200 bg-white shadow-sm">
+      <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <AlertCircle size={22} />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-slate-950">계약 정보를 불러올 수 없습니다.</h3>
+          <p className="mt-2 text-sm text-slate-500">{message}</p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -225,13 +219,13 @@ export function PdfPreviewPanel({
       return
     }
 
-    const loadPreviewSignedUrl: () => Promise<FileSignedUrlResponse> = loadSignedUrl
+    const loadSignedUrlFn = loadSignedUrl
     let canceled = false
 
     async function loadPreview() {
       setLoading(true)
       try {
-        const response = await loadPreviewSignedUrl()
+        const response = await loadSignedUrlFn()
         if (!canceled) {
           setResolvedUrl(response.signedUrl)
           setErrorMessage("")
@@ -262,7 +256,6 @@ export function PdfPreviewPanel({
             <h3 className="text-base font-semibold text-slate-950">{title}</h3>
             <p className="mt-1 text-sm text-slate-500">{description}</p>
           </div>
-
           {fileId != null ? <span className="text-xs font-medium text-slate-400">fileId #{fileId}</span> : null}
         </div>
 
@@ -272,30 +265,22 @@ export function PdfPreviewPanel({
             PDF를 불러오는 중입니다.
           </div>
         ) : errorMessage ? (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700">
-            {errorMessage}
-          </div>
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700">{errorMessage}</div>
         ) : resolvedUrl ? (
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
             <iframe title={title} src={resolvedUrl} className="h-[760px] w-full bg-white" />
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-            미리보기를 표시할 수 없습니다.
-          </div>
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">미리보기를 표시할 수 없습니다.</div>
         )}
 
         {resolvedUrl ? (
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <a href={resolvedUrl} target="_blank" rel="noreferrer">
-                새 탭에서 열기
-              </a>
+              <a href={resolvedUrl} target="_blank" rel="noreferrer">새 창에서 열기</a>
             </Button>
             <Button asChild variant="outline">
-              <a href={resolvedUrl} download>
-                다운로드
-              </a>
+              <a href={resolvedUrl} download>다운로드</a>
             </Button>
           </div>
         ) : null}
@@ -304,13 +289,7 @@ export function PdfPreviewPanel({
   )
 }
 
-export function SignatureMark({
-  signature,
-  pendingLabel = "전자서명 대기",
-}: {
-  signature: string | null
-  pendingLabel?: string
-}) {
+export function SignatureMark({ signature, pendingLabel = "전자서명 대기" }: { signature: string | null; pendingLabel?: string }) {
   if (signature) {
     return <img src={signature} alt="전자서명" className="h-8 w-auto object-contain" />
   }
@@ -318,15 +297,7 @@ export function SignatureMark({
   return <span className="whitespace-nowrap text-sm text-slate-400">{pendingLabel}</span>
 }
 
-export function SignatureDialog({
-  open,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean
-  onClose: () => void
-  onConfirm: (dataUrl: string) => void
-}) {
+export function SignatureDialog({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: (dataUrl: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
   const lastPointRef = useRef<{ x: number; y: number } | null>(null)
@@ -363,23 +334,18 @@ export function SignatureDialog({
     if (!canvas) return null
 
     const rect = canvas.getBoundingClientRect()
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
   }
 
   const startDraw = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const point = getPoint(event)
     if (!point) return
-
     drawingRef.current = true
     lastPointRef.current = point
   }
 
   const moveDraw = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return
-
     const canvas = canvasRef.current
     const context = canvas?.getContext("2d")
     const point = getPoint(event)
@@ -401,7 +367,6 @@ export function SignatureDialog({
     const canvas = canvasRef.current
     const context = canvas?.getContext("2d")
     if (!canvas || !context) return
-
     context.clearRect(0, 0, canvas.width, canvas.height)
   }
 
@@ -412,15 +377,10 @@ export function SignatureDialog({
       <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold tracking-[0.22em] text-blue-600">전자결제</p>
-            <h3 className="mt-2 text-2xl font-black text-slate-950">자필 서명</h3>
+            <p className="text-sm font-semibold tracking-[0.22em] text-blue-600">전자계약</p>
+            <h3 className="mt-2 text-2xl font-black text-slate-950">서명 입력</h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-            aria-label="서명 창 닫기"
-          >
+          <button type="button" onClick={onClose} className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50" aria-label="서명 창 닫기">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -437,22 +397,13 @@ export function SignatureDialog({
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-          <Button type="button" variant="outline" onClick={clearCanvas}>
-            초기화
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
-            취소
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              const canvas = canvasRef.current
-              if (!canvas) return
-              onConfirm(canvas.toDataURL("image/png"))
-            }}
-          >
-            확인
-          </Button>
+          <Button type="button" variant="outline" onClick={clearCanvas}>초기화</Button>
+          <Button type="button" variant="outline" onClick={onClose}>취소</Button>
+          <Button type="button" onClick={() => {
+            const canvas = canvasRef.current
+            if (!canvas) return
+            onConfirm(canvas.toDataURL("image/png"))
+          }}>확인</Button>
         </div>
       </div>
     </div>,
