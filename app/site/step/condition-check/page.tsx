@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { DiagnosisForm, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import { DiagnosisForm, sanitizeDiagnosisForm, formatAsset } from "@/lib/diagnosisUtils";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -63,14 +63,6 @@ const DESIRED_TYPE_OPTIONS = [
 // ─────────────────────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────────────────────
-const formatAsset = (value: number): string => {
-  if (value <= 0) return "";
-  const uk = Math.floor(value / 10000);
-  const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
-  if (uk > 0) return `${uk}억`;
-  return `${man.toLocaleString()}만원`;
-};
 
 const pyeongToSqm = (pyeong: number): number => Math.round(pyeong * 3.3058);
 const sqmToPyeong = (sqm: number): number => Math.round((sqm / 3.3058) * 10) / 10;
