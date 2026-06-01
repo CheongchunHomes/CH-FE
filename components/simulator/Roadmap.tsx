@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { get, post }  from "@/lib/api"
 import { useRouter }  from "next/navigation"
-import { DiagnosisForm } from "@/lib/diagnosisUtils"
+import { DiagnosisForm, DiagnosisResult, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
 import { Skeleton }   from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
@@ -123,6 +123,7 @@ export default function Roadmap() {
   const [assetSummary, setAssetSummary] = useState<AssetPlanSummary | null>(null)
   const [isStale,      setIsStale]      = useState(false)
   const [cooldown,     setCooldown]     = useState(0)
+  const [diagResult, setDiagResult] = useState<DiagnosisResult | null>(null)
 
   const numberCards = useMemo(
     () => calcNumberCards(housingSnap, financeSnap, assetSummary),
@@ -165,6 +166,10 @@ export default function Roadmap() {
         if (cached) {
           const freshProfile    = await get<DiagnosisForm>("/api/diagnosis/profile").catch(() => null)
           setProfile(freshProfile)
+          const freshDiagResult = freshProfile
+            ? await post<DiagnosisResult>("/api/diagnosis/simulate", sanitizeDiagnosisForm(freshProfile)).catch(() => null)
+            : null
+          setDiagResult(freshDiagResult)
           const cachedSnapshot  = parseSession<object>("roadmapSnapshot")
           const currentSnapshot = { housingSnapshot, financeSnapshot, profileKey: makeProfileKey(freshProfile) }
           setResult(JSON.parse(cached) as RoadmapParsed)
@@ -178,6 +183,11 @@ export default function Roadmap() {
       setIsStale(false)
       const profileData    = await get<DiagnosisForm>("/api/diagnosis/profile").catch(() => null)
       setProfile(profileData)
+
+      const diagResult = profileData
+        ? await post<DiagnosisResult>("/api/diagnosis/simulate", sanitizeDiagnosisForm(profileData)).catch(() => null)
+        : null
+      setDiagResult(diagResult)
 
       const recommendation = await get<{ results: Array<{ policyName: string; grade: string; score: number }> }>(
         "/api/recommendation/calculate/profile", { cache: "no-store" },
@@ -316,7 +326,7 @@ export default function Roadmap() {
           </div>
           <div className="flex flex-col divide-y divide-gray-200">
             {result?.insights && result.insights.length > 0 && <InsightAccordion insights={result.insights} />}
-            {profile && <CheckListAccordion profile={profile} />}
+            {profile && <CheckListAccordion diagResult={diagResult} />}
           </div>
         </div>
       </div>
@@ -398,9 +408,9 @@ function InsightAccordion({ insights }: { insights: InsightItem[] }) {
               <div className="flex gap-2">
                 <span className="text-xs font-bold text-gray-800 shrink-0">ㆍ</span>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-gray-800">{ins.item}</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>
-                  <p className="text-xs font-semibold text-blue-600">→ {ins.action}</p>
+                  {ins.item     && <p className="text-xs font-bold text-gray-800">{ins.item}</p>}
+                  {ins.metaphor && <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>}
+                  {ins.action   && <p className="text-xs font-semibold text-blue-600">→ {ins.action}</p>}
                 </div>
               </div>
             </div>
@@ -413,19 +423,14 @@ function InsightAccordion({ insights }: { insights: InsightItem[] }) {
 
 // ── 조건 체크 아코디언 ────────────────────────────────────────────────
 
-function CheckListAccordion({ profile }: { profile: DiagnosisForm }) {
-  const today = new Date()
-  const birth = new Date(profile.birthDate)
-  const age   = today.getFullYear() - birth.getFullYear()
-    - (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0)
-
+function CheckListAccordion({ diagResult }: { diagResult: DiagnosisResult | null }) {
   const items: CheckItem[] = [
-    { label: "무주택 여부",                                                                            status: profile.houseless ? "pass" : "fail" },
-    { label: `연령 조건 (만 ${age}세)`,                                                                status: age >= 19 && age <= 39 ? "pass" : "fail" },
-    { label: "소득 기준",                                                                              status: (profile.annualIncome ?? 0) <= 81_600_000 ? "pass" : "fail" },
-    { label: "자산 기준",                                                                              status: (profile.totalAsset  ?? 0) <= 337_000_000 ? "pass" : "fail" },
-    { label: `청약통장 (${profile.hasSubscription ? `${profile.subscriptionMonths}개월` : "미보유"})`,  status: profile.hasSubscription && profile.subscriptionMonths >= 24 ? "pass" : "warn" },
-    { label: `부양가족 (${profile.dependentCount ?? 0}명)`,                                            status: (profile.dependentCount ?? 0) > 0 ? "pass" : "warn" },
+    { label: "무주택 여부", status: diagResult?.houselessStatus === "충족" ? "pass" : "fail" },
+    { label: "연령 조건",   status: diagResult?.ageStatus === "충족" ? "pass" : "fail" },
+    { label: "소득 기준",   status: diagResult?.incomeStatus === "충족" ? "pass" : diagResult?.incomeStatus === "일부제한" ? "warn" : "fail" },
+    { label: "자산 기준",   status: diagResult?.assetStatus === "충족" ? "pass" : diagResult?.assetStatus === "일부제한" ? "warn" : "fail" },
+    { label: "청약통장",    status: diagResult?.subscriptionStatus === "충족" ? "pass" : "warn" },
+    { label: "부양가족",    status: diagResult?.dependentStatus === "충족" ? "pass" : diagResult?.dependentStatus === "일부제한" ? "warn" : "fail" },
   ]
 
   const passCount = items.filter((i) => i.status === "pass").length
