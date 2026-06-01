@@ -408,9 +408,9 @@ function InsightAccordion({ insights }: { insights: InsightItem[] }) {
               <div className="flex gap-2">
                 <span className="text-xs font-bold text-gray-800 shrink-0">ㆍ</span>
                 <div className="space-y-1">
-                  {ins.item     && <p className="text-xs font-bold text-gray-800">{ins.item}</p>}
-                  {ins.metaphor && <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>}
-                  {ins.action   && <p className="text-xs font-semibold text-blue-600">→ {ins.action}</p>}
+                  <p className="text-xs font-bold text-gray-800">{ins.item}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">{stripMetaphorPrefix(ins.metaphor)}</p>
+                  <p className="text-xs font-semibold text-blue-600">→ {ins.action}</p>
                 </div>
               </div>
             </div>
