@@ -25,6 +25,7 @@ export interface DiagnosisForm {
   marriagePeriod: string;
   hasYoungChild: boolean;
   singleParent: boolean;
+  houselessYears: number;
 }
 
 export interface DiagnosisResult {
