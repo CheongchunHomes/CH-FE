@@ -281,6 +281,16 @@ interface FinanceFeelProps {
   userProfile: DiagnosisForm | null
 }
 
+// 대출 상품 필터링 — 소득·혼인·자녀 조건
+function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | null): LoanProduct[] {
+  return loans.filter((loan) => {
+    const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
+    const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
+    const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
+    return incomeOk && marriageOk && childOk
+  }).slice(0, 5)
+}
+
 export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const router = useRouter()
 
@@ -328,14 +338,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
 
   useEffect(() => {
     get<LoanProduct[]>("/api/loan-products")
-      .then((data) => setLoans(
-        data.filter((loan) => {
-          const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
-          const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
-          const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
-          return incomeOk && marriageOk && childOk
-        }).slice(0, 5)
-      ))
+      .then((data) => setLoans(filterLoanProducts(data, userProfile)))
       .catch(() => setLoans([]))
       .finally(() => setLoanLoading(false))
   }, [userProfile])

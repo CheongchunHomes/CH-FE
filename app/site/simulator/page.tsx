@@ -95,19 +95,27 @@ export default function SimulatorPage() {
     await fetchPlans()
   }
 
-  // 달성 토글 — 낙관적 업데이트
+  // 달성 토글 — 낙관적 업데이트 (실패 시 롤백)
   async function handleToggleComplete(planId: number, isCompleted: boolean) {
     const plan = plans.find((p) => p.planId === planId)
     if (!plan) return
 
+    // 롤백용 이전 state 저장
+    const prev = [...plans]
+
     // 로컬 state 먼저 반영
-    setPlans((prev) => prev.map((p) => p.planId === planId ? { ...p, isCompleted } : p))
+    setPlans((prevPlans) => prevPlans.map((p) => p.planId === planId ? { ...p, isCompleted } : p))
 
     // 백엔드 동기화
     const { planId: _, createdAt: __, ...planForm } = plan
-    await request("PUT", `/api/simulator/asset-plans/${planId}`, {
-      body: { ...planForm, isCompleted },
-    })
+    try {
+      await request("PUT", `/api/simulator/asset-plans/${planId}`, {
+        body: { ...planForm, isCompleted },
+      })
+    } catch {
+      // 실패 시 이전 state로 롤백
+      setPlans(prev)
+    }
   }
 
   // DELETE /api/simulator/asset-plans/:id
