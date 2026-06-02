@@ -102,10 +102,6 @@ export default function AssetPlan({
   const content = CATEGORY_CONTENT[form.category] ?? CATEGORY_CONTENT["OTHER"]
   const ph      = content.placeholder
 
-  function updateForm(key: keyof AssetPlanForm, value: unknown) {
-    setForm({ ...form, [key]: value })
-  }
-
   useEffect(() => {
     setTipLoading(true)
     get<{ content: PolicyListDTO[] }>("/api/policies", {
@@ -156,7 +152,7 @@ export default function AssetPlan({
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.value}
-                onClick={() => updateForm("category", cat.value)}
+                onClick={() => setForm({ ...form, category: cat.value })}
                 className={`flex flex-col items-center rounded-xl border overflow-hidden transition-all ${
                   form.category === cat.value
                     ? "border-blue-600 ring-2 ring-blue-400 scale-105"
@@ -195,7 +191,7 @@ export default function AssetPlan({
             <div className="relative">
               <select
                 value={form.category}
-                onChange={(e) => updateForm("category", e.target.value)}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="appearance-none px-3 py-2 pr-8 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
               >
                 {CATEGORIES.map((cat) => (
@@ -209,7 +205,7 @@ export default function AssetPlan({
             <input
               type="text"
               value={form.planName}
-              onChange={(e) => updateForm("planName", e.target.value)}
+              onChange={(e) => setForm({ ...form, planName: e.target.value })}
               placeholder={ph.planName}
               className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -226,10 +222,10 @@ export default function AssetPlan({
                   const raw = e.target.value.replace(/,/g, "")
                   const num = Number(raw)
                   // [FIX] 음수 방어
-                  if (!isNaN(num) && num >= 0) updateForm("baseAsset", num)
+                  if (!isNaN(num) && num >= 0) setForm({ ...form, baseAsset: num })
                 }}
                 onBlur={() => {
-                  if (form.baseAsset) updateForm("baseAsset", Math.floor(form.baseAsset / 1000) * 1000)
+                  if (form.baseAsset) setForm({ ...form, baseAsset: Math.floor(form.baseAsset / 1000) * 1000 })
                 }}
                 placeholder={ph.baseAsset}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-24"
@@ -250,10 +246,10 @@ export default function AssetPlan({
                 onChange={(e) => {
                   const raw = e.target.value.replace(/,/g, "")
                   const num = Number(raw)
-                  if (!isNaN(num) && num >= 0) updateForm("goalAmount", num)
+                  if (!isNaN(num) && num >= 0) setForm({ ...form, goalAmount: num })
                 }}
                 onBlur={() => {
-                  if (form.goalAmount) updateForm("goalAmount", Math.floor(form.goalAmount / 1000) * 1000)
+                  if (form.goalAmount) setForm({ ...form, goalAmount: Math.floor(form.goalAmount / 1000) * 1000 })
                 }}
                 placeholder={ph.goalAmount}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-24"
@@ -284,8 +280,11 @@ export default function AssetPlan({
                     to:   form.endDate   ? new Date(form.endDate)   : undefined,
                   }}
                   onSelect={(range) => {
-                    updateForm("startDate", range?.from ? format(range.from, "yyyy-MM-dd") : null)
-                    updateForm("endDate",   range?.to   ? format(range.to,   "yyyy-MM-dd") : null)
+                    setForm({
+                      ...form,
+                      startDate: range?.from ? format(range.from, "yyyy-MM-dd") : null,
+                      endDate:   range?.to   ? format(range.to,   "yyyy-MM-dd") : null,
+                    })
                   }}
                   initialFocus
                 />
