@@ -270,7 +270,6 @@ function ProviderContractDocument({ contract, onRefresh }: { contract: SignContr
 
   const openPreview = () => {
     if (!draft.providerSignature) {
-      setSubmitError("임대인 서명을 먼저 입력해 주세요.")
       return
     }
     if (isBrokerSignLoading || !brokerSign?.signedUrl) {
@@ -340,7 +339,7 @@ function ProviderContractDocument({ contract, onRefresh }: { contract: SignContr
               <p className="text-sm text-slate-500">미리보기는 저장될 최종 계약 내용을 그대로 보여줍니다.</p>
               <div className="flex items-center gap-3">
                 {submitError ? <span className="text-sm font-medium text-rose-600">{submitError}</span> : null}
-                <Button type="button" onClick={openPreview} disabled={isSubmitting || isBrokerSignLoading || !brokerSign?.signedUrl}>
+                <Button type="button" onClick={openPreview} disabled={isSubmitting || isBrokerSignLoading || !brokerSign?.signedUrl || !draft.providerSignature}>
                   {isSubmitting ? <><Loader2 className="mr-2 animate-spin" size={16} />처리 중</> : "임대인 서명 완료"}
                 </Button>
               </div>

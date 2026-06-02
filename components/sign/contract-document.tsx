@@ -340,8 +340,8 @@ export function ContractDocument({
             pendingLabel="임대인 서명 대기"
             action={
               !readOnly && onProviderSign ? (
-                <Button type="button" variant="outline" onClick={onProviderSign} disabled={providerSignDisabled}>
-                  서명 입력
+                <Button type="button" onClick={onProviderSign} disabled={providerSignDisabled}>
+                  서명 하기
                 </Button>
               ) : null
             }
@@ -355,8 +355,8 @@ export function ContractDocument({
             pendingLabel="임차인 서명 예정"
             action={
               readOnly && onCustomerSign ? (
-                <Button type="button" variant="outline" onClick={onCustomerSign} disabled={customerSignDisabled}>
-                  서명 입력
+                <Button type="button" onClick={onCustomerSign} disabled={customerSignDisabled}>
+                  서명 하기
                 </Button>
               ) : null
             }
@@ -990,17 +990,18 @@ function PdfMoneyLine({ amount, tail }: { amount: string; tail?: string }) {
 
 function PdfPaymentLine({ label, amount, date }: { label: string; amount: string; date: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="flex h-9 shrink-0 items-center">일금</span>
-      <div className="min-w-0 flex-1">
-        <PdfBox label={label} value={amount} />
-        <span className="mt-1 block min-h-4 text-[11px] font-medium text-slate-500">{formatKoreanWon(amount)}</span>
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_9rem_auto] gap-x-2">
+      <span className="col-start-2 row-start-1 mb-1 block text-[11px] font-semibold text-slate-500">{label}</span>
+      <span className="col-start-1 row-start-2 flex h-9 shrink-0 items-center">일금</span>
+      <div className="col-start-2 row-start-2 min-w-0">
+        <PdfBox value={amount} />
       </div>
-      <span className="flex h-9 shrink-0 items-center">원정은</span>
-      <div className="w-36">
+      <span className="col-start-3 row-start-2 flex h-9 shrink-0 items-center">원정은</span>
+      <div className="col-start-4 row-start-2 w-36">
         <PdfBox value={formatDate(date)} />
       </div>
-      <span className="flex h-9 shrink-0 items-center">에 지급한다.</span>
+      <span className="col-start-5 row-start-2 flex h-9 shrink-0 items-center">에 지급한다.</span>
+      <span className="col-start-2 row-start-3 mt-1 block min-h-4 text-[11px] font-medium text-slate-500">{formatKoreanWon(amount)}</span>
     </div>
   )
 }
