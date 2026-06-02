@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
 
 import type { SignContractDocument } from "@/lib/sign-api"
@@ -10,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea"
 
 const CONTRACT_PDF_NAME = "contract.pdf"
 const maxWonDigitLength = 16
+const PDF_PAGE_WIDTH = 794
+const PDF_PAGE_HEIGHT = 1123
+const PDF_PAGE_PADDING_X = 56
+const PDF_PAGE_PADDING_Y = 48
+const PDF_PAGE_CONTENT_HEIGHT = PDF_PAGE_HEIGHT - PDF_PAGE_PADDING_Y * 2
+const PDF_BLOCK_GAP = 16
 
 export type ContractDocumentDraft = {
   buildingDong: string
@@ -53,6 +60,8 @@ type ContractDocumentProps = {
   onFieldChange?: (field: ContractDocumentField, value: string) => void
   onProviderSign?: () => void
   providerSignDisabled?: boolean
+  onCustomerSign?: () => void
+  customerSignDisabled?: boolean
   actions?: ReactNode
 }
 
@@ -148,6 +157,8 @@ export function ContractDocument({
   onFieldChange,
   onProviderSign,
   providerSignDisabled = false,
+  onCustomerSign,
+  customerSignDisabled = false,
   actions,
 }: ContractDocumentProps) {
   if (mode === "pdf") {
@@ -338,7 +349,18 @@ export function ContractDocument({
         </ContractSection>
 
         <ContractSection title="5. 임차인 정보">
-          <PartyFields party={contract.customer} signature={draft.customerSignature ?? null} pendingLabel="임차인 서명 예정" />
+          <PartyFields
+            party={contract.customer}
+            signature={draft.customerSignature ?? null}
+            pendingLabel="임차인 서명 예정"
+            action={
+              readOnly && onCustomerSign ? (
+                <Button type="button" variant="outline" onClick={onCustomerSign} disabled={customerSignDisabled}>
+                  서명 입력
+                </Button>
+              ) : null
+            }
+          />
         </ContractSection>
 
         <ContractSection title="6. 개업 공인중개사">
@@ -352,114 +374,84 @@ export function ContractDocument({
 }
 
 function PdfContractDocument({ contract, draft }: { contract: SignContractDocument; draft: ContractDocumentDraft }) {
-  const property = contract.property
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [splitSpecialTerms, setSplitSpecialTerms] = useState(false)
+  const blocks = useMemo(() => createPdfFlowBlocks(contract, draft, splitSpecialTerms), [contract, draft, splitSpecialTerms])
+  const [pages, setPages] = useState<number[][]>(() => [blocks.map((_, index) => index)])
+
+  useEffect(() => {
+    setSplitSpecialTerms(false)
+  }, [draft.specialTerms])
+
+  useEffect(() => {
+    const measureRoot = measureRef.current
+
+    if (!measureRoot) {
+      return
+    }
+
+    const updatePages = () => {
+      const blockElements = Array.from(measureRoot.querySelectorAll<HTMLElement>("[data-pdf-block]"))
+
+      if (blockElements.length === 0) {
+        setPages([[]])
+        return
+      }
+
+      const specialTermsIndex = blocks.findIndex((block) => block.key === "special-full")
+      const specialTermsHeight = specialTermsIndex >= 0 ? blockElements[specialTermsIndex]?.offsetHeight ?? 0 : 0
+
+      if (!splitSpecialTerms && specialTermsHeight > PDF_PAGE_CONTENT_HEIGHT) {
+        setSplitSpecialTerms(true)
+        return
+      }
+
+      setPages(paginatePdfBlocks(blockElements.map((element) => element.offsetHeight), blocks))
+    }
+
+    updatePages()
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(updatePages).catch(() => undefined)
+    }
+
+    const images = Array.from(measureRoot.querySelectorAll("img"))
+    images.forEach((image) => {
+      if (!image.complete || image.naturalWidth === 0) {
+        image.addEventListener("load", updatePages, { once: true })
+        image.addEventListener("error", updatePages, { once: true })
+      }
+    })
+
+    return () => {
+      images.forEach((image) => {
+        image.removeEventListener("load", updatePages)
+        image.removeEventListener("error", updatePages)
+      })
+    }
+  }, [blocks, splitSpecialTerms])
 
   return (
-    <div className="w-[794px] space-y-4 bg-white px-14 py-12 text-slate-950">
-      <PdfPage>
-        <PdfTitle />
-        <PdfSection title="1. 부동산 표시">
-          <PdfRow label="소재지">
-            <div className="grid grid-cols-[1fr_70px_70px] gap-2">
-              <PdfBox value={property.address} />
-              <PdfBox value={draft.buildingDong} suffix="동" />
-              <PdfBox value={draft.unitHo} suffix="호" />
-            </div>
-          </PdfRow>
-          <PdfRow label="건물">
-            <div className="grid grid-cols-[1fr_1fr_120px] gap-2">
-              <PdfBox label="용도" value={property.buildingUse} />
-              <PdfBox label="면적" value={formatArea(property.supplyAreaM2)} />
-            </div>
-          </PdfRow>
-          <PdfRow label="">
-            <div className="grid grid-cols-[1fr_180px] gap-2">
-              <PdfBox label="임대할 부분" value={draft.rentedPart} />
-              <PdfBox label="면적" value={formatArea(property.exclusiveAreaM2)} />
-            </div>
-          </PdfRow>
-        </PdfSection>
+    <div className="relative text-slate-950" style={{ width: PDF_PAGE_WIDTH }}>
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="pointer-events-none absolute left-[-10000px] top-0 box-border opacity-0"
+        style={{ width: PDF_PAGE_WIDTH, padding: `${PDF_PAGE_PADDING_Y}px ${PDF_PAGE_PADDING_X}px` }}
+      >
+        <PdfBlockList blocks={blocks} />
+      </div>
 
-        <PdfSection title="2. 계약 내용">
-          <div className="space-y-1.5 text-[12px] leading-5 text-slate-700">
-            <PdfClause title="제1조 [목적]">
-              위 부동산의 임대차에 관하여 임대인과 임차인은 합의에 의하여 임차보증금 및 차임을 아래와 같이 지급하기로 한다.
-            </PdfClause>
-            <PdfRow label="보증금">
-              <PdfMoneyLine amount={draft.depositWon} tail="은 계약시에 지급하고 영수함." />
-            </PdfRow>
-            <PdfRow label="계약금">
-              <PdfMoneyLine amount={draft.contractAmount} tail="은 계약시에 지급하고 영수함." />
-            </PdfRow>
-            <PdfRow label="중도금">
-              <div className="space-y-2">
-                <PdfPaymentLine label="중도금 1" amount={draft.interimAmount1} date={draft.interimPaymentDate1} />
-                <PdfPaymentLine label="중도금 2" amount={draft.interimAmount2} date={draft.interimPaymentDate2} />
-              </div>
-            </PdfRow>
-            <PdfRow label="잔금">
-              <PdfPaymentLine label="잔금" amount={draft.balanceAmount} date={draft.balancePaymentDate} />
-            </PdfRow>
-            <PdfClause title="제2조 [존속기간]">
-              임대인은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 {formatDate(property.moveInDate)}일까지 임차인에게 인도하며,
-              임대차 기간은 인도일로부터 {formatDate(draft.leaseEndDate)}일 {draft.leaseMonthCount}개월까지로 한다.
-            </PdfClause>
-          </div>
-        </PdfSection>
-      </PdfPage>
-
-      <PdfPage>
-        <PdfSection title="2. 계약 내용">
-          <div className="space-y-1.5 text-[12px] leading-5 text-slate-700">
-            <PdfClause title="제3조 [용도변경 및 전대 등]">
-              임차인은 임대인의 동의없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.
-            </PdfClause>
-            <PdfClause title="제4조 [계약의 해지]">임차인이 제3조를 위반했을 때 임대인은 즉시 본 계약을 해지 할 수 있다.</PdfClause>
-            <PdfClause title="제5조 [계약의 종료]">
-              임대차계약이 종료된 경우 임차인은 위 부동산을 원상으로 회복하여 임대인에게 반환한다. 이러한 경우 임대인은 보증금을 임차인에게 반환하고,
-              연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.
-            </PdfClause>
-            <PdfClause title="제6조 [계약의 해제]">
-              임차인이 임대인에게 중도금이 없을때는 잔금을 지급하기 전까지 임대인은 계약금의 배액을 상환하고, 임차인은 계약금을 포기하고 이 계약을 해제할 수 있다.
-            </PdfClause>
-            <PdfClause title="제7조 [채무불이행과 손해배상]">
-              임대인 또는 임차인은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행 한 자에 대하여 서면으로 최고하고 계약을 해제 할 수 있다.
-              그리고 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.
-            </PdfClause>
-            <PdfClause title="제8조 [중개보수]">
-              개업공인중개사는 임대인 또는 임차인의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며,
-              개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다.
-            </PdfClause>
-            <PdfClause title="제9조 [중개대상물확인설명서 교부 등]">
-              개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서 사본을 첨부하여 거래당사자 쌍방에게 교부한다.
-            </PdfClause>
-          </div>
-        </PdfSection>
-      </PdfPage>
-
-      <PdfPage>
-        <PdfSection title="3. 특약사항">
-          <div className="whitespace-pre-wrap rounded border border-slate-300 bg-white p-3 text-[12px] leading-5 text-slate-700">
-            {draft.specialTerms}
-          </div>
-        </PdfSection>
-      </PdfPage>
-
-      <PdfPage>
-        <PdfSection title="4. 임대인 정보">
-          <PdfPartyFields party={contract.provider} signature={draft.providerSignature} />
-        </PdfSection>
-        <PdfSection title="5. 임차인 정보">
-          <PdfPartyFields party={contract.customer} signature={draft.customerSignature} pendingLabel="임차인 서명 예정" />
-        </PdfSection>
-        <PdfSection title="6. 개업 공인중개사">
-          <PdfBrokerOfficeBlock brokerSignUrl={draft.brokerSignUrl} />
-        </PdfSection>
-      </PdfPage>
+      <div className="space-y-4">
+        {pages.map((pageBlocks, pageIndex) => (
+          <PdfPage key={`pdf-page-${pageIndex}`}>
+            <PdfBlockList blocks={pageBlocks.map((blockIndex) => blocks[blockIndex]).filter((block): block is PdfFlowBlock => Boolean(block))} />
+          </PdfPage>
+        ))}
+      </div>
     </div>
   )
 }
-
 function ContractSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
@@ -683,7 +675,249 @@ function BrokerOfficeBlock({ brokerSignUrl }: { brokerSignUrl?: string | null })
 }
 
 function PdfPage({ children }: { children: ReactNode }) {
-  return <section className="space-y-4">{children}</section>
+  return (
+    <section
+      data-pdf-page
+      className="box-border bg-white"
+      style={{
+        width: PDF_PAGE_WIDTH,
+        height: PDF_PAGE_HEIGHT,
+        padding: `${PDF_PAGE_PADDING_Y}px ${PDF_PAGE_PADDING_X}px`,
+      }}
+    >
+      {children}
+    </section>
+  )
+}
+
+type PdfFlowBlock = {
+  key: string
+  node: ReactNode
+  keepWithNext?: boolean
+}
+
+function PdfBlockList({ blocks }: { blocks: PdfFlowBlock[] }) {
+  return (
+    <div className="space-y-4">
+      {blocks.map((block) => (
+        <div key={block.key} data-pdf-block>
+          {block.node}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PdfSectionHeading({ title }: { title: string }) {
+  return <h3 className="border-b border-slate-300 pb-2 text-[15px] font-bold text-slate-950">{title}</h3>
+}
+
+function createPdfFlowBlocks(contract: SignContractDocument, draft: ContractDocumentDraft, splitSpecialTerms: boolean): PdfFlowBlock[] {
+  const property = contract.property
+  const specialTermBlocks = splitSpecialTerms ? splitPdfFreeText(draft.specialTerms) : [draft.specialTerms]
+
+  return [
+    { key: "title", node: <PdfTitle /> },
+    { key: "section-property", keepWithNext: true, node: <PdfSectionHeading title="1. 부동산 표시" /> },
+    {
+      key: "property-address",
+      node: (
+        <PdfRow label="소재지">
+          <div className="grid grid-cols-[1fr_90px_90px] gap-2">
+            <PdfBox value={property.address} />
+            <PdfAddressUnitBox value={draft.buildingDong} unit="동" />
+            <PdfAddressUnitBox value={draft.unitHo} unit="호" />
+          </div>
+        </PdfRow>
+      ),
+    },
+    {
+      key: "property-building",
+      node: (
+        <PdfRow label="건물">
+          <div className="grid grid-cols-[1fr_1fr_120px] gap-2">
+            <PdfBox label="용도" value={property.buildingUse} />
+            <PdfBox label="면적" value={formatArea(property.supplyAreaM2)} />
+          </div>
+        </PdfRow>
+      ),
+    },
+    {
+      key: "property-rented",
+      node: (
+        <PdfRow label="">
+          <div className="grid grid-cols-[1fr_180px] gap-2">
+            <PdfBox label="임대할 부분" value={draft.rentedPart} />
+            <PdfBox label="면적" value={formatArea(property.exclusiveAreaM2)} />
+          </div>
+        </PdfRow>
+      ),
+    },
+    { key: "section-contract", keepWithNext: true, node: <PdfSectionHeading title="2. 계약 내용" /> },
+    {
+      key: "contract-purpose",
+      node: (
+        <PdfClause title="제1조[목적]">
+          위 부동산의 임대차에 관하여 임대인과 임차인은 합의에 의하여 임대차보증금 및 차임을 아래와 같이 지급하기로 한다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-deposit",
+      node: (
+        <PdfRow label="보증금">
+          <PdfMoneyLine amount={draft.depositWon} tail="은 계약시에 지급하고 영수함" />
+        </PdfRow>
+      ),
+    },
+    {
+      key: "contract-amount",
+      node: (
+        <PdfRow label="계약금">
+          <PdfMoneyLine amount={draft.contractAmount} tail="은 계약시에 지급하고 영수함" />
+        </PdfRow>
+      ),
+    },
+    {
+      key: "contract-interim",
+      node: (
+        <PdfRow label="중도금">
+          <div className="space-y-2">
+            <PdfPaymentLine label="중도금1" amount={draft.interimAmount1} date={draft.interimPaymentDate1} />
+            <PdfPaymentLine label="중도금2" amount={draft.interimAmount2} date={draft.interimPaymentDate2} />
+          </div>
+        </PdfRow>
+      ),
+    },
+    {
+      key: "contract-balance",
+      node: (
+        <PdfRow label="잔금">
+          <PdfPaymentLine label="잔금" amount={draft.balanceAmount} date={draft.balancePaymentDate} />
+        </PdfRow>
+      ),
+    },
+    {
+      key: "contract-period",
+      node: (
+        <PdfClause title="제2조[존속기간]">
+          임대인은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 {formatDate(property.moveInDate)}일까지 임차인에게 인도하며, 임대차 기간은 인도일로부터{" "}
+          {formatDate(draft.leaseEndDate)}까지 {draft.leaseMonthCount}개월까지로 한다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-use-change",
+      node: (
+        <PdfClause title="제3조[용도변경 및 전대 등]">
+          임차인은 임대인의 동의 없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.
+        </PdfClause>
+      ),
+    },
+    { key: "contract-maintenance", node: <PdfClause title="제4조[계약의 해지]">임차인이 제3조를 위반했을 때 임대인은 즉시 본 계약을 해지할 수 있다.</PdfClause> },
+    {
+      key: "contract-end",
+      node: (
+        <PdfClause title="제5조[계약의 종료]">
+          임대차계약이 종료된 경우 임차인은 위 부동산을 원상으로 회복하여 임대인에게 반환한다. 이러한 경우 임대인은 보증금을 임차인에게 반환하고, 연체 임대료 또는
+          손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-cancel",
+      node: (
+        <PdfClause title="제6조[계약의 해제]">
+          임차인이 임대인에게 중도금이 없을 때는 잔금을 지급하기 전까지 임대인은 계약금의 배액을 상환하고, 임차인은 계약금을 포기하고 이 계약을 해제할 수 있다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-default",
+      node: (
+        <PdfClause title="제7조[채무불이행과 손해배상]">
+          임대인 또는 임차인은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 그리고 계약
+          당사자는 계약해제에 따른 손해배상을 각각 상대방에게 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-broker-fee",
+      node: (
+        <PdfClause title="제8조[중개보수]">
+          개업공인중개사는 임대인 또는 임차인의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결에 따라 계약 당사자 쌍방이 각각 지급하며,
+          개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제되어도 중개보수는 지급한다.
+        </PdfClause>
+      ),
+    },
+    {
+      key: "contract-confirmation",
+      node: (
+        <PdfClause title="제9조[중개대상물확인설명서 교부 등]">
+          개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서 사본을 첨부하여 거래당사자 쌍방에게 교부한다.
+        </PdfClause>
+      ),
+    },
+    { key: "section-special", keepWithNext: true, node: <PdfSectionHeading title="3. 특약사항" /> },
+    ...specialTermBlocks.map((line, index) => ({
+      key: splitSpecialTerms ? `special-${index}` : "special-full",
+      node: <PdfSpecialTermsBlock>{line}</PdfSpecialTermsBlock>,
+    })),
+    { key: "section-provider", keepWithNext: true, node: <PdfSectionHeading title="4. 임대인 정보" /> },
+    { key: "provider", node: <PdfPartyFields party={contract.provider} signature={draft.providerSignature} /> },
+    { key: "section-customer", keepWithNext: true, node: <PdfSectionHeading title="5. 임차인 정보" /> },
+    { key: "customer", node: <PdfPartyFields party={contract.customer} signature={draft.customerSignature} pendingLabel="임차인 서명 예정" /> },
+    { key: "section-broker", keepWithNext: true, node: <PdfSectionHeading title="6. 개업 공인중개사" /> },
+    { key: "broker", node: <PdfBrokerOfficeBlock brokerSignUrl={draft.brokerSignUrl} /> },
+  ]
+}
+
+function paginatePdfBlocks(blockHeights: number[], blocks: PdfFlowBlock[]) {
+  const pages: number[][] = []
+  let currentPage: number[] = []
+  let currentHeight = 0
+
+  blocks.forEach((block, index) => {
+    const blockHeight = blockHeights[index] ?? 0
+    const nextBlockHeight = block.keepWithNext ? blockHeights[index + 1] ?? 0 : 0
+    const gap = currentPage.length > 0 ? PDF_BLOCK_GAP : 0
+    const keepWithNextHeight = block.keepWithNext && nextBlockHeight > 0 ? PDF_BLOCK_GAP + nextBlockHeight : 0
+    const requiredHeight = blockHeight + keepWithNextHeight
+
+    if (currentPage.length > 0 && currentHeight + gap + requiredHeight > PDF_PAGE_CONTENT_HEIGHT) {
+      pages.push(currentPage)
+      currentPage = []
+      currentHeight = 0
+    }
+
+    currentPage.push(index)
+    currentHeight += (currentPage.length > 1 ? PDF_BLOCK_GAP : 0) + blockHeight
+  })
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage)
+  }
+
+  return pages.length > 0 ? pages : [[]]
+}
+
+function splitPdfFreeText(value: string) {
+  const maxChunkLength = 450
+  const chunks = value.split(/\r?\n/).flatMap((line) => {
+    if (line.length <= maxChunkLength) {
+      return [line]
+    }
+
+    const lineChunks: string[] = []
+
+    for (let index = 0; index < line.length; index += maxChunkLength) {
+      lineChunks.push(line.slice(index, index + maxChunkLength))
+    }
+
+    return lineChunks
+  })
+
+  return chunks.length > 0 ? chunks : [""]
 }
 
 function PdfTitle() {
@@ -691,15 +925,6 @@ function PdfTitle() {
     <header className="border-b-2 border-slate-900 pb-4 text-center">
       <h2 className="text-2xl font-bold">부동산(다세대주택) 전세 계약서</h2>
     </header>
-  )
-}
-
-function PdfSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h3 className="border-b border-slate-300 pb-2 text-[15px] font-bold text-slate-950">{title}</h3>
-      {children}
-    </section>
   )
 }
 
@@ -726,12 +951,27 @@ function PdfBox({ label, value, suffix }: { label?: string; value?: string | num
   )
 }
 
+function PdfAddressUnitBox({ value, unit }: { value?: string | number | null; unit: string }) {
+  return (
+    <div className="flex min-w-0 items-start gap-1">
+      <div className="min-w-0 flex-1">
+        <PdfBox value={value} />
+      </div>
+      <span className="flex h-9 shrink-0 items-center text-[11px] font-semibold text-slate-500">{unit}</span>
+    </div>
+  )
+}
+
 function PdfClause({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <p>
+    <p className="text-[12px] leading-5 text-slate-700">
       <span className="font-semibold text-slate-950">{title}</span> {children}
     </p>
   )
+}
+
+function PdfSpecialTermsBlock({ children }: { children: ReactNode }) {
+  return <div className="whitespace-pre-wrap rounded border border-slate-300 bg-white p-3 text-[12px] leading-5 text-slate-700">{children || "\u00a0"}</div>
 }
 
 function PdfMoneyLine({ amount, tail }: { amount: string; tail?: string }) {
@@ -833,54 +1073,43 @@ export async function buildContractPdf(article: HTMLElement) {
   }
 
   await waitForPdfImages(article)
+  await waitForPdfPagination()
 
-  const canvas = await html2canvas(article, {
-    backgroundColor: "#ffffff",
-    scale: 2,
-    useCORS: true,
-    allowTaint: false,
-    scrollX: 0,
-    scrollY: 0,
-    width: article.scrollWidth,
-    height: article.scrollHeight,
-    windowWidth: article.scrollWidth,
-    windowHeight: article.scrollHeight,
-  })
-  const pageCanvasHeight = Math.floor(canvas.width * (pageHeight / pageWidth))
-  const pageCanvas = document.createElement("canvas")
-  pageCanvas.width = canvas.width
-  pageCanvas.height = pageCanvasHeight
-  const context = pageCanvas.getContext("2d")
+  const pdfPages = Array.from(article.querySelectorAll<HTMLElement>("[data-pdf-page]"))
 
-  if (!context) {
-    throw new Error("PDF 캔버스를 생성할 수 없습니다.")
+  if (pdfPages.length === 0) {
+    throw new Error("PDF page elements were not found.")
   }
 
-  for (let offsetY = 0, pageIndex = 0; offsetY < canvas.height; offsetY += pageCanvasHeight, pageIndex += 1) {
-    context.fillStyle = "#ffffff"
-    context.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
-    context.drawImage(
-      canvas,
-      0,
-      offsetY,
-      canvas.width,
-      Math.min(pageCanvasHeight, canvas.height - offsetY),
-      0,
-      0,
-      pageCanvas.width,
-      Math.min(pageCanvasHeight, canvas.height - offsetY),
-    )
-
+  for (const [pageIndex, pdfPage] of pdfPages.entries()) {
     if (pageIndex > 0) {
       pdf.addPage()
     }
 
-    const imageData = pageCanvas.toDataURL("image/png")
-    pdf.addImage(imageData, "PNG", 0, 0, pageWidth, pageHeight)
+    const canvas = await html2canvas(pdfPage, {
+      backgroundColor: "#ffffff",
+      scale: 1.5,
+      useCORS: true,
+      allowTaint: false,
+      scrollX: 0,
+      scrollY: 0,
+      width: pdfPage.scrollWidth,
+      height: pdfPage.scrollHeight,
+      windowWidth: article.scrollWidth,
+      windowHeight: article.scrollHeight,
+    })
+    const imageData = canvas.toDataURL("image/jpeg", 0.82)
+
+    pdf.addImage(imageData, "JPEG", 0, 0, pageWidth, pageHeight)
   }
 
   const pdfBlob = pdf.output("blob")
   return new File([pdfBlob], CONTRACT_PDF_NAME, { type: "application/pdf" })
+}
+
+async function waitForPdfPagination() {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 }
 
 async function waitForPdfImages(container: HTMLElement) {

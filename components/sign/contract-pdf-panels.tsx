@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react"
-import { AlertCircle, Loader2, PenTool, X } from "lucide-react"
+import { AlertCircle, Loader2, X } from "lucide-react"
 
 import { uploadPrivateFile } from "@/lib/api"
 import type { FileSignedUrlResponse } from "@/lib/api"
@@ -113,7 +113,24 @@ export function TenantPdfSigningDocument({ contract, onRefresh }: { contract: Si
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <ContractDocument contract={contract} draft={draft} readOnly />
+      <ContractDocument
+        contract={contract}
+        draft={draft}
+        readOnly
+        onCustomerSign={() => setSignatureDialogOpen(true)}
+        customerSignDisabled={isSubmitting}
+        actions={
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-slate-500">확정된 계약서에 임차인 서명을 추가한 뒤 최종 PDF를 생성합니다.</p>
+            <div className="flex items-center gap-3">
+              {errorMessage ? <span className="text-sm font-medium text-rose-600">{errorMessage}</span> : null}
+              <Button type="button" onClick={handleComplete} disabled={isSubmitting || !signature}>
+                {isSubmitting ? <><Loader2 className="mr-2 animate-spin" size={16} />완료 처리 중</> : "서명 완료"}
+              </Button>
+            </div>
+          </div>
+        }
+      />
 
       <div
         aria-hidden="true"
@@ -123,34 +140,6 @@ export function TenantPdfSigningDocument({ contract, onRefresh }: { contract: Si
           <ContractDocument contract={contract} draft={draft} readOnly mode="pdf" />
         </div>
       </div>
-
-      <Card className="border-slate-200/80 bg-white shadow-sm">
-        <CardContent className="space-y-4 p-5 md:p-8">
-          <div className="space-y-2">
-            <h3 className="text-base font-semibold text-slate-950">임차인 서명</h3>
-            <p className="text-sm text-slate-500">확정된 계약서에 임차인 서명을 추가한 뒤 최종 PDF를 생성합니다.</p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-            <div className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-              <span className="text-sm font-semibold text-slate-500">서명 상태</span>
-              <SignatureMark signature={signature} pendingLabel="임차인 서명 대기" />
-            </div>
-
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => setSignatureDialogOpen(true)}>
-                <PenTool className="mr-2 h-4 w-4" />
-                서명 입력
-              </Button>
-              <Button type="button" onClick={handleComplete} disabled={isSubmitting || !signature}>
-                {isSubmitting ? <><Loader2 className="mr-2 animate-spin" size={16} />완료 처리 중</> : "서명 완료"}
-              </Button>
-            </div>
-          </div>
-
-          {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
-        </CardContent>
-      </Card>
 
       <SignatureDialog
         open={signatureDialogOpen}
@@ -287,14 +276,6 @@ export function PdfPreviewPanel({
       </CardContent>
     </Card>
   )
-}
-
-export function SignatureMark({ signature, pendingLabel = "전자서명 대기" }: { signature: string | null; pendingLabel?: string }) {
-  if (signature) {
-    return <img src={signature} alt="전자서명" className="h-8 w-auto object-contain" />
-  }
-
-  return <span className="whitespace-nowrap text-sm text-slate-400">{pendingLabel}</span>
 }
 
 export function SignatureDialog({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: (dataUrl: string) => void }) {
