@@ -12,7 +12,7 @@ import { logoutAndRedirect } from "@/lib/logout-client"
 import { getUnreadAlarmNotifications, markAlarmNotificationAsRead, type AlarmNotification } from "@/lib/alarm-notifications-api"
 
 const navItems = [
-  { label: "공지", href: "/site/announcements" },
+  { label: "공고", href: "/site/announcements" },
   { label: "제도", href: "/site/policies" },
   { label: "대출", href: "/loan" },
   { label: "지도", href: "/site/map" },
@@ -169,7 +169,7 @@ export default function Navbar() {
 
           {isAuthenticated ? (
             <>
-              <Link href="/site/my-page" className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+              <Link href="/site/my-page" className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-[#2563EB]">
                 {user?.nickname ?? "마이페이지"}
               </Link>
               <Button
@@ -187,7 +187,7 @@ export default function Navbar() {
               <Button asChild variant="ghost" className="rounded-full text-slate-600">
                 <Link href="/signup">회원가입</Link>
               </Button>
-              <Button asChild className="hidden rounded-full bg-sky-600 text-white hover:bg-sky-700 md:inline-flex">
+              <Button asChild className="hidden rounded-full bg-[#2563EB] text-white hover:bg-[#1D4ED8] md:inline-flex">
                 <Link href="/login">로그인</Link>
               </Button>
             </>

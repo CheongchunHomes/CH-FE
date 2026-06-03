@@ -7,29 +7,21 @@ import { FileText, Landmark, PenTool, ShieldCheck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { uploadPrivateFile } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-
-type ProductKey =
-  | "newborn"
-  | "newlywed"
-  | "youthSmallBiz"
-  | "youthDeposit"
-  | "youthMonthly"
-  | "generalBalance";
+import {
+  LOAN_PRODUCT_FALLBACKS,
+  findLoanProductByKey,
+  type LoanProductKey,
+  type LoanProductCard,
+} from "@/lib/loan/loan-product-catalog";
+import { createLoanApplication } from "@/lib/api/loan-applications";
 
 type SignatureTarget = "name" | "amount" | "paymentDay" | "confirmTop" | "confirmBottom";
 type InterestMode = "fixed" | "fiveYear" | "variable" | "newborn";
 type Page3Mode = "basic" | "newlywed" | "newborn";
 
-type Product = {
-  key: ProductKey;
-  title: string;
-  shortTitle: string;
-  summary: string;
-  contractTitle: string;
-  contractSubtitle: string;
-  rateLabel: string;
-};
+type Product = LoanProductCard;
 
 type DateParts = {
   year: string;
@@ -49,62 +41,7 @@ type Page3ModeContent = {
   items: Page3Item[];
 };
 
-const PRODUCTS: Product[] = [
-  {
-    key: "newborn",
-    title: "신생아 특례 버팀목대출",
-    shortTitle: "신생아 버팀목",
-    summary: "신생아 출산 가구의 주거안정을 위해 특례로 주택구입자금을 대출해 드리는 상품입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "출산·양육 가구를 위한 전세자금 지원",
-    rateLabel: "1.8% ~ 4.5%",
-  },
-  {
-    key: "newlywed",
-    title: "신혼부부전용 전세자금대출",
-    shortTitle: "신혼부부 전세",
-    summary: "신혼부부의 전세 계약과 초기 주거비 부담을 줄이기 위한 전세자금 대출입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "신혼부부를 위한 전세자금 지원",
-    rateLabel: "2.0% ~ 4.8%",
-  },
-  {
-    key: "youthSmallBiz",
-    title: "중소기업취업청년 전월세 보증금 대출",
-    shortTitle: "중기취업청년",
-    summary: "중소기업에 취업한 청년의 전월세 보증금 마련을 지원하는 대출입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "중기취업 청년을 위한 전세자금 지원",
-    rateLabel: "1.5% ~ 3.5%",
-  },
-  {
-    key: "youthDeposit",
-    title: "청년전용 버팀목전세자금 대출",
-    shortTitle: "청년 버팀목",
-    summary: "청년층의 전세보증금 마련을 돕는 대표적인 주거지원 대출입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "청년을 위한 전세자금 지원",
-    rateLabel: "2.1% ~ 4.2%",
-  },
-  {
-    key: "youthMonthly",
-    title: "청년전용 보증부월세대출",
-    shortTitle: "청년 보증부월세",
-    summary: "청년의 보증금과 월세 부담을 함께 줄여주는 전용 대출입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "청년 보증부월세 지원",
-    rateLabel: "2.5% ~ 4.9%",
-  },
-  {
-    key: "generalBalance",
-    title: "일반 버팀목전세자금대출",
-    shortTitle: "일반 버팀목",
-    summary: "전세 계약 시 일반적으로 많이 사용하는 기본형 전세자금 대출입니다.",
-    contractTitle: "주택도시기금 내집마련 디딤돌 대출거래약정서",
-    contractSubtitle: "일반 전세자금 지원",
-    rateLabel: "2.3% ~ 5.1%",
-  },
-];
+const PRODUCTS: Product[] = LOAN_PRODUCT_FALLBACKS;
 
 const INTEREST_OPTIONS: Array<{ id: InterestMode; label: string }> = [
   { id: "fixed", label: "만기까지 고정금리" },
@@ -257,6 +194,31 @@ function sanitizeFileNamePart(value: string) {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function parseAmountToManwon(value: string) {
+  const normalized = value.replace(/[,\s]/g, "");
+  if (!normalized) {
+    return 0;
+  }
+
+  const parts = normalized.split("억");
+  if (parts.length > 1) {
+    const eok = Number(parts[0]);
+    const remaining = parts.slice(1).join("억");
+    const manMatch = remaining.match(/(\d+(?:\.\d+)?)만/);
+    const man = manMatch ? Number(manMatch[1]) : 0;
+    return (Number.isFinite(eok) ? eok * 10000 : 0) + (Number.isFinite(man) ? man : 0);
+  }
+
+  const manMatch = normalized.match(/(\d+(?:\.\d+)?)만/);
+  if (manMatch) {
+    const man = Number(manMatch[1]);
+    return Number.isFinite(man) ? man : 0;
+  }
+
+  const numeric = Number(normalized.replace(/만원?|원/g, ""));
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function emptySignatureMap(): Record<SignatureTarget, string | null> {
@@ -452,14 +414,19 @@ function SignatureDialog({
   );
 }
 
-export function LoanContractFlow() {
+type LoanContractFlowProps = {
+  initialProductKey?: LoanProductKey
+}
+
+export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContractFlowProps = {}) {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedKey, setSelectedKey] = useState<ProductKey>("newborn");
+  const [selectedKey, setSelectedKey] = useState<LoanProductKey>(initialProductKey);
   const [page3Mode, setPage3Mode] = useState<Page3Mode>("basic");
   const [signatureTarget, setSignatureTarget] = useState<SignatureTarget | null>(null);
   const [contractOpen, setContractOpen] = useState(false);
   const [savingContract, setSavingContract] = useState(false);
+  const [saveCompleteOpen, setSaveCompleteOpen] = useState(false);
   const [signatures, setSignatures] = useState<Record<SignatureTarget, string | null>>(
     emptySignatureMap(),
   );
@@ -478,9 +445,13 @@ export function LoanContractFlow() {
   const page3Ref = useRef<HTMLElement | null>(null);
 
   const selected = useMemo(
-    () => PRODUCTS.find((product) => product.key === selectedKey) ?? PRODUCTS[0],
+    () => findLoanProductByKey(PRODUCTS, selectedKey),
     [selectedKey],
   );
+
+  useEffect(() => {
+    setSelectedKey(initialProductKey);
+  }, [initialProductKey]);
 
   const requestSignature = (target: SignatureTarget) => {
     setSignatureTarget(target);
@@ -520,9 +491,13 @@ export function LoanContractFlow() {
       const marginX = 8;
       const marginY = 8;
       const usableWidth = pageWidth - marginX * 2;
+      const imageQuality = 0.82;
       const contractId = `loan-contract-${selectedKey}-${Date.now()}`;
       const userId = user?.id != null ? String(user.id) : "guest";
       const files: File[] = [];
+      const backendFileIds: number[] = [];
+      let backendUploadStatus = "skipped";
+      let backendUploadError = "";
 
       for (let index = 0; index < sections.length; index += 1) {
         const element = sections[index];
@@ -598,7 +573,7 @@ export function LoanContractFlow() {
           },
         });
 
-        const imageData = canvas.toDataURL("image/png");
+        const imageData = canvas.toDataURL("image/jpeg", imageQuality);
         if (index > 0) {
           pdf.addPage();
         }
@@ -609,7 +584,7 @@ export function LoanContractFlow() {
         const drawWidth = usableWidth * fitScale;
         const drawHeight = imgHeight * fitScale;
         const drawX = marginX + (usableWidth - drawWidth) / 2;
-        pdf.addImage(imageData, "PNG", drawX, marginY, drawWidth, drawHeight);
+        pdf.addImage(imageData, "JPEG", drawX, marginY, drawWidth, drawHeight);
 
         const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob((value) => {
@@ -618,19 +593,32 @@ export function LoanContractFlow() {
               return;
             }
             resolve(value);
-          }, "image/png");
+          }, "image/jpeg", imageQuality);
         });
-        files.push(new File([blob], `page-${index + 1}.png`, { type: "image/png" }));
+        files.push(new File([blob], `page-${index + 1}.jpg`, { type: "image/jpeg" }));
       }
 
       const pdfBlob = pdf.output("blob");
       files.push(new File([pdfBlob], "contract.pdf", { type: "application/pdf" }));
 
+      backendUploadStatus = "pending";
+      try {
+        for (const file of files) {
+          const fileId = await uploadPrivateFile(file);
+          backendFileIds.push(fileId);
+        }
+        backendUploadStatus = "ok";
+      } catch (error) {
+        backendUploadStatus = backendFileIds.length > 0 ? "partial" : "failed";
+        backendUploadError = error instanceof Error ? error.message : "Backend file upload failed";
+        console.warn("[loan-contract] backend file upload failed", error);
+      }
+
       const formData = new FormData();
       formData.append("contractId", contractId);
       formData.append("userId", userId);
       formData.append("selectedKey", selectedKey);
-      formData.append("productTitle", selected.title);
+      formData.append("productTitle", selected.name);
       formData.append("shortTitle", selected.shortTitle);
       formData.append("name", name);
       formData.append("address", address);
@@ -639,6 +627,11 @@ export function LoanContractFlow() {
       formData.append("executionDate", `${executionDate.year}-${executionDate.month}-${executionDate.day}`);
       formData.append("maturityDate", `${maturityDate.year}-${maturityDate.month}-${maturityDate.day}`);
       formData.append("page3Mode", page3Mode);
+      formData.append("backendUploadStatus", backendUploadStatus);
+      if (backendUploadError) {
+        formData.append("backendUploadError", backendUploadError);
+      }
+      formData.append("backendFileIds", JSON.stringify(backendFileIds));
       files.forEach((file, index) => {
         formData.append(`file-${index + 1}`, file);
       });
@@ -648,7 +641,17 @@ export function LoanContractFlow() {
         body: formData,
       });
 
-      router.push("/site/map");
+      if (selected.loanId) {
+        const contractPdfFileId = backendFileIds[backendFileIds.length - 1];
+        await createLoanApplication({
+          userId: user?.id ?? undefined,
+          loanId: selected.loanId,
+          applyAmount: parseAmountToManwon(amount),
+          address: contractPdfFileId != null ? String(contractPdfFileId) : "",
+        });
+      }
+
+      setSaveCompleteOpen(true);
     } catch (error) {
       console.error(error);
       router.push("/site/map");
@@ -697,43 +700,41 @@ export function LoanContractFlow() {
         </section>
 
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div>
-              <p className="text-sm font-semibold tracking-[0.32em] text-blue-600">LOAN CONTRACT</p>
-              <h2 className="mt-3 text-[2.3rem] font-black leading-tight text-slate-950">
-                주택도시기금 내집마련 디딤돌 대출거래약정서
-              </h2>
-              <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-500">
-                선택한 상품 기준으로 계약서 문구와 거래조건이 자동 반영됩니다.
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-semibold tracking-[0.32em] text-blue-600">LOAN CONTRACT</p>
+            <h2 className="mt-3 text-[2.3rem] font-black leading-tight text-slate-950">
+              주택도시기금 내집마련 디딤돌 대출거래약정서
+            </h2>
+            <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-500">
+              선택한 상품의 실제 조건을 바탕으로 계약서 내용을 확인하고 작성합니다.
+            </p>
+          </div>
 
-            <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">현재 선택</p>
-                  <div className="mt-2 text-2xl font-black text-slate-950">{selected.shortTitle}</div>
-                </div>
-                <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  금리 정보 확인
-                </div>
+          <div className="mt-8 rounded-[26px] border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">현재 선택</p>
+                <div className="mt-2 text-2xl font-black text-slate-950">{selected.shortTitle}</div>
               </div>
-              <p className="mt-4 text-sm leading-7 text-slate-600">{selected.summary}</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-xs font-semibold text-slate-400">금리</div>
-                  <div className="mt-1 text-sm font-black text-slate-900">{selected.rateLabel}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-xs font-semibold text-slate-400">계약 안내</div>
-                  <div className="mt-1 text-sm font-bold text-slate-900">계약서보기 버튼으로 상세 모달을 엽니다.</div>
-                </div>
+              <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                금리 정보 확인
               </div>
-              <div className="mt-5 flex justify-end">
-                <Button type="button" onClick={() => setContractOpen(true)}>
-                  계약서보기
-                </Button>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-slate-600">{selected.summary}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold text-slate-400">금리</div>
+                <div className="mt-1 text-sm font-black text-slate-900">{selected.rateLabel}</div>
               </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-semibold text-slate-400">계약 정보</div>
+                <div className="mt-1 text-sm font-bold text-slate-900">선택한 상품의 약정 내용을 확인합니다.</div>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button type="button" onClick={() => setContractOpen(true)}>
+                계약서 확인
+              </Button>
             </div>
           </div>
         </section>
@@ -757,7 +758,7 @@ export function LoanContractFlow() {
                     </div>
                     <div className="text-xs font-semibold text-slate-400">계약 상품</div>
                   </div>
-                  <div className="mt-5 text-xl font-black text-slate-950">{product.title}</div>
+                  <div className="mt-5 text-xl font-black text-slate-950">{product.name}</div>
                   <div className="mt-2 text-sm font-semibold text-blue-600">{product.shortTitle}</div>
                   <p className="mt-3 text-sm leading-7 text-slate-600">{product.summary}</p>
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -793,11 +794,11 @@ export function LoanContractFlow() {
               </div>
 
               <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-bold text-slate-950">이 상품으로 진행하면</div>
+                <div className="text-sm font-bold text-slate-950">계약서에 반영될 내용</div>
                 <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
-                  <li>• 선택한 상품 기준으로 계약서 문구가 자동 반영됩니다.</li>
-                  <li>• 계약서보기 버튼을 누르면 상세 약정 모달이 열립니다.</li>
-                  <li>• 전자서명 후 입력값이 계약서에 반영됩니다.</li>
+                  <li>• 상품명, 계약서 제목, 금리 조건이 선택 상품 기준으로 표시됩니다.</li>
+                  <li>• 대출금액, 대출기간, 실행일, 만료일이 입력값으로 채워집니다.</li>
+                  <li>• 이름과 주소, 전자서명 정보가 계약서에 저장됩니다.</li>
                 </ul>
               </div>
             </div>
@@ -805,28 +806,36 @@ export function LoanContractFlow() {
             <div className="rounded-[26px] border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">계약 상태</p>
-                  <div className="mt-2 text-xl font-black text-slate-950">문구 자동 반영 중</div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">계약 정보</p>
+                  <div className="mt-2 text-xl font-black text-slate-950">실제 계약 조건</div>
                 </div>
-                <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  계약서 확인 대기
-                </div>
+                <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">확인 중</div>
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-5 grid gap-3">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-xs font-semibold text-slate-400">다음 단계</div>
-                  <div className="mt-1 text-sm font-bold text-slate-900">계약서보기 버튼으로 상세 약정을 확인합니다.</div>
+                  <div className="text-xs font-semibold text-slate-400">상품명</div>
+                  <div className="mt-1 text-sm font-bold text-slate-900">{selected.name}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-xs font-semibold text-slate-400">안내</div>
-                  <div className="mt-1 text-sm font-bold text-slate-900">선택 상품에 따라 금리와 조건이 함께 바뀝니다.</div>
+                  <div className="text-xs font-semibold text-slate-400">계약서 제목</div>
+                  <div className="mt-1 text-sm font-bold text-slate-900">{selected.contractTitle}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-xs font-semibold text-slate-400">대출과목 / 금리</div>
+                  <div className="mt-1 text-sm font-bold text-slate-900">
+                    {selected.loanType ?? "대출과목 없음"} · {selected.rateLabel}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-xs font-semibold text-slate-400">상품 안내</div>
+                  <div className="mt-1 text-sm font-bold text-slate-900">{selected.summary}</div>
                 </div>
               </div>
 
               <div className="mt-5 flex justify-end">
                 <Button type="button" onClick={() => setContractOpen(true)}>
-                  계약서보기
+                  계약서 확인
                 </Button>
               </div>
             </div>
@@ -853,7 +862,7 @@ export function LoanContractFlow() {
                 주택도시기금 내집마련 디딤돌 대출거래약정서
               </h3>
               <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-500">
-                본인은 주식회사 우리은행(이하 "은행")과 아래의 조건에 따라 여신거래를 함에 있어 은행여신거래기본약관(가계용)(이하 "기본약관")이
+                본인은 청춘홈즈(이하 "은행")과 아래의 조건에 따라 청춘거래를 함에 있어 청춘홈즈거래기본약관(가계용)(이하 "기본약관")이
                 적용됨을 승인하고 다음 각 조항을 준수할 것을 확약합니다.
               </p>
             </div>
@@ -1226,7 +1235,7 @@ export function LoanContractFlow() {
             </div>
             <div className="mt-5 flex justify-end">
               <Button type="button" onClick={() => void handleSaveContract()} disabled={savingContract}>
-                {savingContract ? "저장 중..." : "다음 페이지로 이동"}
+                {savingContract ? "저장 중..." : "신청하기"}
               </Button>
             </div>
           </div>
@@ -1240,6 +1249,51 @@ export function LoanContractFlow() {
         onClose={() => setSignatureTarget(null)}
         onConfirm={applySignature}
       />
+
+      {saveCompleteOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/55 p-4">
+              <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+                <div className="rounded-[28px] bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6">
+                  <div className="space-y-3 text-left">
+                    <div className="inline-flex w-fit items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                      대출 신청 완료
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-950">
+                      대출신청이 완료되었습니다.
+                    </h2>
+                    <p className="text-sm leading-6 text-slate-600">
+                      부동산을 둘러보러 가시겠습니까?
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setSaveCompleteOpen(false);
+                        router.push("/site");
+                      }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setSaveCompleteOpen(false);
+                        router.push("/site/map");
+                      }}
+                    >
+                      확인
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
