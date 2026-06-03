@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getPageSampleHref } from "@/lib/page-samples"
+import BannerModal from "@/components/banner/banner-modal"
 
 const quickMenus = [
   { icon: House, label: "내 조건 진단", href: getPageSampleHref("step/condition-check") },
@@ -26,7 +27,7 @@ const quickMenus = [
 ]
 
 const homeTips = [
-  { title: "시뮬레이션", desc: "가상의 조건으로 계산해 보기", href: getPageSampleHref("simulator") },
+  { title: "청춘 플랜 · 시뮬레이터", desc: "모으고, 비교하고, 계산하고, 결국 내 집까지", href: getPageSampleHref("simulator") },
   { title: "자주 묻는 질문", desc: "사용자들이 궁금해하는 것들", href: getPageSampleHref("faq") },
   { title: "공지사항", desc: "청년 주거 지원 정책과 서비스 관련 주요 안내를 확인하는 공간", href: getPageSampleHref("notice") },
   { title: "가계부", desc: "월별 수입과 지출을 기록하고 소비 내역을 관리하는 공간", href: getPageSampleHref("ledger") },
@@ -38,6 +39,7 @@ const homeTips = [
 export default function SitePage() {
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
+      <BannerModal />
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
         <section className="grid gap-4">
           <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">

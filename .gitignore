@@ -43,5 +43,5 @@ next-env.d.ts
 # vscode
 .vscode
 
-# test page
-/app/test/
+# test
+app/test/
