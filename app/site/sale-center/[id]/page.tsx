@@ -39,7 +39,7 @@ export default function AnnouncementDetail() {
 
   const handleClose = () => {
   if (from === "scraps") {
-    router.push("/site/my-page/info/scraps")
+    router.push("/site/my-page/scraps")
     return
   }
 

@@ -11,8 +11,7 @@ import { Separator } from "@/components/ui/separator"
 const menuItems = [
   { label: "내 정보", href: "/site/my-page/info" },
   { label: "결제 서류", href: "/site/my-page/sign" },
-  { label: "내 스크랩", href: "/site/my-page/info/scraps"},
-  { label: "일정 캘린더" },
+  { label: "내 스크랩", href: "/site/my-page/scraps" },
 ]
 
 export default function MyPageLayout({
@@ -40,7 +39,9 @@ export default function MyPageLayout({
                 <Separator />
 
                 {menuItems.map((item) => {
-                  const isActive = item.href === pathname
+                  const isActive = item.href
+                    ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    : false
 
                   return item.href ? (
                     <Button
@@ -48,8 +49,8 @@ export default function MyPageLayout({
                       asChild
                       className={`h-12 w-full justify-start rounded-lg ${
                         isActive
-                        ? "bg-sky-600 text-white hover:bg-sky-700"
-                        : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                          ? "bg-sky-600 text-white hover:bg-sky-700"
+                          : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
                       }`}
                     >
                       <Link href={item.href}>{item.label}</Link>

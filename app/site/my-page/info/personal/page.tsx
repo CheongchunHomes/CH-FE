@@ -1,6 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
+import { ArrowLeft } from "lucide-react"
 
 import { get, request } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -108,6 +110,12 @@ export default function MyPagePersonalInfoPage() {
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardHeader>
+          <Button asChild variant="ghost" className="w-fit px-0 text-slate-600 hover:bg-transparent hover:text-slate-950">
+            <Link href="/site/my-page/info">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              내 정보로 돌아가기
+            </Link>
+          </Button>
           <CardTitle className="text-base font-semibold text-slate-900">개인정보 수정</CardTitle>
         </CardHeader>
         <CardContent>
@@ -147,7 +155,7 @@ export default function MyPagePersonalInfoPage() {
               {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
 
               <Button type="submit" disabled={isSubmitting} className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
-                {isSubmitting ? "저장 중..." : "저장"}
+                {isSubmitting ? "저장 중..." : "수정"}
               </Button>
             </form>
           )}

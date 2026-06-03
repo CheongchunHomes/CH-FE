@@ -141,7 +141,7 @@ export default function MyPageInfoPage() {
             </div>
             <div className="flex min-h-32 flex-col gap-4 bg-slate-200/70 p-5 md:justify-center">
               <Button asChild className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
-                <Link href="/site/my-page/info/personal">개인정보표시버튼</Link>
+                <Link href="/site/my-page/info/personal">개인정보 표시</Link>
               </Button>
             </div>
           </section>
