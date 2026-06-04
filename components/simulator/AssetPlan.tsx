@@ -286,6 +286,9 @@ export default function AssetPlan({
                       endDate:   range?.to   ? format(range.to,   "yyyy-MM-dd") : null,
                     })
                   }}
+                  fromYear={2020}
+                  toYear={new Date().getFullYear() + 10}
+                  captionLayout="dropdown"
                   initialFocus
                 />
               </PopoverContent>
