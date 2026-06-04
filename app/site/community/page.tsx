@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -380,8 +380,8 @@ export default function CommunityPage() {
     radius: '10px',
   };
 
-  const [city, setCity] = useState<CityKey | ''>('seoul');
-  const [district, setDistrict] = useState('seocho');
+  const [city, setCity] = useState<CityKey | ''>('');
+  const [district, setDistrict] = useState('');
 
   const [isWriting, setIsWriting] = useState(false);
   const [newPost, setNewPost] = useState({
@@ -392,25 +392,50 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [communityNotices, setCommunityNotices] = useState<CommunityNotice[]>(
     []
   );
   const POSTS_PER_PAGE = 10;
+  const PAGES_PER_BLOCK = 10;
   const latestCommunityNotices = communityNotices.slice(0, 3);
 
-  const fetchPosts = async () => {
+  const getSelectedRegion = () => {
+    if (!city) return '';
+
+    const cityName = REGIONS[city].name;
+
+    if (!district) {
+      return cityName;
+    }
+
+    const districtName = REGIONS[city].districts.find(
+      (d) => d.id === district
+    )?.name;
+
+    return districtName ? `${cityName} ${districtName}` : cityName;
+  };
+
+  const fetchPosts = async (targetPage = currentPage) => {
     try {
       setLoading(true);
 
       const data = await get<CommunityPageResponse>('/api/community/list', {
         query: {
-          page: 0,
-          size: 1000,
+          page: targetPage - 1,
+          size: POSTS_PER_PAGE,
+          region: getSelectedRegion(),
+          keyword: searchKeyword.trim(),
         },
+        cache: 'no-store',
       });
 
       setPosts(Array.isArray(data.content) ? data.content : []);
+      setTotalPages(Number(data.totalPages ?? 0));
+      setTotalElements(Number(data.totalElements ?? 0));
     } catch (error) {
       if (error instanceof ApiError) {
         console.error('게시글 조회 실패:', error.message);
@@ -419,6 +444,8 @@ export default function CommunityPage() {
       }
 
       setPosts([]);
+      setTotalPages(0);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
@@ -447,9 +474,12 @@ export default function CommunityPage() {
   };
 
   useEffect(() => {
-    fetchPosts();
     fetchCommunityNotices();
   }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [currentPage, city, district, searchKeyword]);
 
   const handleSubmit = async () => {
     if (!newPost.title.trim()) {
@@ -473,11 +503,9 @@ export default function CommunityPage() {
     )?.name;
 
     const postData = {
-      userId: 1,
       region: `${cityName} ${districtName}`,
       title: newPost.title,
       content: newPost.content,
-      viewCount: 0,
     };
 
     try {
@@ -491,7 +519,8 @@ export default function CommunityPage() {
       });
 
       setIsWriting(false);
-      fetchPosts();
+      setCurrentPage(1);
+      await fetchPosts(1);
     } catch (error) {
       if (error instanceof ApiError) {
         console.error('저장 실패:', error.message);
@@ -509,9 +538,13 @@ export default function CommunityPage() {
     if (!ok) return;
 
     try {
- await request('DELETE', `/api/community/admin/${postId}`);
+      await request('DELETE', `/api/community/admin/${postId}`);
 
-      await fetchPosts();
+      if (posts.length === 1 && currentPage > 1) {
+        setCurrentPage((prev) => prev - 1);
+      } else {
+        await fetchPosts(currentPage);
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         console.error('게시글 삭제 실패:', error.message);
@@ -521,46 +554,23 @@ export default function CommunityPage() {
     }
   };
 
-  const filteredPosts = posts.filter((post) => {
-    const keyword = searchKeyword.trim().toLowerCase();
-
-    const matchesRegion = (() => {
-      if (!city) return true;
-
-      const cityName = REGIONS[city].name;
-
-      if (!district) {
-        return post.region?.startsWith(cityName);
-      }
-
-      const districtName = REGIONS[city].districts.find(
-        (d) => d.id === district
-      )?.name;
-
-      return post.region === `${cityName} ${districtName}`;
-    })();
-
-    const matchesSearch =
-      !keyword ||
-      post.title?.toLowerCase().includes(keyword) ||
-      post.content?.toLowerCase().includes(keyword) ||
-      post.region?.toLowerCase().includes(keyword);
-
-    return matchesRegion && matchesSearch;
-  });
-
-  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
-
-  const startIndex = (currentPage - 1) * POSTS_PER_PAGE;
-  const endIndex = startIndex + POSTS_PER_PAGE;
-
-  const currentPosts = filteredPosts.slice(startIndex, endIndex);
-
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
+
+    if (totalPages === 0 && currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [currentPage, totalPages]);
+
+  const currentBlock = Math.floor((currentPage - 1) / PAGES_PER_BLOCK);
+  const startPage = currentBlock * PAGES_PER_BLOCK + 1;
+  const endPage = Math.min(startPage + PAGES_PER_BLOCK - 1, totalPages);
+  const pageNumbers = Array.from(
+    { length: Math.max(endPage - startPage + 1, 0) },
+    (_, index) => startPage + index
+  );
 
   const selectStyle: React.CSSProperties = {
     padding: '10px',
@@ -926,8 +936,8 @@ export default function CommunityPage() {
                       게시글을 불러오는 중입니다.
                     </td>
                   </tr>
-                ) : filteredPosts.length > 0 ? (
-                  currentPosts.map((post) => (
+                ) : posts.length > 0 ? (
+                  posts.map((post) => (
                     <tr
                       key={post.postId}
                       style={{
@@ -1032,7 +1042,18 @@ export default function CommunityPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          <div
+            style={{
+              textAlign: 'center',
+              color: '#64748b',
+              fontSize: '13px',
+              marginBottom: '10px',
+            }}
+          >
+            총 {totalElements.toLocaleString()}건
+          </div>
+
+          {totalPages > 0 && (
             <div
               style={{
                 display: 'flex',
@@ -1040,6 +1061,7 @@ export default function CommunityPage() {
                 alignItems: 'center',
                 gap: '8px',
                 marginBottom: '20px',
+                flexWrap: 'wrap',
               }}
             >
               <button
@@ -1050,34 +1072,34 @@ export default function CommunityPage() {
                   borderRadius: '6px',
                   border: '1px solid #ddd',
                   backgroundColor: currentPage === 1 ? '#f5f5f5' : '#fff',
+                  color: currentPage === 1 ? '#aaa' : '#333',
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
                 }}
               >
                 이전
               </button>
 
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: `1px solid ${
-                        page === currentPage ? theme.color : '#ddd'
-                      }`,
-                      backgroundColor:
-                        page === currentPage ? theme.color : '#fff',
-                      color: page === currentPage ? '#fff' : '#333',
-                      cursor: 'pointer',
-                      fontWeight: page === currentPage ? 'bold' : 'normal',
-                    }}
-                  >
-                    {page}
-                  </button>
-                )
-              )}
+              {pageNumbers.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  style={{
+                    minWidth: '36px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${
+                      page === currentPage ? theme.color : '#ddd'
+                    }`,
+                    backgroundColor: page === currentPage ? theme.color : '#fff',
+                    color: page === currentPage ? '#fff' : '#333',
+                    cursor: 'pointer',
+                    fontWeight: page === currentPage ? 'bold' : 600,
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
 
               <button
                 onClick={() =>
@@ -1090,7 +1112,9 @@ export default function CommunityPage() {
                   border: '1px solid #ddd',
                   backgroundColor:
                     currentPage === totalPages ? '#f5f5f5' : '#fff',
+                  color: currentPage === totalPages ? '#aaa' : '#333',
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
                 }}
               >
                 다음
@@ -1111,13 +1135,18 @@ export default function CommunityPage() {
             <input
               type="text"
               placeholder="제목, 내용, 지역으로 검색"
-              value={searchKeyword}
+              value={searchInput}
               onChange={(e) => {
-                setSearchKeyword(e.target.value);
-                setCurrentPage(1);
+                setSearchInput(e.target.value);
               }}
               onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setSearchKeyword(searchInput.trim());
+                  setCurrentPage(1);
+                }
+
                 if (e.key === 'Escape') {
+                  setSearchInput('');
                   setSearchKeyword('');
                   setCurrentPage(1);
                 }
@@ -1135,7 +1164,10 @@ export default function CommunityPage() {
             />
 
             <button
-              onClick={() => setCurrentPage(1)}
+              onClick={() => {
+                setSearchKeyword(searchInput.trim());
+                setCurrentPage(1);
+              }}
               style={{
                 padding: '10px 18px',
                 borderRadius: theme.radius,
@@ -1152,6 +1184,7 @@ export default function CommunityPage() {
             {searchKeyword && (
               <button
                 onClick={() => {
+                  setSearchInput('');
                   setSearchKeyword('');
                   setCurrentPage(1);
                 }}
