@@ -103,8 +103,11 @@ export default function MyPageInfoPage() {
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="space-y-4 p-6 md:p-8">
           <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-            <div className="px-5 py-4">
+            <div className="flex items-center justify-between gap-4 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">내정보</h2>
+              <Button asChild className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+                <Link href="/site/my-page/info/edit">회원정보 수정</Link>
+              </Button>
             </div>
             <div className="min-h-32 bg-slate-200/70 p-5">
               {isLoading ? (
@@ -123,12 +126,6 @@ export default function MyPageInfoPage() {
                   <p>
                     <span className="font-semibold text-slate-500">닉네임 : </span>
                     <span className="font-medium text-slate-950">{profile?.nickname}</span>
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-500">비밀번호 : </span>
-                    <Button asChild className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
-                      <Link href="/site/my-page/info/password">비밀번호 변경</Link>
-                    </Button>
                   </p>
                 </div>
               )}
