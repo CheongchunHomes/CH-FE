@@ -133,7 +133,7 @@ export default function MyPageSignDetailPage() {
             <h1 className="text-xl font-bold text-slate-950">로그인이 필요합니다.</h1>
             <p className="mt-2 text-sm text-slate-500">계약서를 확인하려면 먼저 로그인해 주세요.</p>
           </div>
-          <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+          <Button asChild className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
         </CardContent>
@@ -316,7 +316,7 @@ function ProviderContractDocument({ contract, onRefresh }: { contract: SignContr
         <header className="overflow-hidden rounded-lg border border-slate-300 bg-slate-950 px-5 py-4 text-white shadow-sm md:px-8">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <FileText size={22} className="text-sky-300" />
+              <FileText size={22} className="text-blue-300" />
               <div>
                 <h2 className="text-xl font-bold">부동산 전세 계약서</h2>
               </div>
@@ -432,7 +432,7 @@ function ProviderSignedContractView({ contract }: { contract: SignContractDocume
       <header className="overflow-hidden rounded-lg border border-slate-300 bg-slate-950 px-5 py-4 text-white shadow-sm md:px-8">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <FileText size={22} className="text-sky-300" />
+            <FileText size={22} className="text-blue-300" />
             <div>
               <h2 className="text-xl font-bold">부동산 전세 계약서</h2>
             </div>

@@ -63,7 +63,14 @@ export const API_FEEDBACK_EVENT = "api-feedback"
 export const AUTH_REFRESH_RETRY_EVENT = "auth-refresh-retry"
 const DEFAULT_REFRESH_RETRY_AFTER_SECONDS = 60
 const DEFAULT_REFRESH_MAX_ATTEMPTS = 3
-const GLOBAL_ERROR_EXCLUDED_CODES = new Set(["REAUTH_REQUIRED", "REFRESH_EXPIRED", "UNAUTHENTICATED"])
+const GLOBAL_ERROR_EXCLUDED_CODES = new Set(["REAUTH_REQUIRED", "REFRESH_EXPIRED", "UNAUTHENTICATED", "USER_DISABLED"])
+const ERROR_MESSAGES_BY_CODE: Record<string, string> = {
+  INVALID_CREDENTIALS: "이메일 또는 비밀번호가 일치하지 않습니다.",
+  REAUTH_REQUIRED: "보안을 위해 비밀번호를 다시 입력해 주세요.",
+  REFRESH_EXPIRED: "로그인 시간이 만료되었습니다. 다시 로그인해 주세요.",
+  UNAUTHENTICATED: "로그인이 필요합니다.",
+  USER_DISABLED: "비활성화된 계정입니다. 관리자에게 문의해 주세요.",
+}
 
 function isAbsoluteUrl(url: string) {
   return /^https?:\/\//i.test(url)
@@ -134,6 +141,11 @@ function resolveErrorMessage(payload: unknown, fallback: string) {
     if (typeof message === "string" && message.trim()) {
       return message
     }
+  }
+
+  const code = getPayloadCode(payload)
+  if (code && ERROR_MESSAGES_BY_CODE[code]) {
+    return ERROR_MESSAGES_BY_CODE[code]
   }
 
   return fallback
