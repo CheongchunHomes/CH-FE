@@ -19,7 +19,7 @@ const quickMenus = [
   { icon: Ticket, label: "제도 추천", href: "/site/step/recommend" },
   { icon: Coins, label: "대출신청", href: "/site/loan-contract?product=newborn" },
   { icon: MapPin, label: "지도 확인", href: "/site/map" },
-  { icon: Building2, label: "계약", href: "/site/contract" },
+  { icon: Building2, label: "계약", href: "/site/my-page/sign" },
 ]
 
 const serviceLinks = [
