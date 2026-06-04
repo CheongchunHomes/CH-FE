@@ -1,5 +1,5 @@
-import { LoanContractFlow } from "@/components/loan/loan-contract-flow"
+import LoanCalculatorDb from "@/components/loan/loan-calculator-db"
 
 export default function LoanPage() {
-  return <LoanContractFlow />
+  return <LoanCalculatorDb />
 }

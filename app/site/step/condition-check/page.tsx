@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { DiagnosisForm, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import { DiagnosisForm, sanitizeDiagnosisForm, formatAsset } from "@/lib/diagnosisUtils";
 import { useAuth } from "@/lib/auth-context";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -63,14 +63,6 @@ const DESIRED_TYPE_OPTIONS = [
 // ─────────────────────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────────────────────
-const formatAsset = (value: number): string => {
-  if (value <= 0) return "";
-  const uk = Math.floor(value / 10000);
-  const man = value % 10000;
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
-  if (uk > 0) return `${uk}억`;
-  return `${man.toLocaleString()}만원`;
-};
 
 const pyeongToSqm = (pyeong: number): number => Math.round(pyeong * 3.3058);
 const sqmToPyeong = (sqm: number): number => Math.round((sqm / 3.3058) * 10) / 10;
@@ -102,6 +94,7 @@ const INITIAL_FORM: DiagnosisForm = {
   marriagePeriod: "",
   hasYoungChild: false,
   singleParent: false,
+  houselessYears: 0,
 };
 
 // ─────────────────────────────────────────────────────────
@@ -229,6 +222,7 @@ const HousingFormPage = () => {
         annualIncome: profile.annualIncome ? Math.floor(profile.annualIncome / 10000) : 0,
         totalAsset:   profile.totalAsset   ? Math.floor(profile.totalAsset   / 10000) : 0,
         cashAsset:    profile.cashAsset    ? Math.floor(profile.cashAsset    / 10000) : 0,
+        houselessYears: profile.houselessYears ?? 0,
         employmentStatus: profile.employmentStatus ?? "",
         employmentPeriod: profile.employmentPeriod ?? "",
         marriagePeriod:   profile.marriagePeriod   ?? "",
@@ -583,16 +577,33 @@ const HousingFormPage = () => {
                       { label: "본인은 현재 무주택 세대주입니다.", val: true },
                       { label: "주택을 보유하고 있습니다.", val: false },
                     ].map((item) => (
-                      <RadioCard key={String(item.val)} label={item.label} checked={form.houseless === item.val} onClick={() => update("houseless", item.val)} />
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700">세대 분리 여부</p>
-                    {[
-                      { label: "부모님과 세대가 분리되어 있습니다.", val: true },
-                      { label: "부모님과 같은 세대입니다.", val: false },
-                    ].map((item) => (
-                      <RadioCard key={String(item.val)} label={item.label} checked={form.householdSep === item.val} onClick={() => update("householdSep", item.val)} />
+                      <div key={String(item.val)}>
+                        <RadioCard
+                          label={item.label}
+                          checked={form.houseless === item.val}
+                          onClick={() => update("houseless", item.val)}
+                        />
+                        {item.val === true && form.houseless === true && (
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded bg-gray-50/50 gap-2 mt-2">
+                            <span className={`text-sm font-semibold ${
+                              form.houselessYears > 0 ? "text-blue-600" : "text-gray-500"
+                            }`}>
+                              {form.houselessYears > 0
+                                ? `청약가점 ${form.houselessYears >= 15 ? 32 : (form.houselessYears + 1) * 2}점`
+                                : "* 무주택 기간을 입력해 주세요"}
+                            </span>
+                            <div className="flex items-center gap-2 justify-end">
+                              <input
+                                type="number" placeholder="0" min={0}
+                                className="w-14 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
+                                value={form.houselessYears || ""}
+                                onChange={(e) => update("houselessYears", Number(e.target.value))}
+                              />
+                              <span className="text-sm font-bold shrink-0">년</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -737,7 +748,7 @@ const HousingFormPage = () => {
                     <div className="flex items-center gap-2 justify-end">
                       <input
                         type="number" placeholder="0" min={0}
-                        className="w-20 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
+                        className="w-14 border-b border-gray-400 bg-transparent p-1 text-right focus:border-blue-500 outline-none font-semibold"
                         value={form.dependentCount || ""}
                         onChange={(e) => update("dependentCount", Number(e.target.value))}
                       />
