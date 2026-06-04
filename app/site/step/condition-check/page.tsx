@@ -608,6 +608,21 @@ const HousingFormPage = () => {
                       </div>
                     ))}
                   </div>
+                  {/* 세대 분리 여부 ← 여기 */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">세대 분리 여부</p>
+                    {[
+                      { label: "부모님과 세대가 분리되어 있습니다.", val: true },
+                      { label: "부모님과 같은 세대입니다.", val: false },
+                    ].map((item) => (
+                      <RadioCard
+                        key={String(item.val)}
+                        label={item.label}
+                        checked={form.householdSep === item.val}
+                        onClick={() => update("householdSep", item.val)}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Q4. 생년월일 */}
