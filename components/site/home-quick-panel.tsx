@@ -6,7 +6,7 @@ import { Loader2, MessageCircleQuestion, Newspaper, Sparkles } from "lucide-reac
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { getAnnouncements, type Announcement } from "@/lib/announcements-api"
+import { getTodayAnnouncementCount } from "@/lib/announcements-api"
 import { getMyLoanApplicationSummary } from "@/lib/loan-applications-api"
 
 type PanelState = {
@@ -111,72 +111,6 @@ function getLoanStatusTone(status: string) {
   }
 }
 
-function toDateOnly(value?: string | null) {
-  if (!value) {
-    return null
-  }
-
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return null
-  }
-
-  const normalized = trimmed.replaceAll(".", "-").replaceAll("/", "-")
-  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!match) {
-    return null
-  }
-
-  return new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00`)
-}
-
-function isTodayIncluded(announcement: Announcement, today: Date) {
-  const start = toDateOnly(announcement.applyStartDate || announcement.beginDe)
-  const end = toDateOnly(announcement.applyEndDate || announcement.endDe)
-
-  if (!start && !end) {
-    return false
-  }
-
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
-
-  if (start && end) {
-    return start <= todayEnd && end >= todayStart
-  }
-
-  if (start) {
-    return start <= todayEnd
-  }
-
-  if (end) {
-    return end >= todayStart
-  }
-
-  return false
-}
-
-async function countTodayAnnouncements() {
-  const pageSize = 100
-  let page = 0
-  let totalPages = 1
-  let count = 0
-  const today = new Date()
-
-  while (page < totalPages) {
-    const data = await getAnnouncements({
-      page,
-      size: pageSize,
-    })
-
-    totalPages = data.totalPages || 1
-    count += data.content.filter((announcement) => isTodayIncluded(announcement, today)).length
-    page += 1
-  }
-
-  return count
-}
-
 export function HomeQuickPanel() {
   const [state, setState] = useState<PanelState>({
     todayAnnouncementCount: 0,
@@ -190,7 +124,7 @@ export function HomeQuickPanel() {
     async function run() {
       try {
         const [announcementCount, loanSummary] = await Promise.all([
-          countTodayAnnouncements(),
+          getTodayAnnouncementCount(),
           getMyLoanApplicationSummary(),
         ])
 
