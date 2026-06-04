@@ -153,6 +153,7 @@ const getSummaryItems = (form: DiagnosisForm) => {
     { label: "현금성 자산", value: form.cashAsset > 0 ? formatAsset(form.cashAsset) : "" },
     { label: "연소득",      value: form.annualIncome > 0 ? formatAsset(form.annualIncome) : "" },
     { label: "무주택",      value: form.houseless === true ? "무주택" : form.houseless === false ? "유주택" : "" },
+    { label: "무주택 기간", value: form.houseless === true && form.houselessYears > 0 ? `${form.houselessYears}년` : "" },
     { label: "세대 분리",   value: form.householdSep === true ? "분리됨" : form.householdSep === false ? "미분리" : "" },
     { label: "생년월일",    value: form.birthDate },
     { label: "혼인 여부",   value: form.married === true ? "기혼" : form.married === false ? "미혼" : "" },
@@ -606,6 +607,21 @@ const HousingFormPage = () => {
                           </div>
                         )}
                       </div>
+                    ))}
+                  </div>
+                  {/* 세대 분리 여부 ← 여기 */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">세대 분리 여부</p>
+                    {[
+                      { label: "부모님과 세대가 분리되어 있습니다.", val: true },
+                      { label: "부모님과 같은 세대입니다.", val: false },
+                    ].map((item) => (
+                      <RadioCard
+                        key={String(item.val)}
+                        label={item.label}
+                        checked={form.householdSep === item.val}
+                        onClick={() => update("householdSep", item.val)}
+                      />
                     ))}
                   </div>
                 </div>
