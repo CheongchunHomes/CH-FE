@@ -12,6 +12,20 @@ import { Card, CardContent } from "@/components/ui/card"
 type MyProfileDTO = {
   email: string
   nickname: string
+  createdAt: string
+}
+
+function formatSignupDate(value?: string) {
+  if (!value) return "-"
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "-"
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date)
 }
 
 export default function MyPageInfoPage() {
@@ -126,6 +140,10 @@ export default function MyPageInfoPage() {
                   <p>
                     <span className="font-semibold text-slate-500">닉네임 : </span>
                     <span className="font-medium text-slate-950">{profile?.nickname}</span>
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-500">가입일 : </span>
+                    <span className="font-medium text-slate-950">{formatSignupDate(profile?.createdAt)}</span>
                   </p>
                 </div>
               )}
