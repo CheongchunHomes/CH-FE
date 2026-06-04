@@ -27,7 +27,7 @@ const dateLabels: Record<SignStatus, string> = {
 }
 
 export default function MySignPage() {
-  const { status, refresh } = useAuth()
+  const { status, refresh, user } = useAuth()
 
   const [signs, setSigns] = useState<SignDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -159,6 +159,7 @@ export default function MySignPage() {
                     <SignCard
                       key={sign.signId}
                       sign={sign}
+                      currentUserId={user?.id ?? null}
                       isCanceling={cancelingSignId === sign.signId}
                       onCancel={handleCancel}
                     />
@@ -175,12 +176,15 @@ export default function MySignPage() {
 
 type SignCardProps = {
   sign: SignDocument
+  currentUserId: number | null
   isCanceling: boolean
   onCancel: (signId: number) => void
 }
 
-function SignCard({ sign, isCanceling, onCancel }: SignCardProps) {
+function SignCard({ sign, currentUserId, isCanceling, onCancel }: SignCardProps) {
   const canCancel = sign.status === "ISSUED" || sign.status === "PROVIDER_SIGNED"
+  const detailLabel = currentUserId === sign.providerId && sign.status === "ISSUED" ? "계약서 작성" : "계약서 보기"
+  const detailHref = currentUserId === sign.providerId ? `/site/my-page/sign/${sign.signId}` : `/site/step/sign/${sign.signId}`
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400">
@@ -201,7 +205,7 @@ function SignCard({ sign, isCanceling, onCancel }: SignCardProps) {
 
         <div className="flex shrink-0 gap-2">
           <Button asChild size="sm" variant="outline" className="bg-white">
-            <Link href={`/site/my-page/sign/${sign.signId}/approve`}>상세</Link>
+            <Link href={detailHref}>{detailLabel}</Link>
           </Button>
 
           {canCancel && (

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
 import { Check, AlertTriangle, RotateCcw, History, ChevronRight, MapPin, Lightbulb,
          ThumbsUp, ClipboardList } from "lucide-react";
-import { DiagnosisForm, DiagnosisResult, RecommendationResponse, sanitizeDiagnosisForm } from "@/lib/diagnosisUtils";
+import { DiagnosisForm, DiagnosisResult, RecommendationResponse, sanitizeDiagnosisForm, formatAsset } from "@/lib/diagnosisUtils";
 import React from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -29,16 +29,6 @@ const MARRIAGE_PERIOD_LABEL: Record<string, string> = {
 // ─────────────────────────────────────────────────────────
 // 유틸
 // ─────────────────────────────────────────────────────────
-
-// 원 단위 → 억/만 단위 변환
-const formatAsset = (value: number): string => {
-  if (!value || value <= 0) return "-";
-  const uk = Math.floor(value / 100000000);  // 억
-  const man = Math.floor((value % 100000000) / 10000);  // 만
-  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
-  if (uk > 0) return `${uk}억`;
-  return `${Math.floor(value / 10000).toLocaleString()}만원`;
-};
 
 // 만 39세까지 남은 기간 계산
 const calcDday = (birthDate: string): { years: number; months: number } => {
@@ -173,7 +163,13 @@ export default function DiagnosisResultPage() {
           router.push("/site/step/condition-check");
           return;
         }
-        setForm(profile);
+        // 원 → 만원 변환 후 세팅
+        setForm({
+          ...profile,
+          annualIncome: profile.annualIncome ? Math.floor(profile.annualIncome / 10000) : 0,
+          totalAsset:   profile.totalAsset   ? Math.floor(profile.totalAsset   / 10000) : 0,
+          cashAsset:    profile.cashAsset    ? Math.floor(profile.cashAsset    / 10000) : 0,
+        });
 
         // 진단 결과 계산
         const diagnosisResult = await post<DiagnosisResult>(
@@ -200,7 +196,7 @@ export default function DiagnosisResultPage() {
   };
 
   // 이전 진단 불러오기 - 진단 폼으로 이동 (DB에서 자동 복원)
-  const handleLoadPrev = () => {
+  const handleRestoreDiagnosis = () => {
     router.push("/site/step/condition-check");
   };
 
@@ -525,7 +521,7 @@ export default function DiagnosisResultPage() {
                   </ul>
                   <Button
                     variant="outline"
-                    onClick={handleLoadPrev}
+                    onClick={handleRestoreDiagnosis}
                     className="mt-5 w-full flex items-center justify-center gap-2 text-sm"
                   >
                     <History className="w-4 h-4" />
