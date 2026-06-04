@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { MapListing } from "@/lib/map/map-types";
 import { resolveMapImageUrl } from "@/lib/map/map-image";
 
@@ -9,6 +12,13 @@ type MapListingCardProps = {
 export default function MapListingCard({ item, onClick }: MapListingCardProps) {
   const tags = Array.isArray(item.tag) ? item.tag : [];
   const thumbnailUrl = resolveMapImageUrl(item.thumbnailUrl);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, [thumbnailUrl]);
+
+  const imageUrl = imageLoadFailed ? null : thumbnailUrl;
 
   return (
     <button
@@ -18,10 +28,11 @@ export default function MapListingCard({ item, onClick }: MapListingCardProps) {
     >
       <div className="flex gap-3">
         {/* 매물 썸네일 영역입니다. */}
-        {thumbnailUrl ? (
+        {imageUrl ? (
           <img
-            src={thumbnailUrl}
+            src={imageUrl}
             alt={item.title}
+            onError={() => setImageLoadFailed(true)}
             className="h-24 w-24 shrink-0 rounded-xl object-cover"
           />
         ) : (

@@ -124,6 +124,7 @@ export default function Roadmap() {
   const [isStale,      setIsStale]      = useState(false)
   const [cooldown,     setCooldown]     = useState(0)
   const [diagResult, setDiagResult] = useState<DiagnosisResult | null>(null)
+  const [noProfile, setNoProfile]   = useState(false)
 
   const numberCards = useMemo(
     () => calcNumberCards(housingSnap, financeSnap, assetSummary),
@@ -166,6 +167,11 @@ export default function Roadmap() {
         if (cached) {
           const freshProfile    = await get<DiagnosisForm>("/api/diagnosis/profile").catch(() => null)
           setProfile(freshProfile)
+          if (!freshProfile) {
+            setNoProfile(true)
+            setLoading(false)
+            return
+          }
           const freshDiagResult = freshProfile
             ? await post<DiagnosisResult>("/api/diagnosis/simulate", sanitizeDiagnosisForm(freshProfile)).catch(() => null)
             : null
@@ -183,7 +189,11 @@ export default function Roadmap() {
       setIsStale(false)
       const profileData    = await get<DiagnosisForm>("/api/diagnosis/profile").catch(() => null)
       setProfile(profileData)
-
+      if (!profileData) {
+        setNoProfile(true)
+        setLoading(false)
+        return
+      }
       const diagResult = profileData
         ? await post<DiagnosisResult>("/api/diagnosis/simulate", sanitizeDiagnosisForm(profileData)).catch(() => null)
         : null
@@ -244,6 +254,7 @@ export default function Roadmap() {
 
   if (loading) return <LoadingSkeleton />
   if (error)   return <ErrorScreen message={error} onRetry={() => fetchRoadmap(true)} />
+  if (noProfile)  return <NoDiagnosisState router={router} />
   if (!hasAnyInput(housingSnap, financeSnap, assetSummary)) return <EmptyState router={router} />
 
   return (
@@ -654,6 +665,30 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
         <p className="text-xs text-gray-500">{message}</p>
         <button onClick={onRetry} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all">
           다시 시도하기
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function NoDiagnosisState({ router }: { router: ReturnType<typeof useRouter> }) {
+  return (
+    <div className="pt-6">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-4">
+        <div className="flex justify-center">
+          <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+            <Sparkles size={28} className="text-blue-300" />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-gray-900">먼저 내 조건 진단을 완료해주세요</p>
+          <p className="text-xs text-gray-500">진단 결과를 바탕으로 맞춤 전략을 분석해드려요</p>
+        </div>
+        <button
+          onClick={() => router.push("/site/step/condition-check")}
+          className="w-full max-w-xs mx-auto block py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
+        >
+          진단 시작하기
         </button>
       </div>
     </div>
