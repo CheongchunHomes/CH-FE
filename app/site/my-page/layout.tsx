@@ -31,7 +31,7 @@ export default function MyPageLayout({
             <Card className="border-slate-200/80 bg-white shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base text-slate-900">
-                  <UserRound size={18} className="text-sky-600" />
+                  <UserRound size={18} className="text-[#2563EB]" />
                   메뉴 리스트
                 </CardTitle>
               </CardHeader>
@@ -49,7 +49,7 @@ export default function MyPageLayout({
                       asChild
                       className={`h-12 w-full justify-start rounded-lg ${
                         isActive
-                          ? "bg-sky-600 text-white hover:bg-sky-700"
+                          ? "bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                           : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
                       }`}
                     >

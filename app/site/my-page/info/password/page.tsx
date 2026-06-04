@@ -92,10 +92,10 @@ export default function MyPagePasswordPage() {
               />
             </div>
 
-            {successMessage ? <p className="text-sm font-medium text-sky-700">{successMessage}</p> : null}
+            {successMessage ? <p className="text-sm font-medium text-blue-600">{successMessage}</p> : null}
             {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
 
-            <Button type="submit" disabled={isSubmitting} className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+            <Button type="submit" disabled={isSubmitting} className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
               {isSubmitting ? "변경 중..." : "비밀번호 변경"}
             </Button>
           </form>

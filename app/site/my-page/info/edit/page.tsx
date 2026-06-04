@@ -195,7 +195,7 @@ export default function MyPageInfoEditPage() {
             <h1 className="text-xl font-bold text-slate-950">로그인이 필요합니다</h1>
             <p className="mt-2 text-sm text-slate-500">회원정보를 수정하려면 먼저 로그인해 주세요.</p>
           </div>
-          <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+          <Button asChild className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
         </CardContent>
@@ -218,11 +218,11 @@ export default function MyPageInfoEditPage() {
             </Link>
           </Button>
 
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/60">
             <div className="px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">내정보</h2>
             </div>
-            <div className="min-h-32 bg-slate-200/70 p-5">
+            <div className="min-h-32 bg-white p-5">
               {isLoading ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                   <Loader2 className="animate-spin" size={16} />
@@ -241,7 +241,7 @@ export default function MyPageInfoEditPage() {
                     <div className="pb-4 text-sm text-slate-700">
                       <p className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <span className="font-semibold text-slate-500">비밀번호 : </span>
-                        <Button asChild className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+                        <Button asChild className="w-fit rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
                           <Link href="/site/my-page/info/password">비밀번호 변경</Link>
                         </Button>
                       </p>
@@ -274,7 +274,7 @@ export default function MyPageInfoEditPage() {
                         </Button>
                       </div>
                       {nicknameStatus === "available" ? (
-                        <p className="text-sm font-medium text-sky-700">사용 가능한 닉네임입니다.</p>
+                        <p className="text-sm font-medium text-blue-600">사용 가능한 닉네임입니다.</p>
                       ) : null}
                       {nicknameStatus === "unavailable" ? (
                         <p className="text-sm font-medium text-rose-600">사용할 수 없는 닉네임입니다.</p>
@@ -282,10 +282,10 @@ export default function MyPageInfoEditPage() {
                     </div>
                   </div>
 
-                  {successMessage ? <p className="text-sm font-medium text-sky-700">{successMessage}</p> : null}
+                  {successMessage ? <p className="text-sm font-medium text-blue-600">{successMessage}</p> : null}
                   {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
 
-                  <Button type="submit" disabled={isSubmitting} className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+                  <Button type="submit" disabled={isSubmitting} className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
                     {isSubmitting ? "닉네임 변경 중..." : "닉네임 변경"}
                   </Button>
 

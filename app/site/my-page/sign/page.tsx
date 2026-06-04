@@ -113,7 +113,7 @@ export default function MySignPage() {
             <p className="mt-2 text-sm text-slate-500">결제 서류를 확인하려면 먼저 로그인해 주세요.</p>
           </div>
 
-          <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+          <Button asChild className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
         </CardContent>
@@ -129,7 +129,7 @@ export default function MySignPage() {
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="space-y-4 p-6 md:p-8">
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/60">
             <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">결제 서류 목록</h2>
@@ -141,7 +141,7 @@ export default function MySignPage() {
               </Badge>
             </div>
 
-            <div className="min-h-32 bg-slate-200/70 p-5">
+            <div className="min-h-32 bg-white p-5">
               {isLoading ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                   <Loader2 className="animate-spin" size={16} />
@@ -198,7 +198,7 @@ function SignCard({ sign, currentUserId, isCanceling, onCancel }: SignCardProps)
           <div className="text-sm font-semibold text-slate-950">{sign.propertyTitle || `매물 #${sign.propertyId}`}</div>
 
           <div className="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-500">
-            <MapPin size={14} className="mt-0.5 shrink-0 text-sky-600" />
+            <MapPin size={14} className="mt-0.5 shrink-0 text-[#2563EB]" />
             <span>{sign.propertyAddress || "매물 주소 확인 필요"}</span>
           </div>
         </div>
@@ -232,19 +232,19 @@ function SignCard({ sign, currentUserId, isCanceling, onCancel }: SignCardProps)
 
       <div className="grid gap-3 rounded-lg bg-slate-50 p-4 text-xs text-slate-600 md:grid-cols-3">
         <div className="flex items-center gap-2">
-          <UserRound size={14} className="text-sky-600" />
+          <UserRound size={14} className="text-[#2563EB]" />
           <span className="font-semibold text-slate-500">임차인</span>
           <span className="font-medium text-slate-950">{sign.customerNickname || "-"}</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <UserRound size={14} className="text-sky-600" />
+          <UserRound size={14} className="text-[#2563EB]" />
           <span className="font-semibold text-slate-500">임대인</span>
           <span className="font-medium text-slate-950">{sign.providerNickname || "-"}</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <FileSignature size={14} className="text-sky-600" />
+          <FileSignature size={14} className="text-[#2563EB]" />
           <span className="font-semibold text-slate-500">{dateLabels[sign.status]}</span>
           <span className="font-medium text-slate-950">{formatDateTime(sign.updatedAt)}</span>
         </div>
