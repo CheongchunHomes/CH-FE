@@ -36,6 +36,10 @@ export interface PageResponse<T> {
   last: boolean;
 }
 
+export interface TodayAnnouncementCountResponse {
+  count: number;
+}
+
 export async function getAnnouncements(params: {
   region?: string;
   status?: string;
@@ -73,6 +77,14 @@ export async function getAnnouncements(params: {
     },
     cache: "no-store",
   });
+}
+
+export async function getTodayAnnouncementCount(): Promise<number> {
+  const data = await get<TodayAnnouncementCountResponse>("/api/announcements/today-count", {
+    cache: "no-store",
+  });
+
+  return data.count;
 }
 
 export async function getAnnouncement(id: number): Promise<Announcement> {
