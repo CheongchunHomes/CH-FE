@@ -9,6 +9,7 @@ export type SpringErrorPayload = {
 export type AuthFailureCode =
   | "REAUTH_REQUIRED"
   | "REFRESH_EXPIRED"
+  | "USER_DISABLED"
   | "UNAUTHENTICATED"
   | "REFRESH_RETRYABLE"
   | "AUTH_UPSTREAM_ERROR"

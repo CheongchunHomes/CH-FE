@@ -111,7 +111,8 @@ export async function reauth(request: Request) {
     const payload = await parseJsonPayload(springResponse)
     const shouldClearCookies =
       payload.code === "REFRESH_EXPIRED" ||
-      payload.code === "UNAUTHENTICATED"
+      payload.code === "UNAUTHENTICATED" ||
+      payload.code === "USER_DISABLED"
 
     if (shouldClearCookies) {
       return jsonWithClearedAuthCookies(
@@ -185,6 +186,11 @@ export async function me(request: Request) {
   }
 
   if (meResponse.status === 401) {
+    const payload = await parseJsonPayload(meResponse)
+    if (payload.code === "USER_DISABLED") {
+      return refreshFailureResponse("USER_DISABLED")
+    }
+
     const refreshToken = readRefreshToken(request)
     if (!refreshToken) {
       return refreshFailureResponse("UNAUTHENTICATED")
@@ -202,6 +208,10 @@ export async function me(request: Request) {
 
     if (!retryMeResponse.ok) {
       if (retryMeResponse.status === 401) {
+        const payload = await parseJsonPayload(retryMeResponse)
+        if (payload.code === "USER_DISABLED") {
+          return refreshFailureResponse("USER_DISABLED")
+        }
         return refreshFailureResponse("UNAUTHENTICATED")
       }
       const payload = await retryMeResponse.json().catch(() => ({ message: retryMeResponse.statusText }))

@@ -47,6 +47,10 @@ export async function refreshAccessToken(
     return { ok: false, code: "REFRESH_EXPIRED" }
   }
 
+  if (springResponse.status === 401 && payload.code === "USER_DISABLED") {
+    return { ok: false, code: "USER_DISABLED" }
+  }
+
   if (springResponse.status === 401) {
     return { ok: false, code: "UNAUTHENTICATED" }
   }
