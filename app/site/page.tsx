@@ -24,8 +24,8 @@ const quickMenus = [
 
 const serviceLinks = [
   {
-    title: "시뮬레이션",
-    description: "내 조건에 맞는 예상 지원 가능 여부를 미리 확인",
+    title: "청춘 플랜 · 시뮬레이터",
+    description: "모으고, 비교하고, 계산하고, 결국 내 집까지",
     href: "/site/simulator",
   },
   {
