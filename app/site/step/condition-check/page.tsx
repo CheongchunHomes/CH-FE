@@ -5,12 +5,11 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStepBar } from "@/app/site/step/components/StepLayoutShell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, ChevronDown, ChevronUp, HelpCircle, Home, Users, BookOpen, Wallet, Heart, Building2, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, HelpCircle, CalendarIcon, Home, Users, BookOpen, Wallet, Heart, Building2, RotateCcw, Calculator  } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { DiagnosisForm, sanitizeDiagnosisForm, formatAsset } from "@/lib/diagnosisUtils";
 import { useAuth } from "@/lib/auth-context";
@@ -104,7 +103,10 @@ const isStepCompleted = (stepId: number, form: DiagnosisForm): boolean => {
   switch (stepId) {
     case 1: return form.currentResidence !== "";
     case 2: return form.totalAsset > 0 && form.annualIncome > 0;
-    case 3: return form.houseless !== null && form.householdSep !== null;
+    case 3:
+      if (form.houseless === null || form.householdSep === null) return false
+      if (form.houseless === true && !form.houselessYears) return false
+      return true
     case 4: return form.birthDate !== "";
     case 5:
       if (form.hasSubscription === null) return false;
@@ -590,7 +592,7 @@ const HousingFormPage = () => {
                             }`}>
                               {form.houselessYears > 0
                                 ? `청약가점 ${form.houselessYears >= 15 ? 32 : (form.houselessYears + 1) * 2}점`
-                                : "* 무주택 기간을 입력해 주세요"}
+                                : "* 무주택 기간을 입력하면 청약가점이 올라가요."}
                             </span>
                             <div className="flex items-center gap-2 justify-end">
                               <input
@@ -995,6 +997,15 @@ const HousingFormPage = () => {
                       </AccordionTrigger>
                       <AccordionContent className="text-xs text-gray-500 leading-relaxed pb-2">
                         나뿐만 아니라 같이 사는 가족(세대원) 모두 집이 없어야 해요. 오피스텔은 괜찮은 경우가 많지만, 공공주택 신청 시에는 꼭 다시 확인해야 합니다.
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="houselessYears" className="border-b-0">
+                      <AccordionTrigger className="text-xs font-semibold py-2 hover:no-underline text-gray-700">
+                        <span className="flex items-center gap-1.5"><HelpCircle className="w-3 h-3" /> 무주택 기간은 어떻게 계산하나요?</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-xs text-gray-500 leading-relaxed pb-2">
+                        만 19세 이후부터 주택을 소유한 적 없는 기간을 연 단위로 입력해주세요.
+                        기간이 길수록 청약 가점이 높아져요. 15년 이상이면 최대 32점이 적용됩니다.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="householdSep" className="border-b-0">

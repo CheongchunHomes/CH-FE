@@ -154,6 +154,7 @@ export default function DiagnosisResultPage() {
    * - 프로필 없으면 진단 폼으로 리다이렉트
    */
   useEffect(() => {
+    window.scrollTo(0, 0)
     const load = async () => {
       try {
         // 저장된 프로필 조회
