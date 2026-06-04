@@ -43,8 +43,8 @@ function normalizeStatus(value?: string | null) {
 function getStatusTone(status: string) {
   if (status.includes("승인")) {
     return {
-      badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      dot: "bg-emerald-500",
+      badge: "border-blue-200 bg-blue-50 text-[#2563EB]",
+      dot: "bg-[#2563EB]",
     }
   }
 
@@ -63,8 +63,51 @@ function getStatusTone(status: string) {
   }
 
   return {
-    badge: "border-sky-200 bg-sky-50 text-sky-700",
-    dot: "bg-sky-500",
+      badge: "border-blue-200 bg-blue-50 text-[#2563EB]",
+      dot: "bg-[#2563EB]",
+  }
+}
+
+function getLoanStatusTone(status: string) {
+  const normalized = status.trim().toLowerCase()
+
+  if (
+    normalized.includes("거부") ||
+    normalized.includes("반려") ||
+    normalized.includes("rejected") ||
+    normalized.includes("reject")
+  ) {
+    return {
+      badge: "border-rose-200 bg-rose-50 text-rose-700",
+      dot: "bg-rose-500",
+    }
+  }
+
+  if (
+    normalized.includes("승인") ||
+    normalized.includes("approved") ||
+    normalized.includes("accept")
+  ) {
+    return {
+      badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      dot: "bg-emerald-500",
+    }
+  }
+
+  if (
+    normalized.includes("대기") ||
+    normalized.includes("pending") ||
+    normalized.includes("waiting")
+  ) {
+    return {
+      badge: "border-slate-200 bg-slate-100 text-slate-700",
+      dot: "bg-slate-400",
+    }
+  }
+
+  return {
+    badge: "border-slate-200 bg-slate-100 text-slate-700",
+    dot: "bg-slate-400",
   }
 }
 
@@ -180,16 +223,16 @@ export function HomeQuickPanel() {
     }
   }, [])
 
-  const statusTone = getStatusTone(state.loanStatus)
+  const statusTone = getLoanStatusTone(state.loanStatus)
 
   return (
-    <div className="rounded-[2rem] border border-slate-200 bg-[#f8fbff] p-4 shadow-sm">
+    <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">요약 가이드</p>
           <p className="text-xs text-slate-500">오늘의 공고, 대출 현재상황, AI 문의를 바로 확인합니다.</p>
         </div>
-        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+        <Badge variant="outline" className="border-blue-200 bg-blue-50 text-[#2563EB]">
           실시간 반영
         </Badge>
       </div>
@@ -198,7 +241,7 @@ export function HomeQuickPanel() {
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardContent className="p-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+              <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB]">
                 <Newspaper size={16} />
               </div>
               <div className="min-w-0">
@@ -231,11 +274,11 @@ export function HomeQuickPanel() {
           </CardContent>
         </Card>
 
-        <Link href="/site/loan-contract?product=newborn" className="block">
-          <Card className="border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:bg-slate-50">
+        <Link href="/site/my-page" className="block">
+          <Card className="border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:bg-slate-50">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+                <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB]">
                   <Sparkles size={16} />
                 </div>
                 <div className="min-w-0">
@@ -255,12 +298,12 @@ export function HomeQuickPanel() {
 
         <Link
           href="/live2d"
-          className="block rounded-2xl bg-sky-600 px-4 py-3 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="block rounded-2xl bg-[#2563EB] px-4 py-3 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold">AI 문의</p>
-              <p className="mt-1 text-xs text-sky-100">기존 AI 비서와 바로 대화할 수 있습니다.</p>
+              <p className="mt-1 text-xs text-blue-100">기존 AI 비서와 바로 대화할 수 있습니다.</p>
             </div>
             <MessageCircleQuestion size={18} />
           </div>

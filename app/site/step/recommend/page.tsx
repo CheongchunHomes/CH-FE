@@ -305,7 +305,7 @@ useEffect(() => {
                 <div className="flex items-center gap-2.5">
                   <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600">대출</span>
                   <span className="text-sm font-medium text-gray-900">추천 대출 ({FIXED_LOANS.length}건)</span>
-                  <a href="/site/loan" onClick={e => e.stopPropagation()} className="ml-auto mr-2 inline-flex items-center rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50">신청하기</a>
+                  <a href="/site/loan-contract?product=newborn" onClick={e => e.stopPropagation()} className="ml-auto mr-2 inline-flex items-center rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50">신청하기</a>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-0">
