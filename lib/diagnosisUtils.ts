@@ -25,6 +25,7 @@ export interface DiagnosisForm {
   marriagePeriod: string;
   hasYoungChild: boolean;
   singleParent: boolean;
+  houselessYears: number;
 }
 
 export interface DiagnosisResult {
@@ -75,4 +76,14 @@ export const sanitizeDiagnosisForm = (form: DiagnosisForm) => {
     hasYoungChild:    form.hasYoungChild     ?? null,
     singleParent:     form.singleParent      ?? null,
   };
+};
+
+// 만원 단위 기준 (DB값은 / 10000 변환 후 사용)
+export const formatAsset = (value: number): string => {
+  if (!value || value <= 0) return "-";
+  const uk = Math.floor(value / 10000);
+  const man = value % 10000;
+  if (uk > 0 && man > 0) return `${uk}억 ${man.toLocaleString()}만원`;
+  if (uk > 0) return `${uk}억`;
+  return `${man.toLocaleString()}만원`;
 };
