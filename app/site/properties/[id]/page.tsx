@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resolveMapImageUrl } from "@/lib/map/map-image";
 import type { MapListing } from "@/lib/map/map-types";
 
 type PropertyDetailPageProps = {
@@ -42,6 +43,7 @@ export default async function PropertyDetailPage({
   const securityFacilities = Array.isArray(property.securityFacilities)
     ? property.securityFacilities
     : [];
+  const thumbnailUrl = resolveMapImageUrl(property.thumbnailUrl);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-8">
@@ -56,7 +58,15 @@ export default async function PropertyDetailPage({
 
         <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
           {/* 상세 상단 영역입니다. */}
-          <div className="h-72 bg-gradient-to-br from-slate-200 to-slate-300" />
+          <div className="h-72 bg-gradient-to-br from-slate-200 to-slate-300">
+            {thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt={property.title}
+                className="h-full w-full object-cover"
+              />
+            ) : null}
+          </div>
 
           <div className="p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
