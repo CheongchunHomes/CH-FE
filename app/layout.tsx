@@ -7,9 +7,8 @@ import ChatBotWrapper from "@/components/chat/ChatBotWrapper";
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: "Ai agent landing page",
-  description:
-    "Automate complex workflows, make data-driven decisions, and solve challenging problems effortlessly with our agentic AI platform. Empower your business with intelligent automation and streamlined processes designed for modern enterprises.",
+  title: "청춘홈즈",
+  description: "",
   generator: "v0.app",
 }
 

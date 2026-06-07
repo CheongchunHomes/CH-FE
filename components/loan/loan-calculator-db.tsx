@@ -199,8 +199,8 @@ export default function LoanCalculatorDb() {
                   <Link
                     href={
                       selectedProduct
-                        ? `/site/loan-contract?product=${encodeURIComponent(selectedProduct.key)}`
-                        : "/site/loan-contract"
+                        ? `/site/step/loan-contract?product=${encodeURIComponent(selectedProduct.key)}`
+                        : "/site/step/loan-contract"
                     }
                   >
                     <ArrowLeft className="mr-2" size={16} />
@@ -311,8 +311,8 @@ export default function LoanCalculatorDb() {
                 <Link
                   href={
                     selectedProduct
-                      ? `/site/loan-contract?product=${encodeURIComponent(selectedProduct.key)}`
-                      : "/site/loan-contract"
+                      ? `/site/step/loan-contract?product=${encodeURIComponent(selectedProduct.key)}`
+                      : "/site/step/loan-contract"
                   }
                 >
                   계산 다시 보기

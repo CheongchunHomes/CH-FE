@@ -130,7 +130,7 @@ export default function SignContractPage() {
         <CardContent className="space-y-4 p-4 md:p-8">
           <div className="mx-auto max-w-5xl">
             <Button asChild variant="ghost" className="w-fit px-0 text-slate-600 hover:bg-transparent hover:text-slate-950">
-              <Link href="/site/my-page/sign">
+              <Link href="/site/my-page/activity/documents">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 목록으로 돌아가기
               </Link>
