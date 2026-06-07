@@ -1,4 +1,5 @@
 import { get } from "@/lib/api"
+import type { FileContentType } from "@/lib/api/files"
 
 export type LoanApplicationSummary = {
   applicationId?: number
@@ -8,6 +9,13 @@ export type LoanApplicationSummary = {
   loanId?: number
   userId?: number
   contractPdfFileId?: number | null
+}
+
+export type LoanApplicationContractPreviewResponse = {
+  fileId: number
+  signedUrl: string
+  contentType: FileContentType
+  originalFilename: string
 }
 
 function toTime(value?: string) {
@@ -67,4 +75,13 @@ export async function getMyLoanApplicationSummary(): Promise<LoanApplicationSumm
   } catch {
     return null
   }
+}
+
+export function getLoanApplicationContractPreview(applicationId: number) {
+  return get<LoanApplicationContractPreviewResponse>(
+    `/api/admin/loan-applications/${encodeURIComponent(String(applicationId))}/contract-preview`,
+    {
+      cache: "no-store",
+    },
+  )
 }

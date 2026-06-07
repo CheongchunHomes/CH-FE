@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react"
 import { FileText } from "lucide-react"
 
-import { getFileSignedUrl } from "@/lib/api"
+import { getLoanApplicationContractPreview, getMyLoanApplicationSummary, type LoanApplicationSummary } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
-import { getMyLoanApplicationSummary, type LoanApplicationSummary } from "@/lib/loan-applications-api"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +38,9 @@ export default function MyActivityLoanPage() {
   const loanStatusLabel = getLoanStatusLabel(loanSummary?.status)
   const loanTone = getLoanTone(loanSummary?.status)
   const loanUsesFlow = loanStatusLabel === "대기중" || loanStatusLabel === "승인" || loanStatusLabel === "거절"
+  const loanPdfAvailable =
+    loanSummary != null &&
+    (loanSummary.contractPdfFileId != null || loanStatusLabel === "승인" || loanStatusLabel === "거절")
 
   useEffect(() => {
     if (status === "loading") {
@@ -125,7 +127,7 @@ export default function MyActivityLoanPage() {
             loanSummary ? (
               <Button
                 type="button"
-                disabled={loanSummary.contractPdfFileId == null}
+                disabled={!loanPdfAvailable}
                 onClick={handleOpenLoanPdf}
                 className="w-full rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:bg-slate-200 disabled:text-slate-400"
               >
@@ -148,18 +150,18 @@ export default function MyActivityLoanPage() {
   )
 
   async function handleOpenLoanPdf() {
-    const fileId = loanSummary?.contractPdfFileId
-    if (fileId == null) {
-      return
-    }
-
     setLoanPdfOpen(true)
     setLoanPdfError("")
     setLoanPdfLoading(true)
     setLoanPdfUrl("")
 
     try {
-      const data = await getFileSignedUrl(fileId)
+      const applicationId = loanSummary?.applicationId
+      if (applicationId == null) {
+        throw new Error("대출 신청 정보를 찾을 수 없습니다.")
+      }
+
+      const data = await getLoanApplicationContractPreview(applicationId)
       setLoanPdfUrl(data.signedUrl)
     } catch (error) {
       setLoanPdfError(error instanceof Error ? error.message : "PDF를 불러오지 못했습니다.")
