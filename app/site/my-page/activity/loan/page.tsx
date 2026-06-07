@@ -122,15 +122,17 @@ export default function MyActivityLoanPage() {
             ) : null
           }
           action={
-            <Button
-              type="button"
-              disabled={loanSummary?.contractPdfFileId == null}
-              onClick={handleOpenLoanPdf}
-              className="w-full rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              <FileText size={16} />
-              PDF 보기
-            </Button>
+            loanSummary ? (
+              <Button
+                type="button"
+                disabled={loanSummary.contractPdfFileId == null}
+                onClick={handleOpenLoanPdf}
+                className="w-full rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                <FileText size={16} />
+                PDF 보기
+              </Button>
+            ) : undefined
           }
         />
       </ActivityPageShell>
@@ -220,10 +222,10 @@ function getLoanStatusLabel(status?: string | null) {
   }
 
   const statusMap: Record<string, string> = {
-    PAYMENT_PENDING: "승인대기",
-    PAYMENT_COMPLETED: "승인완료",
+    PAYMENT_PENDING: "대기중",
+    PAYMENT_COMPLETED: "승인",
     PAYMENT_APPROVED: "승인",
-    PAYMENT_REJECTED: "승인거부",
+    PAYMENT_REJECTED: "거절",
     APPROVED: "승인",
     REJECTED: "거절",
     CANCELLED: "취소됨",
