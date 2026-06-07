@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { readAccessToken } from "@/lib/api/auth/cookies"
 
 const BACKEND_BASE_URL =
-  process.env.LOAN_API_BASE_URL?.trim().replace(/\/+$/, "") ||
   process.env.API_BASE_URL?.trim().replace(/\/+$/, "")
 
 export async function POST(request: NextRequest) {
