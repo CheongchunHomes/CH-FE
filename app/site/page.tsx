@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { HomeQuickPanel } from "@/components/site/home-quick-panel"
-import BannerModal from "@/components/banner/banner-modal";
+import BannerModal from "@/components/banner/banner-modal"
 
 const quickMenus = [
   { icon: House, label: "조건 진단", href: "/site/step/condition-check" },
@@ -64,7 +64,7 @@ const serviceLinks = [
 export default function SitePage() {
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
-      <BannerModal />
+      <BannerModal/>
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
         <section className="grid gap-4">
           <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">
