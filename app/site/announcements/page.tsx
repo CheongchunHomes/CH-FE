@@ -303,6 +303,20 @@ export default function AnnouncementsPage() {
   }, [searchParams.get("reset")]);
 
   useEffect(() => {
+    const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
+
+    if (!initialKeyword) {
+      return;
+    }
+
+    setKeyword(initialKeyword);
+    setAppliedKeyword(initialKeyword);
+    setIsSearchOpen(false);
+
+    void fetchData(0, undefined, undefined, initialKeyword, false, undefined, null, undefined);
+  }, [searchParams]);
+
+  useEffect(() => {
     const trimmedKeyword = keyword.trim();
 
     if (!trimmedKeyword) {
