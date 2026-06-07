@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readAccessToken } from "@/lib/api/auth/cookies"
 
-const BACKEND_BASE_URL = process.env.LOAN_API_BASE_URL?.trim() || "http://localhost:18080"
+const BACKEND_BASE_URL =
+  process.env.LOAN_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+  process.env.API_BASE_URL?.trim().replace(/\/+$/, "")
 
 export async function POST(request: NextRequest) {
   try {
+    if (!BACKEND_BASE_URL) {
+      return NextResponse.json(
+        { message: "LOAN_API_BASE_URL or API_BASE_URL is not configured." },
+        { status: 502 },
+      )
+    }
+
     const accessToken = readAccessToken(request)
     const headers = new Headers({
       "Content-Type": "application/json",
