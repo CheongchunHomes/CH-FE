@@ -1,14 +1,27 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { readAccessToken } from "@/lib/api/auth/cookies"
 
 const BACKEND_BASE_URL = process.env.LOAN_API_BASE_URL?.trim() || "http://localhost:18080"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const accessToken = readAccessToken(request)
+    const headers = new Headers({
+      "Content-Type": "application/json",
+    })
+
+    if (accessToken) {
+      headers.set("Authorization", `Bearer ${accessToken}`)
+    }
+
+    const cookieHeader = request.headers.get("cookie")
+    if (cookieHeader) {
+      headers.set("cookie", cookieHeader)
+    }
+
     const response = await fetch(`${BACKEND_BASE_URL}/loan-applications`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: await request.text(),
       cache: "no-store",
     })

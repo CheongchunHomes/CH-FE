@@ -636,19 +636,28 @@ export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContract
         formData.append(`file-${index + 1}`, file);
       });
 
-      await fetch("/api/contracts/local-save", {
-        method: "POST",
-        body: formData,
-      });
+      try {
+        await fetch("/api/contracts/local-save", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (localSaveError) {
+        console.error("[loan-contract] local-save failed", localSaveError);
+      }
 
       if (selected.loanId) {
         const contractPdfFileId = backendFileIds[backendFileIds.length - 1];
-        await createLoanApplication({
-          userId: user?.id ?? undefined,
-          loanId: selected.loanId,
-          applyAmount: parseAmountToManwon(amount),
-          address: contractPdfFileId != null ? String(contractPdfFileId) : "",
-        });
+        try {
+          await createLoanApplication({
+            userId: user?.id ?? undefined,
+            loanId: selected.loanId,
+            applyAmount: parseAmountToManwon(amount),
+            address: contractPdfFileId != null ? String(contractPdfFileId) : "",
+          });
+        } catch (loanError) {
+          console.error("[loan-contract] loan application failed", loanError);
+          throw loanError;
+        }
       }
 
       setSaveCompleteOpen(true);
