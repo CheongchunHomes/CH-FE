@@ -7,6 +7,7 @@ export type LoanApplicationSummary = {
   createdAt?: string
   loanId?: number
   userId?: number
+  contractPdfFileId?: number | null
 }
 
 function toTime(value?: string) {

@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
-  { label: "내 정보", href: "/site/my-page/info" },
-  { label: "결제 서류", href: "/site/my-page/sign" },
+  { label: "회원 정보", href: "/site/my-page/info" },
+  { label: "내 활동", href: "/site/my-page/activity" },
   { label: "내 스크랩", href: "/site/my-page/scraps" },
 ]
 
