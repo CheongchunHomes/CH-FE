@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,14 @@ type UserLocation = {
 };
 
 export default function AnnouncementsPage() {
+  return (
+    <Suspense fallback={<div>로딩 중...</div>}>
+      <AnnouncementsContent />
+    </Suspense>
+  );
+}
+
+function AnnouncementsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
