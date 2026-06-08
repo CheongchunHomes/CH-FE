@@ -74,8 +74,14 @@ function normalizeUrl(path: string) {
     return path
   }
 
+  const normalizedBaseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "")
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
-  return `${DEFAULT_BASE_URL}${normalizedPath}`
+
+  if (normalizedBaseUrl === "/api" && normalizedPath.startsWith("/api/")) {
+    return normalizedPath
+  }
+
+  return `${normalizedBaseUrl}${normalizedPath}`
 }
 
 function appendQuery(url: string, query?: QueryParams) {

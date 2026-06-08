@@ -1,11 +1,12 @@
-const DEFAULT_BACKEND_IMAGE_BASE_URL = "/api";
+const DEFAULT_BACKEND_IMAGE_BASE_URL = "";
 
 function getBackendImageBaseUrl() {
-  const configuredBaseUrl =
+  const configuredBaseUrl = (
     process.env.NEXT_PUBLIC_BACKEND_IMAGE_BASE_URL ??
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     process.env.NEXT_PUBLIC_API_BASE_URL ??
-    DEFAULT_BACKEND_IMAGE_BASE_URL;
+    DEFAULT_BACKEND_IMAGE_BASE_URL
+  ).trim();
 
   if (configuredBaseUrl.startsWith("/")) {
     return configuredBaseUrl.replace(/\/+$/, "");
@@ -34,6 +35,14 @@ export function resolveMapImageUrl(url?: string | null) {
   }
 
   const backendBaseUrl = getBackendImageBaseUrl();
+
+  if (!backendBaseUrl) {
+    return trimmedUrl;
+  }
+
+  if (backendBaseUrl === "/api" && trimmedUrl.startsWith("/api/")) {
+    return trimmedUrl;
+  }
 
   if (trimmedUrl.startsWith("/")) {
     return `${backendBaseUrl}${trimmedUrl}`;
