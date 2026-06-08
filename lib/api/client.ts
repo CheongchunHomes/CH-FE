@@ -375,7 +375,7 @@ export async function request<TResponse, TBody = unknown>(
   path: string,
   options: ApiRequestOptions<TBody> = {},
 ) {
-  const { body, auth: _auth, retryOnUnauthorized: _retry, ...requestOptions } = options
+  const { body, ...requestOptions } = options
   return sendRequest<TResponse, TBody>(method, path, body, requestOptions)
 }
 

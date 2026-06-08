@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -37,7 +37,7 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const fetchPost = async () => {
+  const fetchPost = useCallback(async () => {
     try {
       setLoading(true);
       setErrorMessage('');
@@ -53,7 +53,7 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const handleDelete = async () => {
     if (!post) return;
@@ -82,7 +82,7 @@ await request('DELETE', `/api/community/${id}`);
 
   useEffect(() => {
     fetchPost();
-  }, [id]);
+  }, [fetchPost]);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">

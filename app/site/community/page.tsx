@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { get, post, request, ApiError } from '@/lib/api';
@@ -338,6 +338,20 @@ const REGIONS = {
 
 type CityKey = keyof typeof REGIONS;
 
+function getSelectedRegion(city: CityKey | '', district: string) {
+  if (!city) return '';
+
+  const cityName = REGIONS[city].name;
+
+  if (!district) {
+    return cityName;
+  }
+
+  const districtName = REGIONS[city].districts.find((d) => d.id === district)?.name;
+
+  return districtName ? `${cityName} ${districtName}` : cityName;
+}
+
 interface CommunityPost {
   postId: number;
   userId: number;
@@ -422,31 +436,16 @@ function CommunityPageContent() {
     });
   };
 
-  const getSelectedRegion = () => {
-    if (!city) return '';
-
-    const cityName = REGIONS[city].name;
-
-    if (!district) {
-      return cityName;
-    }
-
-    const districtName = REGIONS[city].districts.find(
-      (d) => d.id === district
-    )?.name;
-
-    return districtName ? `${cityName} ${districtName}` : cityName;
-  };
-
-  const fetchPosts = async (targetPage = currentPage) => {
+  const fetchPosts = useCallback(async (targetPage = currentPage) => {
     try {
       setLoading(true);
+      const region = getSelectedRegion(city, district);
 
       const data = await get<CommunityPageResponse>('/api/community/list', {
         query: {
           page: targetPage - 1,
           size: POSTS_PER_PAGE,
-          region: getSelectedRegion(),
+          region,
           keyword: searchKeyword.trim(),
         },
         cache: 'no-store',
@@ -468,7 +467,7 @@ function CommunityPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [POSTS_PER_PAGE, currentPage, city, district, searchKeyword]);
 
   const fetchCommunityNotices = async () => {
     try {
@@ -498,7 +497,7 @@ function CommunityPageContent() {
 
   useEffect(() => {
     fetchPosts();
-  }, [currentPage, city, district, searchKeyword]);
+  }, [fetchPosts]);
 
   const handleSubmit = async () => {
     if (!newPost.title.trim()) {

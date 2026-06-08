@@ -1,4 +1,12 @@
+import { Nanum_Pen_Script } from "next/font/google"
+
 import "./simulator.css"
+
+const nanumPenScript = Nanum_Pen_Script({
+  weight: "400",
+  preload: false,
+  variable: "--font-nanum-pen-script",
+})
 
 export default function SimulatorLayout({
                                           children,
@@ -6,9 +14,8 @@ export default function SimulatorLayout({
   children: React.ReactNode
 }) {
   return (
-    <>
-      <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+    <div className={nanumPenScript.variable}>
       {children}
-    </>
+    </div>
   )
 }

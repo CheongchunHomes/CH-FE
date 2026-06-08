@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -90,9 +90,15 @@ type UserLocation = {
   longitude: number;
 };
 
+const isLocationFilterActive = (filter?: string) => {
+  return !!filter && filter !== "전체";
+};
+
 function AnnouncementsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const resetParam = searchParams.get("reset");
+  const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [searchSuggestions, setSearchSuggestions] = useState<Announcement[]>([]);
@@ -147,17 +153,13 @@ function AnnouncementsPageContent() {
       try {
         const ids = await getMyAnnouncementScrapIds();
         setLikedIds(new Set(ids));
-      } catch (e) {
+      } catch {
         setLikedIds(new Set());
       }
     };
 
     fetchScrapIds();
   }, []);
-
-  const isLocationFilterActive = (filter?: string) => {
-    return !!filter && filter !== "전체";
-  };
 
   const getLocationFilterGuideText = (filter?: string) => {
     if (filter === "거리 순") {
@@ -231,44 +233,47 @@ function AnnouncementsPageContent() {
     return nextLocation;
   };
 
-  const fetchData = async (
-    page: number,
-    region?: string,
-    status?: string,
-    keyword?: string,
-    deadlineSoon?: boolean,
-    areaType?: string,
-    location?: UserLocation | null,
-    locationFilter?: string
-  ) => {
-    try {
-      const useLocation = location && isLocationFilterActive(locationFilter);
-      const useAreaFilter = !!areaType && areaType !== "전체";
+  const fetchData = useCallback(
+    async (
+      page: number,
+      region?: string,
+      status?: string,
+      keyword?: string,
+      deadlineSoon?: boolean,
+      areaType?: string,
+      location?: UserLocation | null,
+      locationFilter?: string
+    ) => {
+      try {
+        const useLocation = location && isLocationFilterActive(locationFilter);
+        const useAreaFilter = !!areaType && areaType !== "전체";
 
-      const data = await getAnnouncements({
-        region,
-        status,
-        keyword,
-        deadlineSoon,
-        areaType,
-        targetType: useAreaFilter ? undefined : "공공임대주택",
-        latitude: useLocation ? location.latitude : undefined,
-        longitude: useLocation ? location.longitude : undefined,
-        locationFilter: useLocation ? locationFilter : undefined,
-        page,
-        size: 10,
-      });
+        const data = await getAnnouncements({
+          region,
+          status,
+          keyword,
+          deadlineSoon,
+          areaType,
+          targetType: useAreaFilter ? undefined : "공공임대주택",
+          latitude: useLocation ? location.latitude : undefined,
+          longitude: useLocation ? location.longitude : undefined,
+          locationFilter: useLocation ? locationFilter : undefined,
+          page,
+          size: 10,
+        });
 
-      setAnnouncements(data.content);
-      setTotalElements(data.totalElements);
-      setTotalPages(data.totalPages);
-      setCurrentPage(data.number);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+        setAnnouncements(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+        setCurrentPage(data.number);
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    []
+  );
 
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     setRegion(undefined);
     setStatus(undefined);
     setKeyword("");
@@ -296,15 +301,13 @@ function AnnouncementsPageContent() {
     setIsSearchOpen(false);
 
     fetchData(0);
-  };
+  }, [fetchData]);
 
   useEffect(() => {
     resetAll();
-  }, [searchParams.get("reset")]);
+  }, [resetParam, resetAll]);
 
   useEffect(() => {
-    const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
-
     if (!initialKeyword) {
       return;
     }
@@ -313,8 +316,17 @@ function AnnouncementsPageContent() {
     setAppliedKeyword(initialKeyword);
     setIsSearchOpen(false);
 
-    void fetchData(0, undefined, undefined, initialKeyword, false, undefined, null, undefined);
-  }, [searchParams]);
+    void fetchData(
+      0,
+      undefined,
+      undefined,
+      initialKeyword,
+      false,
+      undefined,
+      null,
+      undefined
+    );
+  }, [fetchData, initialKeyword]);
 
   useEffect(() => {
     const trimmedKeyword = keyword.trim();
@@ -443,7 +455,7 @@ function AnnouncementsPageContent() {
 
         return next
       })
-    } catch (e) {
+    } catch {
       setLoginDialogOpen(true)
     }
   }

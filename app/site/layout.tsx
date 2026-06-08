@@ -1,7 +1,6 @@
 "use client"
 
 import Navbar from "@/components/navbar"
-import { ReauthDialog } from "@/components/reauth-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"

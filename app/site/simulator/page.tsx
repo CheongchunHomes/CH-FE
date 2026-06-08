@@ -107,7 +107,16 @@ function SimulatorPageContent() {
     setPlans((prevPlans) => prevPlans.map((p) => p.planId === planId ? { ...p, isCompleted } : p))
 
     // 백엔드 동기화
-    const { planId: _, createdAt: __, ...planForm } = plan
+    const planForm = {
+      category: plan.category,
+      planName: plan.planName,
+      baseAsset: plan.baseAsset,
+      goalAmount: plan.goalAmount,
+      monthlySaving: plan.monthlySaving,
+      startDate: plan.startDate,
+      endDate: plan.endDate,
+      isCompleted: plan.isCompleted,
+    }
     try {
       await request("PUT", `/api/simulator/asset-plans/${planId}`, {
         body: { ...planForm, isCompleted },

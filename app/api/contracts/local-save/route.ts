@@ -31,7 +31,7 @@ function formatKoreanDateStamp(date = new Date()) {
     .replace(/\D/g, "");
 }
 
-function buildSavedFileName(originalName: string, baseName: string) {
+function buildSavedFileName(originalName: string) {
   const pageMatch = originalName.match(/^page-(\d+)\.png$/);
   if (pageMatch) {
     return `page-${pageMatch[1]}.png`;
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   for (const [field, value] of formData.entries()) {
     if (!(value instanceof File)) continue;
 
-    const safeName = buildSavedFileName(value.name || `${field}.bin`, fileBaseName);
+    const safeName = buildSavedFileName(value.name || `${field}.bin`);
     const targetPath = path.join(storageRoot, safeName);
     const bytes = Buffer.from(await value.arrayBuffer());
     await writeFile(targetPath, bytes);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError, get } from "@/lib/api";
 
@@ -56,16 +56,7 @@ export default function SubscriptionDetailPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [houseTypeLoading, setHouseTypeLoading] = useState(false);
 
-  useEffect(() => {
-    if (!announcementId) {
-      return;
-    }
-
-    fetchAnnouncementDetail();
-    fetchHouseTypes();
-  }, [announcementId]);
-
-  async function fetchAnnouncementDetail() {
+  const fetchAnnouncementDetail = useCallback(async () => {
     setDetailLoading(true);
 
     try {
@@ -88,9 +79,9 @@ export default function SubscriptionDetailPage() {
     } finally {
       setDetailLoading(false);
     }
-  }
+  }, [announcementId]);
 
-  async function fetchHouseTypes() {
+  const fetchHouseTypes = useCallback(async () => {
     setHouseTypeLoading(true);
 
     try {
@@ -113,7 +104,16 @@ export default function SubscriptionDetailPage() {
     } finally {
       setHouseTypeLoading(false);
     }
-  }
+  }, [announcementId]);
+
+  useEffect(() => {
+    if (!announcementId) {
+      return;
+    }
+
+    void fetchAnnouncementDetail();
+    void fetchHouseTypes();
+  }, [announcementId, fetchAnnouncementDetail, fetchHouseTypes]);
 
   const handleApply = () => {
     if (!selectedHouseType) {

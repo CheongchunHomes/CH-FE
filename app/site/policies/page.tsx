@@ -175,7 +175,7 @@ export default function PoliciesPage() {
       try {
         const ids = await getMyPolicyScrapIds()
         setLikedIds(new Set(ids))
-      } catch (e) {
+      } catch {
         setLikedIds(new Set())
       }
     }
@@ -242,7 +242,7 @@ const handleLike = async (id: number) => {
 
       return next
     })
-  } catch (e) {
+  } catch {
     setLoginDialogOpen(true)
   }
 }

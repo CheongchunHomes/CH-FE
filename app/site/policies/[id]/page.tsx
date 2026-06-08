@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import { ExternalLink, Printer, Share2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -80,7 +80,7 @@ export default function PolicyDetailPage() {
     try {
       await navigator.clipboard.writeText(window.location.href)
       alert("URL이 복사되었습니다.")
-    } catch (e) {
+    } catch {
       alert("URL 복사에 실패했습니다.")
     }
   }

@@ -7,11 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
-import { Check, AlertTriangle, RotateCcw, History, ChevronRight, MapPin, Lightbulb,
-         ThumbsUp, ClipboardList } from "lucide-react";
+import { Check, AlertTriangle, RotateCcw, History, ChevronRight, MapPin, Lightbulb, ClipboardList } from "lucide-react";
 import { DiagnosisForm, DiagnosisResult, RecommendationResponse, sanitizeDiagnosisForm, formatAsset } from "@/lib/diagnosisUtils";
 import React from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // ─────────────────────────────────────────────────────────
 // 라벨 상수

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,9 +82,14 @@ type UserLocation = {
   longitude: number;
 };
 
+const isLocationFilterActive = (filter?: string) => {
+  return !!filter && filter !== "전체";
+};
+
 function SaleCenterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const resetParam = searchParams.get("reset");
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [searchSuggestions, setSearchSuggestions] = useState<Announcement[]>([]);
@@ -137,17 +142,13 @@ function SaleCenterPageContent() {
       try {
         const ids = await getMyAnnouncementScrapIds();
         setLikedIds(new Set(ids));
-      } catch (e) {
+      } catch {
         setLikedIds(new Set());
       }
     };
 
     fetchScrapIds();
   }, []);
-
-  const isLocationFilterActive = (filter?: string) => {
-    return !!filter && filter !== "전체";
-  };
 
   const getLocationFilterGuideText = (filter?: string) => {
     if (filter === "거리 순") {
@@ -221,54 +222,57 @@ function SaleCenterPageContent() {
     return nextLocation;
   };
 
-  const fetchData = async (
-    page: number,
-    region?: string,
-    status?: string,
-    keyword?: string,
-    deadlineSoon?: boolean,
-    location?: UserLocation | null,
-    locationFilter?: string
-  ) => {
-    try {
-      const useLocation = !!location && isLocationFilterActive(locationFilter);
+  const fetchData = useCallback(
+    async (
+      page: number,
+      region?: string,
+      status?: string,
+      keyword?: string,
+      deadlineSoon?: boolean,
+      location?: UserLocation | null,
+      locationFilter?: string
+    ) => {
+      try {
+        const useLocation = !!location && isLocationFilterActive(locationFilter);
 
-      console.log("[sale-center search params]", {
-        region,
-        status,
-        keyword,
-        deadlineSoon,
-        targetType: "공공분양주택",
-        latitude: useLocation ? location.latitude : undefined,
-        longitude: useLocation ? location.longitude : undefined,
-        locationFilter: useLocation ? locationFilter : undefined,
-        page,
-        size: 10,
-      });
+        console.log("[sale-center search params]", {
+          region,
+          status,
+          keyword,
+          deadlineSoon,
+          targetType: "공공분양주택",
+          latitude: useLocation ? location.latitude : undefined,
+          longitude: useLocation ? location.longitude : undefined,
+          locationFilter: useLocation ? locationFilter : undefined,
+          page,
+          size: 10,
+        });
 
-      const data = await getAnnouncements({
-        region,
-        status,
-        keyword,
-        deadlineSoon,
-        targetType: "공공분양주택",
-        latitude: useLocation ? location.latitude : undefined,
-        longitude: useLocation ? location.longitude : undefined,
-        locationFilter: useLocation ? locationFilter : undefined,
-        page,
-        size: 10,
-      });
+        const data = await getAnnouncements({
+          region,
+          status,
+          keyword,
+          deadlineSoon,
+          targetType: "공공분양주택",
+          latitude: useLocation ? location.latitude : undefined,
+          longitude: useLocation ? location.longitude : undefined,
+          locationFilter: useLocation ? locationFilter : undefined,
+          page,
+          size: 10,
+        });
 
-      setAnnouncements(data.content);
-      setTotalElements(data.totalElements);
-      setTotalPages(data.totalPages);
-      setCurrentPage(data.number);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+        setAnnouncements(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+        setCurrentPage(data.number);
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    []
+  );
 
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     setRegion(undefined);
     setStatus(undefined);
     setKeyword("");
@@ -294,11 +298,11 @@ function SaleCenterPageContent() {
     setIsSearchOpen(false);
 
     fetchData(0);
-  };
+  }, [fetchData]);
 
   useEffect(() => {
     resetAll();
-  }, [searchParams.get("reset")]);
+  }, [resetParam, resetAll]);
 
   useEffect(() => {
     const trimmedKeyword = keyword.trim();
@@ -423,7 +427,7 @@ function SaleCenterPageContent() {
 
         return next
       })
-    } catch (e) {
+    } catch {
       setLoginDialogOpen(true)
     }
   }

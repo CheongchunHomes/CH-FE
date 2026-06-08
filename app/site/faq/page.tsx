@@ -30,7 +30,6 @@ interface FaqItem {
 
 function FaqPageContent() {
   const searchParams = useSearchParams();
-  const MAIN_COLOR = '#2196F3';
 
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
   const [selectedCategory, setSelectedCategory] = useState('전체');

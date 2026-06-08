@@ -62,7 +62,8 @@ export interface RecommendationResponse {
 // enum/nullable 필드 빈 문자열 → null 변환, monthlyIncome 백엔드 전송 제외
 // BE enum 파싱 오류 방지용
 export const sanitizeDiagnosisForm = (form: DiagnosisForm) => {
-  const { monthlyIncome, ...rest } = form;
+  const { monthlyIncome: _monthlyIncome, ...rest } = form;
+  void _monthlyIncome;
   return {
     ...rest,
     married:          form.married          ?? null,

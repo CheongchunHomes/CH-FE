@@ -1,6 +1,12 @@
 import type { MapListing } from "@/lib/map/map-types";
 
-export function addListingMarkers(map: any, listings: MapListing[]) {
+type KakaoLatLng = unknown;
+
+type KakaoMap = {
+  panTo: (center: KakaoLatLng) => void;
+};
+
+export function addListingMarkers(map: KakaoMap, listings: MapListing[]) {
   if (!window.kakao || !window.kakao.maps) return;
 
   listings.forEach((listing) => {
@@ -28,7 +34,7 @@ export function addListingMarkers(map: any, listings: MapListing[]) {
     markerElement.style.alignItems = "center";
     markerElement.style.justifyContent = "center";
 
-    const overlay = new window.kakao.maps.CustomOverlay({
+    new window.kakao.maps.CustomOverlay({
       map,
       position,
       content: markerElement,

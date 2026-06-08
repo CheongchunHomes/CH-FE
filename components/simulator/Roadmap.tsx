@@ -309,7 +309,7 @@ export default function Roadmap() {
           <div className="flex flex-col items-center justify-center py-10 px-6">
             {housingSnap ? (
               <>
-                <p className="text-5xl font-extralight text-gray-900 text-center -mb-6" style={{ fontFamily: "'Nanum Pen Script', cursive" }}>
+                <p className="text-5xl font-extralight text-gray-900 text-center -mb-6" style={{ fontFamily: "var(--font-nanum-pen-script), cursive" }}>
                   "{SIZE_SLOGAN[housingSnap.targetSize]}"
                 </p>
                 <div className="w-[300px]">

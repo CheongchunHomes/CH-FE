@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStepBar } from "@/app/site/step/components/StepLayoutShell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, ChevronDown, ChevronUp, HelpCircle, CalendarIcon, Home, Users, BookOpen, Wallet, Heart, Building2, RotateCcw, Calculator  } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, HelpCircle, CalendarIcon, Home, Users, BookOpen, Wallet, Heart, Building2, RotateCcw } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -218,7 +218,7 @@ const HousingFormPage = () => {
 
   // 페이지 진입 시 DB에서 프로필 불러오기 (저장된 진단 복원)
   useEffect(() => {
-    get<any>("/api/diagnosis/profile")
+    get<DiagnosisForm>("/api/diagnosis/profile")
       .then((profile) => setForm({
         ...profile,
         birthDate: profile.birthDate ? String(profile.birthDate) : "",
@@ -305,6 +305,13 @@ const HousingFormPage = () => {
     }
   };
 
+  const loadingOverlay = isSubmitting && (
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-gray-500 font-medium">진단 결과를 분석하는 중입니다...</p>
+    </div>
+  );
+
   if (status === "unauthenticated") return (
     <AlertDialog open={true}>
       <AlertDialogContent>
@@ -323,17 +330,9 @@ const HousingFormPage = () => {
       </AlertDialogContent>
     </AlertDialog>
   );
-
-  {/* 로딩 오버레이 */}
-  {isSubmitting && (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-sm text-gray-500 font-medium">진단 결과를 분석하는 중입니다...</p>
-    </div>
-  )}
-
   return (
     <main className="bg-gray-50 min-h-screen">
+      {loadingOverlay}
 
       {/* 헤더 */}
       <div className="bg-white border-b py-6">
@@ -1053,7 +1052,7 @@ const HousingFormPage = () => {
                         <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> 결혼 계획, 왜 물어보나요?</span>
                       </AccordionTrigger>
                       <AccordionContent className="text-xs text-gray-500 leading-relaxed pb-2">
-                        예비 신혼부부라면 당첨 확률이 높은 '특별공급'과 저금리 대출 혜택을 받을 수 있기 때문이에요.
+                        예비 신혼부부라면 당첨 확률이 높은 &apos;특별공급&apos;과 저금리 대출 혜택을 받을 수 있기 때문이에요.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="happy" className="border-b-0">

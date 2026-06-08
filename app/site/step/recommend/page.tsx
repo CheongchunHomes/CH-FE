@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useStepBar } from '@/app/site/step/components/StepLayoutShell';
 import { get } from '@/lib/api';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -66,12 +67,11 @@ export interface RecoItem {
   announcementId: number | null;
 }
 
-const GRADE_COLOR: Record<string, string> = {
-  '적극추천':   'text-green-600',
-  '추천가능':   'text-blue-600',
-  '조건부추천': 'text-yellow-600',
-  '추천어려움': 'text-red-500',
-};
+export interface RecommendSummaryResponse {
+  policies: RecoItem[];
+  diagnosis: DiagnosisForm | null;
+  desiredCity: string;
+}
 
 const GRADE_BG: Record<string, string> = {
   '적극추천':   'border-green-200 bg-green-50 text-green-700',
@@ -109,7 +109,7 @@ export default function RecommendPage() {
 
   const [results, setResults] = useState<PolicyResult[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalAnnouncement, setModalAnnouncement] = useState<Announcement | null>(null);
@@ -118,7 +118,7 @@ export default function RecommendPage() {
 useEffect(() => {
   Promise.all([
     get<{ results: PolicyResult[] }>('/api/recommendation/calculate/profile', { cache: 'no-store' }),
-    get<{ policies: RecoItem[]; diagnosis: any; desiredCity: string }>('/api/recommend/summary', { cache: 'no-store' }).catch(() => null),
+    get<RecommendSummaryResponse>('/api/recommend/summary', { cache: 'no-store' }).catch(() => null),
   ])
     .then(async ([rec, summary]) => {
       setResults(rec.results ?? []);
@@ -154,7 +154,6 @@ useEffect(() => {
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorScreen message={error} />;
 
-  const loanResults = results.filter(r => isLoan(r.policyName));
   const policyResults = results.filter(r => !isLoan(r.policyName));
 
   const happyAnnouncements = announcements.filter(a => classifyAnnouncement(a) === '행복주택');
@@ -263,7 +262,7 @@ useEffect(() => {
                     </div>
                   ))}
                   <div className="flex justify-center border-t border-gray-100 py-3">
-                    <a href="/site/announcements" className="text-sm font-medium text-blue-600 hover:underline">전체 공고 보러가기</a>
+                    <Link href="/site/announcements" className="text-sm font-medium text-blue-600 hover:underline">전체 공고 보러가기</Link>
                   </div>
                 </div>
               </AccordionContent>
@@ -291,7 +290,7 @@ useEffect(() => {
                     </div>
                   ))}
                   <div className="flex justify-center border-t border-gray-100 py-3">
-                    <a href="/site/announcements" className="text-sm font-medium text-blue-600 hover:underline">전체 공고 보러가기</a>
+                    <Link href="/site/announcements" className="text-sm font-medium text-blue-600 hover:underline">전체 공고 보러가기</Link>
                   </div>
                 </div>
               </AccordionContent>

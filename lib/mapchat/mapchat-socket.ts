@@ -6,27 +6,11 @@ import type {
   MapChatRoomEvent,
 } from "@/lib/mapchat/mapchat-types";
 
-type SubscribeMapChatRoomParams = {
-  chatRoomId: number;
-  userId: number;
-  onMessage: (message: MapChatMessage) => void;
-  onError?: (message: string) => void;
-};
-
-type SubscribeMapChatReadParams = {
-  chatRoomId: number;
-  userId: number;
-  onRead: (event: MapChatReadEvent) => void;
-  onError?: (message: string) => void;
-};
-
 type SubscribeMapChatRoomEventsParams = {
   userId: number;
   onRoomEvent: (event: MapChatRoomEvent) => void;
   onError?: (message: string) => void;
 };
-
-
 
 function getMapChatWsUrl() {
   const wsUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
@@ -84,6 +68,7 @@ export function subscribeMapChatRoomEvents({
     void client.deactivate();
   };
 }
+
 type SubscribeMapChatPanelParams = {
   chatRoomId: number;
   userId: number;

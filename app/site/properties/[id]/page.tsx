@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveMapImageUrl } from "@/lib/map/map-image";
@@ -58,12 +59,14 @@ export default async function PropertyDetailPage({
 
         <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
           {/* 상세 상단 영역입니다. */}
-          <div className="h-72 bg-gradient-to-br from-slate-200 to-slate-300">
+          <div className="relative h-72 bg-gradient-to-br from-slate-200 to-slate-300">
             {thumbnailUrl ? (
-              <img
+              <Image
                 src={thumbnailUrl}
                 alt={property.title}
-                className="h-full w-full object-cover"
+                fill
+                sizes="100vw"
+                className="object-cover"
               />
             ) : null}
           </div>

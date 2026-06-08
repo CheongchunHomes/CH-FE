@@ -1,5 +1,20 @@
 import type { MapListing } from "@/lib/map/map-types";
 
+type KakaoLatLng = unknown;
+
+type KakaoMap = {
+  panTo: (center: KakaoLatLng) => void;
+};
+
+type KakaoMarker = {
+  listing?: MapListing;
+};
+
+type KakaoCluster = {
+  getMarkers: () => KakaoMarker[];
+  getCenter: () => KakaoLatLng;
+};
+
 type AddMarkerClustererOptions = {
   onSingleMarkerClick?: (listing: MapListing) => void;
   onClusterClick?: (listings: MapListing[]) => void;
@@ -24,7 +39,7 @@ function createSingleMarkerImage() {
 }
 
 export function addMarkerClusterer(
-  map: any,
+  map: KakaoMap,
   listings: MapListing[],
   options?: AddMarkerClustererOptions
 ) {
@@ -64,10 +79,10 @@ export function addMarkerClusterer(
       ),
       title: listing.title,
       image: singleMarkerImage,
-    });
+    }) as KakaoMarker;
 
     // 클러스터 클릭 시 어떤 매물인지 찾기 위해 저장합니다.
-    (marker as any).listing = listing;
+    marker.listing = listing;
 
     // 개별 마커 클릭 시 사이드바에 해당 매물만 표시합니다.
     window.kakao.maps.event.addListener(marker, "click", () => {
@@ -83,12 +98,12 @@ export function addMarkerClusterer(
   window.kakao.maps.event.addListener(
     clusterer,
     "clusterclick",
-    function (cluster: any) {
+    function (cluster: KakaoCluster) {
       const clusterMarkers = cluster.getMarkers();
 
       const clusterListings = clusterMarkers
-        .map((marker: any) => marker.listing)
-        .filter(Boolean);
+        .map((marker) => marker.listing)
+        .filter((marker): marker is MapListing => Boolean(marker));
 
       options?.onClusterClick?.(clusterListings);
 
