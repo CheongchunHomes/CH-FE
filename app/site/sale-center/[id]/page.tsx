@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getAnnouncement, Announcement } from "@/lib/announcements-api";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ const dash = (value: string | number | null | undefined) => {
   return value;
 };
 
-export default function AnnouncementDetail() {
+function AnnouncementDetailContent() {
   const { id } = useParams();
   const router = useRouter();
   const [data, setData] = useState<Announcement | null>(null);
@@ -231,4 +231,12 @@ export default function AnnouncementDetail() {
       </main>
     </div>
   );
+}
+
+export default function AnnouncementDetail() {
+  return (
+    <Suspense fallback={null}>
+      <AnnouncementDetailContent />
+    </Suspense>
+  )
 }

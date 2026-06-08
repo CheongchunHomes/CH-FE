@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { get, post, request } from "@/lib/api"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import AssetPlan      from "@/components/simulator/AssetPlan"
@@ -26,7 +26,7 @@ const EMPTY_FORM: AssetPlanForm = {
   isCompleted:   false,
 }
 
-export default function SimulatorPage() {
+function SimulatorPageContent() {
   const [plans,         setPlans]         = useState<AssetPlanData[]>([])
   const [form,          setForm]           = useState<AssetPlanForm>(EMPTY_FORM)
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null)
@@ -196,5 +196,12 @@ export default function SimulatorPage() {
         </Tabs>
       </div>
     </div>
+  )
+}
+export default function SimulatorPage() {
+  return (
+    <Suspense fallback={null}>
+      <SimulatorPageContent/>
+    </Suspense>
   )
 }

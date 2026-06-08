@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Search,
@@ -28,7 +28,7 @@ interface FaqItem {
   answer: string;
 }
 
-export default function FaqPage() {
+function FaqPageContent() {
   const searchParams = useSearchParams();
   const MAIN_COLOR = '#2196F3';
 
@@ -224,4 +224,12 @@ export default function FaqPage() {
       </div>
     </div>
   );
+}
+
+export default function FaqPage() {
+  return (
+    <Suspense fallback={null}>
+      <FaqPageContent />
+    </Suspense>
+  )
 }
