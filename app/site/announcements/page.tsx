@@ -83,7 +83,12 @@ const LOCATION_FILTERS = [
 
 type AdvancedFilterType = "area" | "location" | null;
 
-const STATUSES = ["전체", "접수중", "접수예정", "마감"];
+const statusOptions: { label: string; value?: string }[] = [
+  { label: "전체", value: undefined },
+  { label: "접수중", value: "접수중" },
+  { label: "접수예정", value: "접수예정" },
+  { label: "마감", value: "접수마감" },
+];
 
 type UserLocation = {
   latitude: number;
@@ -134,22 +139,12 @@ function AnnouncementsPageContent() {
 
   useEffect(() => {
     const fetchScrapIds = async () => {
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("jwt");
-
-      if (!token) {
-        setLikedIds(new Set());
-        return;
-      }
-
-      try {
-        const ids = await getMyAnnouncementScrapIds();
-        setLikedIds(new Set(ids));
-      } catch (e) {
-        setLikedIds(new Set());
-      }
+    try {
+      const ids = await getMyAnnouncementScrapIds();
+      setLikedIds(new Set(ids));
+    } catch (e) {
+      setLikedIds(new Set());
+    }
     };
 
     fetchScrapIds();
@@ -173,6 +168,30 @@ function AnnouncementsPageContent() {
     }
 
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
+  };
+
+  const getStatusLabel = (status?: string) => {
+    if (status === "접수마감" || status === "마감") {
+      return "마감";
+    }
+
+    return status ?? "";
+  };
+
+  const getStatusBadgeClass = (status?: string) => {
+    if (status === "접수마감" || status === "마감") {
+      return "bg-red-500 text-white hover:bg-red-500";
+    }
+
+    if (status === "접수중") {
+      return "bg-blue-600 text-white hover:bg-blue-600";
+    }
+
+    if (status === "접수예정") {
+      return "bg-gray-500 text-white hover:bg-gray-500";
+    }
+
+    return "bg-gray-300 text-gray-700 hover:bg-gray-300";
   };
 
   const requestUserLocation = (): Promise<UserLocation | null> => {
@@ -313,7 +332,16 @@ function AnnouncementsPageContent() {
     setAppliedKeyword(initialKeyword);
     setIsSearchOpen(false);
 
-    void fetchData(0, undefined, undefined, initialKeyword, false, undefined, null, undefined);
+    void fetchData(
+      0,
+      undefined,
+      undefined,
+      initialKeyword,
+      false,
+      undefined,
+      null,
+      undefined
+    );
   }, [searchParams]);
 
   useEffect(() => {
@@ -413,40 +441,30 @@ function AnnouncementsPageContent() {
   };
 
   const handleLike = async (id: number) => {
-    const token =
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("jwt")
-
-    if (!token) {
-      setLoginDialogOpen(true)
-      return
-    }
-
-    const isLiked = likedIds.has(id)
+    const isLiked = likedIds.has(id);
 
     try {
       if (isLiked) {
-        await removeAnnouncementScrap(id)
+        await removeAnnouncementScrap(id);
       } else {
-        await addAnnouncementScrap(id)
+        await addAnnouncementScrap(id);
       }
 
       setLikedIds((prev) => {
-        const next = new Set(prev)
+        const next = new Set(prev);
 
         if (isLiked) {
-          next.delete(id)
+          next.delete(id);
         } else {
-          next.add(id)
+          next.add(id);
         }
 
-        return next
-      })
+        return next;
+      });
     } catch (e) {
-      setLoginDialogOpen(true)
+      setLoginDialogOpen(true);
     }
-  }
+  };
 
   const uniqueSearchSuggetions = Array.from(
     new Map(
@@ -791,21 +809,17 @@ function AnnouncementsPageContent() {
               </span>
 
               <div className="flex flex-wrap gap-2">
-                {STATUSES.map((s) => {
-                  const isActive = (s === "전체" && !status) || status === s;
-
-                  return (
-                    <Button
-                      key={s}
-                      variant={isActive ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setStatus(s === "전체" ? undefined : s)}
-                      className={`h-9 px-4 ${isActive ? "shadow-md" : ""}`}
-                    >
-                      {s}
-                    </Button>
-                  );
-                })}
+                {statusOptions.map((option) => (
+                  <Button
+                    key={option.label}
+                    variant={status === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatus(option.value)}
+                    className={status === option.value ? "shadow-md" : ""}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
               </div>
             </div>
 
@@ -841,16 +855,8 @@ function AnnouncementsPageContent() {
               >
                 <div className="flex-1">
                   <div className="mb-1.5 flex items-center gap-2">
-                    <Badge
-                      variant={
-                        a.status === "마감"
-                          ? "destructive"
-                          : a.status === "접수예정"
-                            ? "secondary"
-                            : "default"
-                      }
-                    >
-                      {a.status}
+                    <Badge className={getStatusBadgeClass(a.status)}>
+                      {getStatusLabel(a.status)}
                     </Badge>
 
                     <span className="text-xs text-gray-400">
@@ -984,5 +990,5 @@ export default function AnnouncementsPage() {
     <Suspense fallback={null}>
       <AnnouncementsPageContent />
     </Suspense>
-  )
+  );
 }
