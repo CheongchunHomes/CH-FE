@@ -294,21 +294,21 @@ function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | n
 export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const router = useRouter()
 
-  // [FIX] 단위 버그 수정: annualIncome은 원 단위(DB 기준) → /12로 월소득(원) 변환
-  // 기존: Math.round(annualIncome / 12) * 10000 → 연봉 3600만원이 300억으로 계산되던 버그
-  const defaultMonthlyIncome = userProfile?.annualIncome
-    ? Math.round(userProfile.annualIncome / 12)
-    : 3_000_000
-
+  // savedFinance 먼저 선언
   const savedFinance = (() => {
     try { return JSON.parse(sessionStorage.getItem("financeSnapshot") ?? "null") as FinanceSnapshot | null }
     catch { return null }
   })()
 
-  const [loanAmount,     setLoanAmount]     = useState(savedFinance?.loanAmount    ?? 120_000_000)
-  const [annualRate,     setAnnualRate]     = useState(savedFinance?.annualRate    ?? 3.5)
-  const [monthlyIncome,  setMonthlyIncome]  = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome)
-  const [repayMonths,    setRepayMonths]    = useState(savedFinance?.repayMonths   ?? 60)
+  const [loanAmount,    setLoanAmount]    = useState(savedFinance?.loanAmount  ?? 0)
+  const [annualRate,    setAnnualRate]    = useState(savedFinance?.annualRate  ?? 1.0)
+  // annualIncome 있으면 항상 프로필 연봉 기준 재계산 (연봉 변경 시 세션 캐시 무시)
+  const [monthlyIncome, setMonthlyIncome] = useState(
+    userProfile?.annualIncome
+      ? Math.round(userProfile.annualIncome / 12)
+      : savedFinance?.monthlyIncome ?? 2_500_000
+  )
+  const [repayMonths,   setRepayMonths]   = useState(savedFinance?.repayMonths ?? 60)
   const [method, setMethod] = useState<"equal" | "interest">(
     savedFinance?.method === "equal" || savedFinance?.method === "interest"
       ? savedFinance.method : "equal"
@@ -365,7 +365,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
                 <p className="text-xs text-gray-500">대출금액</p>
                 <p className="text-sm font-bold text-gray-900">{formatCurrency(loanAmount)}</p>
               </div>
-              <Slider min={10_000_000} max={500_000_000} step={5_000_000} value={[loanAmount]} onValueChange={([v]) => setLoanAmount(v)} />
+              <Slider min={0} max={500_000_000} step={5_000_000} value={[loanAmount]} onValueChange={([v]) => setLoanAmount(v)} />
               <div className="flex justify-between">
                 <span className="text-[10px] text-gray-400">1,000만원</span>
                 <span className="text-[10px] text-gray-400">5억원</span>
@@ -398,7 +398,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               <p className="text-xs text-gray-400">
                 {userProfile?.annualIncome
                   ? `연봉 ${(userProfile.annualIncome / 10000).toLocaleString()}만원이에요 · 직접 수정 가능`
-                  : "기본값 300만원 적용 · 직접 수정 가능"}
+                  : "기본값 250만원 적용 · 직접 수정 가능"}
               </p>
             </div>
 

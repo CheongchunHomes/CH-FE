@@ -1,3 +1,5 @@
+// app/api/simulator/roadmap/route.ts 전체 교체
+
 import { NextResponse } from "next/server"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { AssetPlanData } from "@/lib/simulatorUtils"
@@ -43,27 +45,54 @@ interface RoadmapRequestBody {
   financeSnapshot?: FinanceSnapshot
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  HOUSING: "주거",
-  TRAVEL: "여행",
-  CAR: "자동차",
-  ELECTRONICS: "전자기기",
-  WEDDING: "결혼",
-  FASHION: "패션",
-  EDUCATION: "교육",
-  OTHER: "기타",
-}
-
-// numbers 필드 제거 — 프론트에서 직접 계산
 export interface RoadmapParsed {
   insights: Array<{ item: string; metaphor: string; action: string }>
   actions: Array<{ title: string; reason: string; priority: "high" | "medium" | "low"; link: string | null }>
   timeline: Array<{ period: string; title: string; why: string; action: string }>
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  HOUSING: "주거", TRAVEL: "여행", CAR: "자동차",
+  ELECTRONICS: "전자기기", WEDDING: "결혼", FASHION: "패션",
+  EDUCATION: "교육", OTHER: "기타",
+}
+
+// ── 방어처리 ──────────────────────────────────────────────────────────
+
+function normalizeRoadmap(parsed: RoadmapParsed): RoadmapParsed {
+  const insights = (parsed.insights ?? [])
+    .map((ins) => ({
+      item:     ins.item?.trim()     || ins.metaphor?.trim().slice(0, 20) || "현재 상황 점검",
+      metaphor: ins.metaphor?.trim() || "입력된 내용을 바탕으로 다음 행동을 정리했어요",
+      action:   ins.action?.trim()   || "다음 단계를 확인해봐요",
+    }))
+    .filter((ins) => ins.item || ins.metaphor)
+    .slice(0, 4)
+
+  const actions = (parsed.actions ?? [])
+    .map((a) => ({
+      title:    a.title?.trim()  || "확인하기",
+      reason:   a.reason?.trim() || "",
+      priority: a.priority       || "medium",
+      link:     a.link           ?? null,
+    }))
+    .slice(0, 3)
+
+  const timeline = (parsed.timeline ?? [])
+    .map((t) => ({
+      period: t.period?.trim() || "",
+      title:  t.title?.trim()  || "",
+      why:    t.why?.trim()    || "",
+      action: t.action?.trim() || "",
+    }))
+    .filter((t) => t.period || t.title)
+    .slice(0, 4)
+
+  return { insights, actions, timeline }
+}
+
 export async function POST(request: Request) {
   let body: RoadmapRequestBody
-
   try {
     body = await request.json() as RoadmapRequestBody
   } catch {
@@ -72,10 +101,9 @@ export async function POST(request: Request) {
 
   const { profile, recommendation, assetPlans, housingSnapshot, financeSnapshot } = body
 
-  // ── 데이터 요약 계산 (프롬프트에 해석된 값 전달) ──────────────────
+  // ── 데이터 요약 ────────────────────────────────────────────────────
   const sections: string[] = []
 
-  // 1. 사용자 기본 프로필
   if (profile) {
     const age = profile.birthDate
       ? Math.floor((Date.now() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365))
@@ -84,83 +112,71 @@ export async function POST(request: Request) {
 - 나이: ${age != null ? `만 ${age}세` : "정보 없음"}
 - 혼인 여부: ${profile.married ? "기혼" : "미혼"}
 - 무주택 여부: ${profile.houseless ? "무주택" : "유주택"}
-- 연소득: ${profile.annualIncome ? `${Math.round(profile.annualIncome / 10000).toLocaleString()}만원/년 월 ${Math.round(profile.annualIncome / 10000 / 12)}만원)` : "정보 없음"}
+- 연소득: ${profile.annualIncome ? `${Math.round(profile.annualIncome / 10000).toLocaleString()}만원/년 (월 ${Math.round(profile.annualIncome / 10000 / 12)}만원)` : "정보 없음"}
 - 희망 지역: ${profile.desiredCity ?? "정보 없음"} ${profile.desiredDistrict ?? ""}
-- 청약통장: ${profile.subscriptionMonths ? `${profile.subscriptionMonths}개월 납입` : "미보유"}
+- 청약통장: ${profile.subscriptionMonths > 0 ? `${profile.subscriptionMonths}개월 납입` : "미보유"}
 - 부양가족: ${profile.dependentCount ?? 0}명
 - 고용 상태: ${profile.employmentStatus ?? "정보 없음"}`)
   }
 
-  // 2. 저축 플랜 — 달성 현황 계산해서 전달
   if (assetPlans && assetPlans.length > 0) {
-    const completedPlans = assetPlans.filter((p) => p.isCompleted)
-    const activePlans = assetPlans.filter((p) => !p.isCompleted)
-
-    // 달성된 플랜 합계 (goalAmount 기준)
-    const completedTotal = completedPlans.reduce((s, p) => s + (p.goalAmount ?? 0), 0)
-    // 진행 중인 플랜 목표 합계
-    const activeGoalTotal = activePlans.reduce((s, p) => s + (p.goalAmount ?? 0), 0)
-    // baseAsset(현재 모은 금액) 합계
-    const savedTotal = assetPlans.reduce((s, p) => s + (p.baseAsset ?? 0), 0)
-
-    const planLines = assetPlans
-      .map((p) => {
-        const goal = Math.round((p.goalAmount ?? 0) / 10000)
-        const current = Math.round((p.baseAsset ?? 0) / 10000)
-        const rate = goal > 0 ? Math.round((current / goal) * 100) : 0
-        return `  - [${p.isCompleted ? "완료" : "진행중"}] ${CATEGORY_LABEL[p.category] ?? p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
-      })
-      .join("\n")
+    const completed = assetPlans.filter((p) => p.isCompleted)
+    const active    = assetPlans.filter((p) => !p.isCompleted)
+    const savedTotal       = assetPlans.reduce((s, p) => s + (p.baseAsset  ?? 0), 0)
+    const completedTotal   = completed.reduce((s, p)  => s + (p.goalAmount ?? 0), 0)
+    const activeGoalTotal  = active.reduce((s, p)     => s + (p.goalAmount ?? 0), 0)
+    const planLines = assetPlans.map((p) => {
+      const goal    = Math.round((p.goalAmount ?? 0) / 10000)
+      const current = Math.round((p.baseAsset  ?? 0) / 10000)
+      const rate    = goal > 0 ? Math.round((current / goal) * 100) : 0
+      return `  - [${p.isCompleted ? "완료" : "진행중"}] ${CATEGORY_LABEL[p.category ?? ""] ?? p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
+    }).join("\n")
 
     sections.push(`[저축 플랜 현황]
-- 전체 플랜: ${assetPlans.length}개 (완료 ${completedPlans.length}개, 진행 중 ${activePlans.length}개)
+- 전체: ${assetPlans.length}개 (완료 ${completed.length}개, 진행 ${active.length}개)
 - 지금까지 모은 금액: ${Math.round(savedTotal / 10000).toLocaleString()}만원
 - 달성 완료 금액: ${Math.round(completedTotal / 10000).toLocaleString()}만원
 - 진행 중 목표 합계: ${Math.round(activeGoalTotal / 10000).toLocaleString()}만원
 ${planLines}`)
   } else {
-    sections.push(`[저축 플랜 현황]\n- 저축 플랜 없음 (탭1 미입력)`)
+    sections.push(`[저축 플랜 현황]\n- 저축 플랜 없음`)
   }
 
-  // 3. 주거비 시뮬레이션
   if (housingSnapshot) {
     const h = housingSnapshot
     const savingInsufficient = h.savingAmount <= h.currentRent || h.savingAmount === 0
-    const yearsDisplay = savingInsufficient ? "미입력" : `${h.yearsToGoal}년`
-
     sections.push(`[주거비 시뮬레이션]
-- 현재 거주: ${h.currentSize}㎡, 월세 ${h.currentRent}만원
-- 목표 주거: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${Math.round(h.targetDeposit / 10000).toLocaleString()}만원)
+- 현재: ${h.currentSize}㎡, 월세 ${h.currentRent}만원
+- 목표: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${Math.round(h.targetDeposit / 10000).toLocaleString()}만원)
 - 10년 월세 소멸액: ${h.tenYearWaste.toLocaleString()}만원
-- 목표까지 (순수 저축): ${yearsDisplay}
-- 목표까지 (대출 활용): ${h.loanCoversAll ? "바로 가능" : h.yearsWithLoan > 0 ? `${h.yearsWithLoan}년` : "미입력"}
-- 대출로 단축 가능 기간: ${h.yearsSaved > 0 ? `${h.yearsSaved}년` : "없음"}
-- 설정 월 저축액: ${h.savingAmount}만원${savingInsufficient ? " (저축액 미입력 — 월세와 동일한 초기값)" : ""}`)
+- 목표까지 (순수 저축): ${savingInsufficient ? "저축액 미입력" : `${h.yearsToGoal}년`}
+- 목표까지 (대출 활용): ${h.loanCoversAll ? "바로 가능" : `${h.yearsWithLoan}년`}
+- 대출로 단축: ${h.yearsSaved > 0 ? `${h.yearsSaved}년` : "없음"}
+- 월 저축액: ${h.savingAmount}만원${savingInsufficient ? " (미입력, 초기값)" : ""}`)
   } else {
-    sections.push(`[주거비 시뮬레이션]\n- 탭2 미입력`)
+    sections.push(`[주거비 시뮬레이션]\n- 미입력`)
   }
 
-  // 4. 대출/금융 체감
   if (financeSnapshot) {
     const f = financeSnapshot
     const monthlyNet = f.monthlyIncome - f.monthlyPayment
-    sections.push(`[대출/금융 체감]
-- 시뮬레이션 대출금액: ${Math.round(f.loanAmount / 10000).toLocaleString()}만원 (연 ${f.annualRate}%)
+    // loanAmount 0이면 미입력 처리
+    if (f.loanAmount === 0) {
+      sections.push(`[대출/금융 체감]\n- 대출금 미입력 (월 소득 ${Math.round(f.monthlyIncome / 10000)}만원만 입력됨)`)
+    } else {
+      sections.push(`[대출/금융 체감]
+- 대출금: ${Math.round(f.loanAmount / 10000).toLocaleString()}만원 (연 ${f.annualRate}%)
 - 월 납입액: ${Math.round(f.monthlyPayment / 10000)}만원
-- DSR: ${f.dsr}% → ${f.dsrLabel}
+- DSR: ${f.dsr}% (${f.dsrLabel})
 - 월 소득: ${Math.round(f.monthlyIncome / 10000)}만원
-- 상환 후 실수령: ${Math.round(monthlyNet / 10000)}만원 (생활비·식비 등 충당 필요)`)
-  } else {
-    sections.push(`[대출/금융 체감]\n- 탭3 미입력`)
+- 상환 후 잔액: ${Math.round(monthlyNet / 10000)}만원`)
+    }
   }
 
-  // 5. 제도 추천 결과
   if (recommendation?.results?.length) {
-    const top3 = recommendation.results
-      .slice(0, 3)
-      .map((r) => `  - ${r.policyName}: ${r.grade} (${r.score}점)`)
-      .join("\n")
-    sections.push(`[제도 추천 결과 TOP3]\n${top3}`)
+    const top3 = recommendation.results.slice(0, 3)
+      .map((r) => `  - ${r.policyName}: ${r.grade} (${r.score}점)`).join("\n")
+    sections.push(`[제도 추천 TOP3]\n${top3}`)
   }
 
   const dataContext = sections.join("\n\n")
@@ -170,32 +186,57 @@ ${planLines}`)
 청년의 주거 상황을 분석해서 진짜 도움이 되는 개인화된 조언을 해주세요.
 
 [핵심 원칙]
-- 데이터를 단순 반복하지 마세요. 반드시 "해석"하세요.
-- 이 사람 고유의 상황(저축 현황, DSR, 목표 지역)을 명시적으로 언급하세요.
-- "청약통장이 없어요" 같은 일반론 금지. "280만원을 모았는데 청약통장은 없어요" 처럼 구체적으로.
-- 비유는 이 사람의 상황에 딱 맞게. 누구한테나 적용되는 비유는 금지.
+- 데이터를 단순 반복하지 말고 반드시 "해석"하세요.
+- 이 사람 고유 수치(저축 현황, DSR, 목표 지역)를 명시적으로 언급하세요.
+- 일반론 금지. 구체적인 수치 기반으로만.
+
+[말투 원칙]
+- 친한 선배가 카페에서 얘기해주는 톤으로. 딱딱한 금융 보고서 말투 절대 금지.
+- 수치는 반드시 포함하되 쉽게 풀어서. 예) "DSR 873%는 버는 돈보다 갚아야 할 돈이 8배 많다는 뜻이에요"
+- 어려운 용어 바로 뒤에 괄호로 쉬운 말 추가. 예) "DSR(소득 대비 상환 비율)"
+- 문장은 짧게. 한 문장에 내용 두 개 넣지 말 것.
+- "~합니다" 금지. "~해요", "~거예요" 유지.
 
 [응답 형식]
 반드시 아래 JSON만. 다른 텍스트 없이.
 
-checkList: 4~5개. status는 pass/fail/warn.
-  - 데이터가 없는 항목(탭 미입력)은 warn으로 표시. 예) "주거비 시뮬레이션 미입력 → warn"
-  - 구체적인 수치 포함. 예) "DSR 600% — 위험 수준" 이 아닌 "DSR ${financeSnapshot?.dsr ?? "?"}%"
+insights: 4개 고정. 반드시 아래 순서대로.
+  슬롯0 — 자산플랜 기반
+  슬롯1 — 주거비교 기반
+  슬롯2 — 금융체감 기반
+  슬롯3 — 프로필/청약 또는 제도추천 기반
 
-insights: 3~4개. 각 항목 = item(상황 설명 20자 이내) + metaphor(비유 한 문장, 40자 이내) + action(할 일 30자 이내)
-  [규칙]
-  - metaphor는 반드시 한 문장으로만. 설명 추가 금지.
-  - metaphor 문장은 반드시 "~해요", "~거예요", "~같아요" 로 끝낼 것. "~된다", "~진다" 같은 어미 금지.
-  - 비유는 김창옥·김미경 강연 스타일처럼. 청년의 현실을 공감하는 따뜻하고 직접적인 일상 비유.
-  - 비유 소재는 카페·지하철·날씨·음식 같은 생활 밀착형으로. 스포츠·마라톤 같은 거창한 비유 금지.
-  - item은 반드시 포함. 이 사람의 상황을 짧게. 예) "저축 목표 달성 미흡", "청약통장 미보유", "DSR 50% 초과"
-  - item은 반드시 이 사람 상황을 짧게 요약한 한국어 명사구로 작성할 것. 예) "청약통장 미보유", "저축 목표 달성 저조", "DSR 2% 여유"
-  - item이 없거나 빈 문자열인 insight는 생성 자체를 하지 말 것.
-  - metaphor는 비유만. 카테고리명·접두어 절대 금지. "게임:", "요리:" 같은 거 붙이지 말 것.
-  - 이 사람 고유 수치나 상황을 녹일 것. 누구한테나 해당되는 말 금지.
-  - 플랜 이름이나 숫자 코드값을 action에 직접 쓰지 말 것. "해당 저축 항목"으로 표현.
-  - 지역명을 비유에 억지로 활용하지 말 것.
-  - 어색하거나 문법이 맞지 않는 비유 금지. 자연스러운 한국어 문장으로.
+  각 항목 = item(상황 20자 이내 명사구) + metaphor(상황 해석 60자 이내) + action(다음 행동 30자 이내)
+
+  [공통 규칙]
+  - item 비어있는 insight 생성 금지
+  - metaphor는 반드시 "~해요", "~거예요"로 종결. "~된다", "~진다" 금지
+  - 미입력 슬롯도 건너뛰지 말고 미입력 상태 insight로 생성
+  - metaphor에 카테고리명·접두어 금지
+
+  [슬롯별 톤]
+  슬롯0 자산플랜 → 체크 + 독려
+  - 금지 표현: "불과해요", "에 불과", "미흡해요"
+  - metaphor 예시 (좋은): "2개 플랜 중 1개 완료했고 지금까지 43만원 모았어요. 작게 시작했지만 방향은 잡혔어요."
+  - metaphor 예시 (나쁜): "달성률이 0.76%에 불과해요" → 절대 금지
+  - action 예시: "이번 달 주거 저축 목표 금액부터 정해봐요"
+
+  슬롯1 주거비교 → 현실 직시 + 대안 제시
+  - metaphor 예시 (좋은): "지금 월세 60만원이면 10년 뒤엔 7,200만원이 그냥 사라지는 거예요. 전세로 갈아타면 그 돈이 내 자산이 돼요."
+  - action 예시: "대출 활용 시나리오로 목표 시점을 앞당겨봐요"
+
+  슬롯2 금융체감 → 리스크 경고 + 조정 유도
+  - metaphor 예시 (좋은): "DSR 873%면 버는 돈보다 갚아야 할 돈이 8배 많아요. 지금 이 대출 구조로는 생활이 어려워요."
+  - metaphor 예시 (나쁜): "DSR 873%로 실제 불가능합니다" → 딱딱한 보고서 말투 금지
+  - action 예시: "대출금을 줄이거나 상환 기간을 늘려서 다시 계산해봐요"
+  - 미입력 또는 대출금 0이면 추측 절대 금지
+  - 미입력이면 반드시: "금융 체감 탭에서 대출금을 입력하면 실제 상환 부담을 계산할 수 있어요."
+  - "부족해 보이지만", "관리가 필요해요" 같은 추측성 표현 금지
+
+  슬롯3 프로필/청약 → 현재 상태 + 다음 단계
+  - metaphor 예시 (좋은): "청약통장 36개월 납입 중이라 1순위 조건은 이미 갖췄어요. 지금은 공고 타이밍이 핵심이에요."
+  - metaphor 예시 (나쁜): "충족 조건에 근접해요" → 애매한 표현 금지. 충족이면 충족, 미충족이면 몇 개월 남았는지 명확하게
+  - action 예시: "이번 주 청년 매입임대 공고 확인해봐요"
 
 actions: 3개. priority는 high/medium/low.
   link는 아래 목록에서만:
@@ -209,53 +250,33 @@ actions: 3개. priority는 high/medium/low.
   "/site/simulator?tab=financeFeel"
   null
 
-timeline: 현재/3개월/1년/3년. period + title(10자 이내) + action(20자 이내, 핵심 행동 한 줄) + why(50자 이내, 구체적인 실행 방법)
-  - action은 반드시 20자 이내. 핵심 행동만 짧게. 예) "청약통장 개설 시작", "생애최초 여부 점검"
-  - why는 반드시 50자 이내. 구체적인 실행 방법으로. 예) "지금 개설하면 24개월 후 1순위 가능해요."
-  - why 문장 어미는 "~해요", "~거예요", "~가능해요" 처럼 부드러운 존칭으로. "~함", "~증가", "~향상" 같은 명사형 종결 금지.
-  - why 문장 마지막은 반드시 마침표 포함.
-  - 세미콜론(;) 사용 금지. 자연스러운 한국어 문장으로.
-  - 카테고리명 뒤 조사는 자연스러운 한국어로 처리할 것. "주거 저축이", "여행 저축을" 등.
-  - 실제 수치 기반으로. "저축 목표" 같은 추상어 금지.
-  - 탭 미입력 시에는 해당 단계에 "시뮬레이터 입력 후 구체화 가능" 으로 표시.
+timeline: 현재/3개월/1년/3년.
+  - period + title(10자 이내) + action(20자 이내) + why(50자 이내)
+  - why 어미: "~해요", "~거예요"로 종결. 마침표 포함.
+  - 명사형 종결 금지("~함", "~증가"). 세미콜론 금지.
+  - 실제 수치 기반. 미입력 탭은 "시뮬레이터 입력 후 구체화 가능"으로.`
 
-응답 예시 구조:
-{
-  "checkList": [...],
-  "insights": [...],
-  "actions": [...],
-  "timeline": [...]
-}`
-
-  const messages = [
-    {
-      role: "user",
-      content: `아래 데이터를 분석해서 AI 청춘 플래너 결과를 JSON으로 작성해주세요.\n\n${dataContext}\n\n${systemPrompt}`,
-    },
-  ]
+  const messages = [{
+    role: "user",
+    content: `아래 데이터를 분석해서 AI 청춘 플래너 결과를 JSON으로 작성해주세요.\n\n${dataContext}\n\n${systemPrompt}`,
+  }]
 
   try {
     const aiBaseUrl = process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000"
-
     const response = await fetch(`${aiBaseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     })
 
-    if (!response.ok) {
-      throw new Error(`AI 서버 요청 실패: ${response.status}`)
-    }
+    if (!response.ok) throw new Error(`AI 서버 요청 실패: ${response.status}`)
 
     const data = await response.json() as { reply?: string; error?: string }
     const reply = data.reply?.trim()
-
-    if (!reply) {
-      throw new Error("AI 서버 응답이 비어 있습니다.")
-    }
+    if (!reply) throw new Error("AI 서버 응답이 비어 있습니다.")
 
     const clean = reply.replace(/```json|```/g, "").trim()
-    const parsed = JSON.parse(clean) as RoadmapParsed
+    const parsed = normalizeRoadmap(JSON.parse(clean) as RoadmapParsed)
     return NextResponse.json(parsed)
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류"
