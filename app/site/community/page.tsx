@@ -644,6 +644,164 @@ function CommunityPageContent() {
     backgroundColor: '#fff',
   };
 
+
+  if (noticeDetailLoading || noticeDetailError || selectedNotice) {
+    return (
+      <div
+        style={{
+          padding: "20px",
+          maxWidth: "1000px",
+          margin: "0 auto",
+          fontFamily: "Pretendard, sans-serif",
+          color: "#333",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleCloseCommunityNotice}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "18px",
+            padding: "10px 18px",
+            borderRadius: "999px",
+            border: "1px solid #e5e7eb",
+            backgroundColor: "#fff",
+            color: "#475569",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: 700,
+            boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+          }}
+        >
+          ← 목록으로
+        </button>
+
+        <article
+          style={{
+            borderRadius: "22px",
+            border: "1px solid #eef2f7",
+            backgroundColor: "#fff",
+            padding: "30px",
+            boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+          }}
+        >
+          {noticeDetailLoading ? (
+            <p style={{ margin: 0, color: "#64748b", fontWeight: 700 }}>
+              커뮤니티 공지사항을 불러오는 중입니다.
+            </p>
+          ) : noticeDetailError ? (
+            <p style={{ margin: 0, color: "#dc2626", fontWeight: 700 }}>
+              {noticeDetailError}
+            </p>
+          ) : selectedNotice ? (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "20px",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: "999px",
+                    backgroundColor: "#dbeafe",
+                    color: "#1d4ed8",
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                  }}
+                >
+                  커뮤니티 공지사항
+                </span>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: "999px",
+                    backgroundColor: "#f1f5f9",
+                    color: "#64748b",
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                  }}
+                >
+                  등록일 {formatDateTime(selectedNotice.createdAt)}
+                </span>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: "999px",
+                    backgroundColor: "#f1f5f9",
+                    color: "#64748b",
+                    padding: "5px 10px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                  }}
+                >
+                  조회수 {Number(selectedNotice.viewCount ?? 0).toLocaleString()}
+                </span>
+              </div>
+
+              <h1
+                style={{
+                  margin: 0,
+                  color: "#0f172a",
+                  fontSize: "28px",
+                  lineHeight: 1.35,
+                  fontWeight: 800,
+                }}
+              >
+                {selectedNotice.title}
+              </h1>
+
+              {selectedNotice.summary && (
+                <p
+                  style={{
+                    margin: "14px 0 0",
+                    color: "#64748b",
+                    fontSize: "15px",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {selectedNotice.summary}
+                </p>
+              )}
+
+              <div
+                style={{
+                  height: "1px",
+                  margin: "28px 0",
+                  backgroundColor: "#e5e7eb",
+                }}
+              />
+
+              <div
+                style={{
+                  color: "#334155",
+                  fontSize: "15px",
+                  lineHeight: 1.9,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {selectedNotice.content}
+              </div>
+            </>
+          ) : null}
+        </article>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -1324,150 +1482,6 @@ function CommunityPageContent() {
         </>
       )}
 
-      {(noticeDetailLoading || noticeDetailError || selectedNotice) && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={handleCloseCommunityNotice}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-            backgroundColor: "rgba(15, 23, 42, 0.45)",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "min(760px, 100%)",
-              maxHeight: "85vh",
-              overflowY: "auto",
-              borderRadius: "24px",
-              backgroundColor: "#fff",
-              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.25)",
-            }}
-          >
-            <div
-              style={{
-                borderBottom: "1px solid #e5e7eb",
-                background: "linear-gradient(135deg, #eff6ff, #fff)",
-                padding: "28px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  marginBottom: "16px",
-                }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    borderRadius: "999px",
-                    border: "1px solid #bfdbfe",
-                    backgroundColor: "#dbeafe",
-                    color: "#1d4ed8",
-                    padding: "5px 12px",
-                    fontSize: "12px",
-                    fontWeight: 800,
-                  }}
-                >
-                  커뮤니티 공지사항
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleCloseCommunityNotice}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "999px",
-                    backgroundColor: "#fff",
-                    color: "#64748b",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    padding: "8px 12px",
-                  }}
-                >
-                  닫기
-                </button>
-              </div>
-
-              {noticeDetailLoading ? (
-                <p style={{ margin: 0, color: "#475569", fontWeight: 700 }}>
-                  커뮤니티 공지사항을 불러오는 중입니다.
-                </p>
-              ) : noticeDetailError ? (
-                <p style={{ margin: 0, color: "#dc2626", fontWeight: 700 }}>
-                  {noticeDetailError}
-                </p>
-              ) : selectedNotice ? (
-                <>
-                  <h4
-                    style={{
-                      margin: 0,
-                      color: "#0f172a",
-                      fontSize: "1.6rem",
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {selectedNotice.title}
-                  </h4>
-
-                  {selectedNotice.summary && (
-                    <p
-                      style={{
-                        margin: "12px 0 0",
-                        color: "#64748b",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {selectedNotice.summary}
-                    </p>
-                  )}
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "14px",
-                      marginTop: "16px",
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    <span>등록일 {formatDateTime(selectedNotice.createdAt)}</span>
-                    <span>
-                      조회수 {Number(selectedNotice.viewCount ?? 0).toLocaleString()}
-                    </span>
-                  </div>
-                </>
-              ) : null}
-            </div>
-
-            {selectedNotice && !noticeDetailLoading && !noticeDetailError && (
-              <div
-                style={{
-                  padding: "30px 28px",
-                  color: "#334155",
-                  fontSize: "15px",
-                  lineHeight: 1.9,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {selectedNotice.content}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
