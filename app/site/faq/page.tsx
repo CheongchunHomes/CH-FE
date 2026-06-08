@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Search,
   HelpCircle,
@@ -27,11 +28,16 @@ interface FaqItem {
   answer: string;
 }
 
-export default function FaqPage() {
+function FaqPageContent() {
+  const searchParams = useSearchParams();
   const MAIN_COLOR = '#2196F3';
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
   const [selectedCategory, setSelectedCategory] = useState('전체');
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') ?? '');
+  }, [searchParams]);
 
   const faqList: FaqItem[] = [
     {
@@ -218,4 +224,12 @@ export default function FaqPage() {
       </div>
     </div>
   );
+}
+
+export default function FaqPage() {
+  return (
+    <Suspense fallback={null}>
+      <FaqPageContent />
+    </Suspense>
+  )
 }

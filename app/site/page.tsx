@@ -13,13 +13,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { HomeQuickPanel } from "@/components/site/home-quick-panel"
+import BannerModal from "@/components/banner/banner-modal"
 
 const quickMenus = [
   { icon: House, label: "조건 진단", href: "/site/step/condition-check" },
   { icon: Ticket, label: "제도 추천", href: "/site/step/recommend" },
-  { icon: Coins, label: "대출신청", href: "/site/loan-contract?product=newborn" },
+  { icon: Coins, label: "대출신청", href: "/site/step/loan-contract?product=newborn" },
   { icon: MapPin, label: "지도 확인", href: "/site/map" },
-  { icon: Building2, label: "계약", href: "/site/contract" },
+  { icon: Building2, label: "계약", href: "/site/my-page/activity" },
 ]
 
 const serviceLinks = [
@@ -63,6 +64,7 @@ const serviceLinks = [
 export default function SitePage() {
   return (
     <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
+      <BannerModal/>
       <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
         <section className="grid gap-4">
           <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">

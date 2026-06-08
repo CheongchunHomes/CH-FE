@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
-import { LoanContractFlow } from "@/components/loan/loan-contract-flow"
+
 import { resolveLoanProductKey } from "@/lib/loan/loan-products"
+
+import { LoanContractStepClient } from "./LoanContractStepClient"
 
 type LoanContractPageProps = {
   searchParams?: {
@@ -10,9 +12,10 @@ type LoanContractPageProps = {
 
 export default function LoanContractPage({ searchParams }: LoanContractPageProps) {
   const rawProduct = Array.isArray(searchParams?.product) ? searchParams?.product[0] : searchParams?.product
-  if (rawProduct) {
-    return <LoanContractFlow initialProductKey={resolveLoanProductKey(rawProduct)} />
+
+  if (!rawProduct) {
+    redirect("/site/loan")
   }
 
-  redirect("/site/loan")
+  return <LoanContractStepClient initialProductKey={resolveLoanProductKey(rawProduct)} />
 }

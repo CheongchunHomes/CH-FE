@@ -26,10 +26,16 @@ type SubscribeMapChatRoomEventsParams = {
   onError?: (message: string) => void;
 };
 
-const DEFAULT_WS_URL = "http://localhost:18080/ws/map-chat";
+
 
 function getMapChatWsUrl() {
-  return process.env.NEXT_PUBLIC_BACKEND_WS_URL?.trim() || DEFAULT_WS_URL;
+  const wsUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
+
+  if (!wsUrl) {
+    throw new Error("NEXT_PUBLIC_BACKEND_WS_URL is not configured.");
+  }
+
+  return wsUrl;
 }
 
 

@@ -277,7 +277,7 @@ export default function MyScrapsPage() {
             </p>
           </div>
 
-          <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+          <Button asChild className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
         </CardContent>
@@ -293,7 +293,7 @@ export default function MyScrapsPage() {
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="space-y-4 p-6 md:p-8">
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/60">
             <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
@@ -312,7 +312,7 @@ export default function MyScrapsPage() {
                   onClick={() => setActiveTab("announcements")}
                   className={
                     activeTab === "announcements"
-                      ? "bg-sky-600 text-white hover:bg-sky-700"
+                      ? "bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                       : "bg-white"
                   }
                 >
@@ -326,7 +326,7 @@ export default function MyScrapsPage() {
                   onClick={() => setActiveTab("policies")}
                   className={
                     activeTab === "policies"
-                      ? "bg-sky-600 text-white hover:bg-sky-700"
+                      ? "bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                       : "bg-white"
                   }
                 >
@@ -335,7 +335,7 @@ export default function MyScrapsPage() {
               </div>
             </div>
 
-            <div className="min-h-32 bg-slate-200/70 p-5">
+            <div className="min-h-32 bg-white p-5">
               {isLoading ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                   <Loader2 className="animate-spin" size={16} />

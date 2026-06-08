@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { get, post, request, ApiError } from '@/lib/api';
@@ -368,7 +368,7 @@ interface CommunityNotice {
   createdAt?: string;
 }
 
-export default function CommunityPage() {
+function CommunityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdminMode = searchParams.get('admin') === '1';
@@ -1283,4 +1283,12 @@ export default function CommunityPage() {
       )}
     </div>
   );
+}
+
+export default function CommunityPage() {
+  return (
+  <Suspense fallback={null}>
+    <CommunityPageContent />
+  </Suspense>
+  )
 }

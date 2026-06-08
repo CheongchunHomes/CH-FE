@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -90,7 +90,7 @@ type UserLocation = {
   longitude: number;
 };
 
-export default function AnnouncementsPage() {
+function AnnouncementsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -301,6 +301,20 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     resetAll();
   }, [searchParams.get("reset")]);
+
+  useEffect(() => {
+    const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
+
+    if (!initialKeyword) {
+      return;
+    }
+
+    setKeyword(initialKeyword);
+    setAppliedKeyword(initialKeyword);
+    setIsSearchOpen(false);
+
+    void fetchData(0, undefined, undefined, initialKeyword, false, undefined, null, undefined);
+  }, [searchParams]);
 
   useEffect(() => {
     const trimmedKeyword = keyword.trim();
@@ -963,4 +977,12 @@ export default function AnnouncementsPage() {
       </main>
     </div>
   );
+}
+
+export default function AnnouncementsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AnnouncementsPageContent />
+    </Suspense>
+  )
 }

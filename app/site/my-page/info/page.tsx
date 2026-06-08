@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { AlertCircle, Loader2, Mail, UserRound } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 
 import { ApiError, get } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
@@ -12,6 +12,20 @@ import { Card, CardContent } from "@/components/ui/card"
 type MyProfileDTO = {
   email: string
   nickname: string
+  createdAt: string
+}
+
+function formatSignupDate(value?: string) {
+  if (!value) return "-"
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "-"
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date)
 }
 
 export default function MyPageInfoPage() {
@@ -86,7 +100,7 @@ export default function MyPageInfoPage() {
             <h1 className="text-xl font-bold text-slate-950">로그인이 필요합니다</h1>
             <p className="mt-2 text-sm text-slate-500">내 정보를 확인하려면 먼저 로그인해 주세요.</p>
           </div>
-          <Button asChild className="rounded-lg bg-sky-600 text-white hover:bg-sky-700">
+          <Button asChild className="rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             <Link href="/login">로그인으로 이동</Link>
           </Button>
         </CardContent>
@@ -102,11 +116,14 @@ export default function MyPageInfoPage() {
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="space-y-4 p-6 md:p-8">
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-            <div className="px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">회원 정보</h2>
+          <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/60">
+            <div className="flex items-center justify-between gap-4 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">내정보</h2>
+              <Button asChild className="w-fit rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
+                <Link href="/site/my-page/info/edit">회원정보 수정</Link>
+              </Button>
             </div>
-            <div className="flex min-h-32 flex-col gap-4 bg-slate-200/70 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="min-h-32 bg-white p-5">
               {isLoading ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                   <Loader2 className="animate-spin" size={16} />
@@ -115,34 +132,31 @@ export default function MyPageInfoPage() {
               ) : errorMessage ? (
                 <p className="text-sm font-medium text-rose-600">{errorMessage}</p>
               ) : (
-                <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                  <div className="flex items-center gap-2">
-                    <UserRound size={16} className="text-sky-600" />
-                    <span className="font-semibold text-slate-500">닉네임</span>
-                    <span className="font-medium text-slate-950">{profile?.nickname}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail size={16} className="text-sky-600" />
-                    <span className="font-semibold text-slate-500">이메일</span>
+                <div className="space-y-3 text-sm text-slate-700">
+                  <p>
+                    <span className="font-semibold text-slate-500">이메일 : </span>
                     <span className="font-medium text-slate-950">{profile?.email}</span>
-                  </div>
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-500">닉네임 : </span>
+                    <span className="font-medium text-slate-950">{profile?.nickname}</span>
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-500">가입일 : </span>
+                    <span className="font-medium text-slate-950">{formatSignupDate(profile?.createdAt)}</span>
+                  </p>
                 </div>
               )}
-
-              <Button type="button" className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
-                PW 변경
-              </Button>
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          <section className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/60">
             <div className="px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">기본 정보</h2>
+              <h2 className="text-base font-semibold text-slate-900">개인 정보</h2>
             </div>
-            <div className="flex min-h-32 flex-col gap-4 bg-slate-200/70 p-5 md:flex-row md:items-center md:justify-between">
-              <p className="text-sm text-slate-600">주소, 소득정보 등은 추후 표시됩니다.</p>
-              <Button type="button" className="w-fit rounded-lg bg-sky-600 text-white hover:bg-sky-700">
-                수정
+            <div className="flex min-h-32 flex-col gap-4 bg-white p-5 md:justify-center">
+              <Button asChild className="w-fit rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
+                <Link href="/site/my-page/info/personal">개인정보 표시</Link>
               </Button>
             </div>
           </section>
