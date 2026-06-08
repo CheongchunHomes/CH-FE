@@ -429,7 +429,12 @@ export default function DiagnosisResultPage() {
                           <div className="p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
                             <p className="text-xs text-gray-400">청년 혜택 종료까지</p>
                             <p className="text-lg font-bold text-blue-600 mt-0.5">
-                              {dday.years > 0 ? `${dday.years}년 ` : ""}{dday.months}개월 남음
+                              {dday.years > 0 && dday.months === 0
+                                ? `${dday.years}년 남음`
+                                : dday.years > 0
+                                  ? `${dday.years}년 ${dday.months}개월 남음`
+                                  : `${dday.months}개월 남음`
+                              }
                             </p>
                           </div>
                         )}
