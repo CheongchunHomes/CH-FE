@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import SubscriptionApplyStepper from "@/components/subscription/apply/SubscriptionApplyStepper";
 import SubscriptionApplyNoticeStep from "@/components/subscription/apply/SubscriptionApplyNoticeStep";
@@ -32,7 +32,7 @@ export type SubscriptionApplyDraft = {
   uniqueInfoAgree: boolean;
 };
 
-export default function SubscriptionApplyPage() {
+function SubscriptionApplyPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -227,4 +227,12 @@ function SummaryItem({
       </p>
     </div>
   );
+}
+
+export default function SubscriptionApplyPage() {
+  return (
+    <Suspense fallback={null}>
+      <SubscriptionApplyPageContent/>
+    </Suspense>
+  )
 }

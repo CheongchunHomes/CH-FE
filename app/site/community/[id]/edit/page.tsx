@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle, Save } from 'lucide-react';
 
@@ -18,7 +18,7 @@ interface CommunityPost {
   createdAt?: string;
 }
 
-export default function CommunityEditPage() {
+function CommunityEditPageContent() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -215,4 +215,12 @@ export default function CommunityEditPage() {
       </section>
     </main>
   );
+}
+
+export default function CommunityEditPage() {
+  return (
+  <Suspense fallback={null}>
+    <CommunityEditPageContent />
+  </Suspense>
+  )
 }
