@@ -7,7 +7,7 @@ import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { MapPin, Home, Target, Lightbulb, TrendingDown, ArrowLeftRight } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
-import { formatManwon, HousingSnapshot } from "@/lib/simulatorUtils"
+import { formatManwon, HousingSnapshot, manwonToWon } from "@/lib/simulatorUtils"
 import { Badge } from "@/components/ui/badge"
 
 interface PolicyListDTO {
@@ -244,7 +244,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-100">
                   <p className="text-xs font-medium text-gray-500">하루로 나누면</p>
-                  <p className="text-xs font-bold text-gray-900">{Math.round((currentRent * 10000) / 30).toLocaleString()}원</p>
+                  <p className="text-xs font-bold text-gray-900">{Math.round(manwonToWon(currentRent) / 30).toLocaleString()}원</p>
                 </div>
 
               </div>

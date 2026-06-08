@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/pagination"
 import {
   calcSchedule, calcInterestOnly, calcDsr,
-  formatCurrency, formatWon,
+  formatCurrency, formatWon, manwonToWon, wonToManwon,
   RepayRow, FinanceSnapshot,
 } from "@/lib/simulatorUtils"
 
@@ -29,13 +29,6 @@ interface LoanProduct {
   conditions:      string | null
   policyLoan:      boolean
   visible:         boolean
-}
-
-function loanAmountToWon(value: number | null | undefined): number {
-  const amount = value ?? 0
-  if (amount <= 0) return 0
-  // 대출 DB의 maxAmount는 만원 단위이므로 계산용 원 단위로 보정한다.
-  return amount >= 1_000_000 ? amount : amount * 10_000
 }
 
 const DSR_LEVELS = [
@@ -176,16 +169,16 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
   // [FIX] null 방어: interestRate → interestRateMin → 기본값 3.5% 순 fallback
   const rate    = loan.interestRate ?? loan.interestRateMin ?? 3.5
   // 추천 대출 상품은 DB 한도 금액을 기준으로 월 납입/이자/DSR을 시뮬레이션한다.
-  const balance = loanAmountToWon(loan.maxAmount)
+  const loanLimitWon = manwonToWon(loan.maxAmount ?? 0)
   const rateLabel = loan.interestRateMin != null && loan.interestRate != null && loan.interestRateMin !== loan.interestRate
     ? `${loan.interestRateMin}~${loan.interestRate}%`
     : `${rate}%`
 
-  const schedule       = method === "equal" ? calcSchedule(balance, rate, months) : []
-  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(balance, rate)
+  const schedule       = method === "equal" ? calcSchedule(loanLimitWon, rate, months) : []
+  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(loanLimitWon, rate)
   const totalInterest  = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
-    : calcInterestOnly(balance, rate) * months
+    : calcInterestOnly(loanLimitWon, rate) * months
   const dsrContrib = calcDsr(monthlyPayment, monthlyIncome)
 
   return (
@@ -199,7 +192,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
           <div>
             <p className="text-sm font-bold text-gray-900">{loan.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              최대 {formatCurrency(balance)} · 연 {rateLabel}
+              최대 {formatCurrency(loanLimitWon)} · 연 {rateLabel}
             </p>
           </div>
         </div>
@@ -243,7 +236,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
             {/* 대출금액 — 기준점 */}
             <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
               <p className="text-xs font-bold text-gray-400">대출금액</p>
-              <p className="text-sm font-bold text-gray-900">{formatCurrency(balance)}</p>
+              <p className="text-sm font-bold text-gray-900">{formatCurrency(loanLimitWon)}</p>
             </div>
             {method === "equal" ? (
               <>
@@ -296,7 +289,7 @@ interface FinanceFeelProps {
 function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | null): LoanProduct[] {
   return loans.filter((loan) => {
     // 연소득은 원 단위, incomeLimit은 만원 단위라 비교 전 연소득을 만원으로 환산한다.
-    const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
+    const incomeOk   = loan.incomeLimit == null || wonToManwon(userProfile?.annualIncome ?? 0) <= loan.incomeLimit
     const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
     const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
     return incomeOk && marriageOk && childOk
@@ -401,15 +394,15 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               <div className="relative">
                 <input
                   type="number"
-                  value={monthlyIncome === 0 ? "" : Math.round(monthlyIncome / 10000)}
-                  onChange={(e) => setMonthlyIncome(Math.max(0, (Number(e.target.value) || 0) * 10000))}
+                  value={monthlyIncome === 0 ? "" : wonToManwon(monthlyIncome)}
+                  onChange={(e) => setMonthlyIncome(manwonToWon(Math.max(0, Number(e.target.value) || 0)))}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
               </div>
               <p className="text-xs text-gray-400">
                 {userProfile?.annualIncome
-                  ? `연봉 ${(userProfile.annualIncome / 10000).toLocaleString()}만원이에요 · 직접 수정 가능`
+                  ? `연봉 ${wonToManwon(userProfile.annualIncome).toLocaleString()}만원이에요 · 직접 수정 가능`
                   : "기본값 250만원 적용 · 직접 수정 가능"}
               </p>
             </div>

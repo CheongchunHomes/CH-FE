@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
-import { AssetPlanData } from "@/lib/simulatorUtils"
+import { AssetPlanData, formatManwon, wonToManwon } from "@/lib/simulatorUtils"
 
 interface HousingSnapshot {
   region: string
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 - 나이: ${age != null ? `만 ${age}세` : "정보 없음"}
 - 혼인 여부: ${profile.married ? "기혼" : "미혼"}
 - 무주택 여부: ${profile.houseless ? "무주택" : "유주택"}
-- 연소득: ${profile.annualIncome ? `${Math.round(profile.annualIncome / 10000).toLocaleString()}만원/년 (월 ${Math.round(profile.annualIncome / 10000 / 12)}만원)` : "정보 없음"}
+- 연소득: ${profile.annualIncome ? `${wonToManwon(profile.annualIncome).toLocaleString()}만원/년 (월 ${Math.round(wonToManwon(profile.annualIncome) / 12)}만원)` : "정보 없음"}
 - 희망 지역: ${profile.desiredCity ?? "정보 없음"} ${profile.desiredDistrict ?? ""}
 - 청약통장: ${profile.subscriptionMonths > 0 ? `${profile.subscriptionMonths}개월 납입` : "미보유"}
 - 부양가족: ${profile.dependentCount ?? 0}명
@@ -126,17 +126,17 @@ export async function POST(request: Request) {
     const completedTotal   = completed.reduce((s, p)  => s + (p.goalAmount ?? 0), 0)
     const activeGoalTotal  = active.reduce((s, p)     => s + (p.goalAmount ?? 0), 0)
     const planLines = assetPlans.map((p) => {
-      const goal    = Math.round((p.goalAmount ?? 0) / 10000)
-      const current = Math.round((p.baseAsset  ?? 0) / 10000)
+      const goal    = wonToManwon(p.goalAmount ?? 0)
+      const current = wonToManwon(p.baseAsset  ?? 0)
       const rate    = goal > 0 ? Math.round((current / goal) * 100) : 0
       return `  - [${p.isCompleted ? "완료" : "진행중"}] ${CATEGORY_LABEL[p.category ?? ""] ?? p.planName}: 목표 ${goal}만원, 현재 ${current}만원 (${rate}% 달성)`
     }).join("\n")
 
     sections.push(`[저축 플랜 현황]
 - 전체: ${assetPlans.length}개 (완료 ${completed.length}개, 진행 ${active.length}개)
-- 지금까지 모은 금액: ${Math.round(savedTotal / 10000).toLocaleString()}만원
-- 달성 완료 금액: ${Math.round(completedTotal / 10000).toLocaleString()}만원
-- 진행 중 목표 합계: ${Math.round(activeGoalTotal / 10000).toLocaleString()}만원
+- 지금까지 모은 금액: ${wonToManwon(savedTotal).toLocaleString()}만원
+- 달성 완료 금액: ${wonToManwon(completedTotal).toLocaleString()}만원
+- 진행 중 목표 합계: ${wonToManwon(activeGoalTotal).toLocaleString()}만원
 ${planLines}`)
   } else {
     sections.push(`[저축 플랜 현황]\n- 저축 플랜 없음`)
@@ -148,7 +148,7 @@ ${planLines}`)
     const savingInsufficient = h.savingAmount === 0
     sections.push(`[주거비 시뮬레이션]
 - 현재: ${h.currentSize}㎡, 월세 ${h.currentRent}만원
-- 목표: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${Math.round(h.targetDeposit / 10000).toLocaleString()}만원)
+- 목표: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${formatManwon(h.targetDeposit)})
 - 10년 월세 소멸액: ${h.tenYearWaste.toLocaleString()}만원
 - 목표까지 (순수 저축): ${savingInsufficient ? "저축액 미입력" : `${h.yearsToGoal}년`}
 - 목표까지 (대출 활용): ${h.loanCoversAll ? "바로 가능" : `${h.yearsWithLoan}년`}
@@ -163,14 +163,14 @@ ${planLines}`)
     const monthlyNet = f.monthlyIncome - f.monthlyPayment
     // loanAmount 0이면 미입력 처리
     if (f.loanAmount === 0) {
-      sections.push(`[대출/금융 체감]\n- 대출금 미입력 (월 소득 ${Math.round(f.monthlyIncome / 10000)}만원만 입력됨)`)
+      sections.push(`[대출/금융 체감]\n- 대출금 미입력 (월 소득 ${wonToManwon(f.monthlyIncome)}만원만 입력됨)`)
     } else {
       sections.push(`[대출/금융 체감]
-- 대출금: ${Math.round(f.loanAmount / 10000).toLocaleString()}만원 (연 ${f.annualRate}%)
-- 월 납입액: ${Math.round(f.monthlyPayment / 10000)}만원
+- 대출금: ${wonToManwon(f.loanAmount).toLocaleString()}만원 (연 ${f.annualRate}%)
+- 월 납입액: ${wonToManwon(f.monthlyPayment)}만원
 - DSR: ${f.dsr}% (${f.dsrLabel})
-- 월 소득: ${Math.round(f.monthlyIncome / 10000)}만원
-- 상환 후 잔액: ${Math.round(monthlyNet / 10000)}만원`)
+- 월 소득: ${wonToManwon(f.monthlyIncome)}만원
+- 상환 후 잔액: ${wonToManwon(monthlyNet)}만원`)
     }
   }
 
