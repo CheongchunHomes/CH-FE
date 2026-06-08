@@ -31,6 +31,13 @@ interface LoanProduct {
   visible:         boolean
 }
 
+function loanAmountToWon(value: number | null | undefined): number {
+  const amount = value ?? 0
+  if (amount <= 0) return 0
+  // 대출 DB의 maxAmount는 만원 단위이므로 계산용 원 단위로 보정한다.
+  return amount >= 1_000_000 ? amount : amount * 10_000
+}
+
 const DSR_LEVELS = [
   { max: 10,       label: "완전 여유",  color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100",   img: "/images/simulator/finance/relaxed.png",  sub: "오늘 먹고 싶은 거 그냥 시켜도 되는 달이에요."                     },
   { max: 20,       label: "여유",       color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100",   img: "/images/simulator/finance/relaxed.png",  sub: "월급날보다 대출 갚는 날이 더 신나는 삶이에요."                     },
@@ -168,7 +175,11 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
 
   // [FIX] null 방어: interestRate → interestRateMin → 기본값 3.5% 순 fallback
   const rate    = loan.interestRate ?? loan.interestRateMin ?? 3.5
-  const balance = loan.maxAmount ?? 0
+  // 추천 대출 상품은 DB 한도 금액을 기준으로 월 납입/이자/DSR을 시뮬레이션한다.
+  const balance = loanAmountToWon(loan.maxAmount)
+  const rateLabel = loan.interestRateMin != null && loan.interestRate != null && loan.interestRateMin !== loan.interestRate
+    ? `${loan.interestRateMin}~${loan.interestRate}%`
+    : `${rate}%`
 
   const schedule       = method === "equal" ? calcSchedule(balance, rate, months) : []
   const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(balance, rate)
@@ -188,7 +199,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
           <div>
             <p className="text-sm font-bold text-gray-900">{loan.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              최대 {formatWon(loan.maxAmount ?? 0)} · 연 {loan.interestRateMin ?? loan.interestRate}~{loan.interestRate}%
+              최대 {formatCurrency(balance)} · 연 {rateLabel}
             </p>
           </div>
         </div>
@@ -232,7 +243,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
             {/* 대출금액 — 기준점 */}
             <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
               <p className="text-xs font-bold text-gray-400">대출금액</p>
-              <p className="text-sm font-bold text-gray-900">{formatWon(balance)}</p>
+              <p className="text-sm font-bold text-gray-900">{formatCurrency(balance)}</p>
             </div>
             {method === "equal" ? (
               <>
@@ -284,6 +295,7 @@ interface FinanceFeelProps {
 // 대출 상품 필터링 — 소득·혼인·자녀 조건
 function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | null): LoanProduct[] {
   return loans.filter((loan) => {
+    // 연소득은 원 단위, incomeLimit은 만원 단위라 비교 전 연소득을 만원으로 환산한다.
     const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
     const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
     const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
@@ -317,7 +329,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const [loanLoading,  setLoanLoading] = useState(true)
   const [showDetail,   setShowDetail]  = useState(false)  // 요약 카드 상세보기 토글
 
-  // 슬라이더 실시간 계산 — 프론트 유지 (API 이관 불필요)
+  // 사용자가 조정한 대출 조건으로 월 납입액과 DSR을 즉시 계산한다.
   const schedule       = method === "equal" ? calcSchedule(loanAmount, annualRate, repayMonths) : []
   const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(loanAmount, annualRate)
   const dsr            = calcDsr(monthlyPayment, monthlyIncome)
@@ -326,7 +338,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
     ? schedule.reduce((s, r) => s + r.interest, 0)
     : calcInterestOnly(loanAmount, annualRate) * repayMonths
 
-  // financeSnapshot → sessionStorage (탭4 AI 프롬프트용)
+  // 청춘플랜 탭에서 재사용할 금융 체감 스냅샷을 저장한다.
   useEffect(() => {
     const snapshot: FinanceSnapshot = {
       loanAmount, annualRate, monthlyIncome, repayMonths, method,

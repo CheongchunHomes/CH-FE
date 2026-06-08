@@ -144,7 +144,8 @@ ${planLines}`)
 
   if (housingSnapshot) {
     const h = housingSnapshot
-    const savingInsufficient = h.savingAmount <= h.currentRent || h.savingAmount === 0
+    // 월세와 저축액은 별도 입력값이므로 0원일 때만 미입력으로 판단한다.
+    const savingInsufficient = h.savingAmount === 0
     sections.push(`[주거비 시뮬레이션]
 - 현재: ${h.currentSize}㎡, 월세 ${h.currentRent}만원
 - 목표: ${h.region} ${h.targetSize}㎡ (전세 보증금 ${Math.round(h.targetDeposit / 10000).toLocaleString()}만원)
