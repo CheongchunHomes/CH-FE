@@ -139,22 +139,12 @@ function AnnouncementsPageContent() {
 
   useEffect(() => {
     const fetchScrapIds = async () => {
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("jwt");
-
-      if (!token) {
-        setLikedIds(new Set());
-        return;
-      }
-
-      try {
-        const ids = await getMyAnnouncementScrapIds();
-        setLikedIds(new Set(ids));
-      } catch (e) {
-        setLikedIds(new Set());
-      }
+    try {
+      const ids = await getMyAnnouncementScrapIds();
+      setLikedIds(new Set(ids));
+    } catch (e) {
+      setLikedIds(new Set());
+    }
     };
 
     fetchScrapIds();
@@ -451,16 +441,6 @@ function AnnouncementsPageContent() {
   };
 
   const handleLike = async (id: number) => {
-    const token =
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("jwt");
-
-    if (!token) {
-      setLoginDialogOpen(true);
-      return;
-    }
-
     const isLiked = likedIds.has(id);
 
     try {
