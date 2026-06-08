@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import SubscriptionApplyStepper from "@/components/subscription/apply/SubscriptionApplyStepper";
 import SubscriptionApplyNoticeStep from "@/components/subscription/apply/SubscriptionApplyNoticeStep";
@@ -33,6 +33,14 @@ export type SubscriptionApplyDraft = {
 };
 
 export default function SubscriptionApplyPage() {
+  return (
+    <Suspense fallback={<div>로딩 중...</div>}>
+      <SubscriptionApplyContent />
+    </Suspense>
+  );
+}
+
+function SubscriptionApplyContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();

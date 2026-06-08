@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,6 +83,14 @@ type UserLocation = {
 };
 
 export default function SaleCenterPage() {
+  return (
+    <Suspense fallback={<div>로딩 중...</div>}>
+      <SaleCenterContent />
+    </Suspense>
+  );
+}
+
+function SaleCenterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

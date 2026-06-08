@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { readAccessToken } from "@/lib/api/auth/cookies"
 
 const CANDIDATE_PATHS = ["/loan-applications/me"]
+const BACKEND_BASE_URL = (process.env.API_BASE_URL ?? "http://localhost:18080").trim().replace(/\/+$/, "")
 
 export async function GET(request: NextRequest) {
   const accessToken = readAccessToken(request)
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
         headers.set("Authorization", `Bearer ${accessToken}`)
       }
 
-      const response = await fetch(`${process.env.API_BASE_URL}${path}`, {
+      const response = await fetch(`${BACKEND_BASE_URL}${path}`, {
         cache: "no-store",
         headers,
       })

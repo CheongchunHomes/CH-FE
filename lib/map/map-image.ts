@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_IMAGE_BASE_URL = "http://localhost:18080";
+const DEFAULT_BACKEND_IMAGE_BASE_URL = "/api";
 
 function getBackendImageBaseUrl() {
   const configuredBaseUrl =
@@ -6,6 +6,10 @@ function getBackendImageBaseUrl() {
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     DEFAULT_BACKEND_IMAGE_BASE_URL;
+
+  if (configuredBaseUrl.startsWith("/")) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
 
   if (!/^https?:\/\//i.test(configuredBaseUrl)) {
     return DEFAULT_BACKEND_IMAGE_BASE_URL;

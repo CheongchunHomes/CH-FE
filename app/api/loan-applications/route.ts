@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 
-const BACKEND_BASE_URL = process.env.LOAN_API_BASE_URL?.trim() || "http://localhost:18080"
+const BACKEND_BASE_URL = (process.env.LOAN_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:18080")
+  .trim()
+  .replace(/\/+$/, "")
 
 export async function POST(request: Request) {
   try {

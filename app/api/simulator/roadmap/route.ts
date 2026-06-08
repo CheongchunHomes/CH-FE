@@ -235,7 +235,9 @@ timeline: 현재/3개월/1년/3년. period + title(10자 이내) + action(20자 
   ]
 
   try {
-    const aiBaseUrl = process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000"
+    const aiBaseUrl = (process.env.AI_BASE_URL ?? process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000")
+      .trim()
+      .replace(/\/+$/, "")
 
     const response = await fetch(`${aiBaseUrl}/api/chat`, {
       method: "POST",

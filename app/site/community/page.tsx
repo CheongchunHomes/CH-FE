@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { get, post, request, ApiError } from '@/lib/api';
@@ -369,6 +369,14 @@ interface CommunityNotice {
 }
 
 export default function CommunityPage() {
+  return (
+    <Suspense fallback={<div>로딩 중...</div>}>
+      <CommunityContent />
+    </Suspense>
+  );
+}
+
+function CommunityContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdminMode = searchParams.get('admin') === '1';
