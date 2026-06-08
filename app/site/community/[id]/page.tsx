@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -32,28 +32,12 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
   const router = useRouter();
   const { id } = React.use(params);
 
+  const fetchedPostIdRef = useRef<string | null>(null);
+
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  const fetchPost = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-
-      const result = await get<CommunityPost>(`/api/community/${id}`);
-      setPost(result);
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage('커뮤니티 글을 불러오지 못했습니다.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!post) return;
@@ -65,7 +49,7 @@ export default function CommunityDetailPage({ params }: CommunityDetailPageProps
       setDeleting(true);
       setErrorMessage('');
 
-await request('DELETE', `/api/community/${id}`);
+      await request('DELETE', `/api/community/${id}`);
 
       router.push('/site/community');
       router.refresh();
@@ -81,6 +65,37 @@ await request('DELETE', `/api/community/${id}`);
   };
 
   useEffect(() => {
+    if (!id) return;
+
+    if (fetchedPostIdRef.current === id) {
+      return;
+    }
+
+    fetchedPostIdRef.current = id;
+
+    const fetchPost = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage('');
+
+        const result = await get<CommunityPost>(`/api/community/${id}`, {
+          cache: 'no-store',
+        });
+
+        setPost(result);
+      } catch (error) {
+        fetchedPostIdRef.current = null;
+
+        if (error instanceof ApiError) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage('커뮤니티 글을 불러오지 못했습니다.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchPost();
   }, [id]);
 
