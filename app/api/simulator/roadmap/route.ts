@@ -263,7 +263,8 @@ timeline: 현재/3개월/1년/3년.
   }]
 
   try {
-    const aiBaseUrl = process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000"
+    // env URL 끝의 슬래시 유무와 무관하게 동일한 API 경로를 호출한다.
+    const aiBaseUrl = (process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000").replace(/[\\/]+$/, "")
     const response = await fetch(`${aiBaseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
