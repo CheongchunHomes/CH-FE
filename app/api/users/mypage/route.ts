@@ -1,1 +1,1 @@
-export { GET } from "@/lib/api/server"
+export { GET, PATCH } from "@/lib/api/server"

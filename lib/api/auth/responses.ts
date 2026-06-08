@@ -59,7 +59,7 @@ export function refreshFailureResponse(failure: AuthFailureInput): NextResponse 
     return authUpstreamError(result.message)
   }
 
-  return jsonWithClearedAuthCookies({ code: result.code === "REFRESH_EXPIRED" ? result.code : "UNAUTHENTICATED" }, 401)
+  return jsonWithClearedAuthCookies({ code: result.code }, 401)
 }
 
 export function jsonWithAccessCookie(

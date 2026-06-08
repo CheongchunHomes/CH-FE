@@ -190,7 +190,7 @@ export default function LedgerPage() {
       <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[220px_1fr]">
         <aside className="h-fit rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-6 flex items-center gap-2">
-            <div className="rounded-md bg-[#2196F3]/10 p-2 text-[#2196F3]">
+            <div className="rounded-md bg-[#2563EB]/10 p-2 text-[#2563EB]">
               <Wallet className="h-5 w-5" />
             </div>
             <div>
@@ -207,8 +207,8 @@ export default function LedgerPage() {
               variant={activeTab === '지출조회' ? 'default' : 'ghost'}
               className={
                 activeTab === '지출조회'
-                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
-                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                  ? 'w-full justify-start bg-[#2563EB] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
               }
               onClick={() => setActiveTab('지출조회')}
             >
@@ -221,8 +221,8 @@ export default function LedgerPage() {
               variant={activeTab === '지출입력' ? 'default' : 'ghost'}
               className={
                 activeTab === '지출입력'
-                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
-                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                  ? 'w-full justify-start bg-[#2563EB] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
               }
               onClick={() => setActiveTab('지출입력')}
             >
@@ -235,8 +235,8 @@ export default function LedgerPage() {
               variant={activeTab === '월별조회' ? 'default' : 'ghost'}
               className={
                 activeTab === '월별조회'
-                  ? 'w-full justify-start bg-[#2196F3] text-white hover:bg-[#1E88E5]'
-                  : 'w-full justify-start hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                  ? 'w-full justify-start bg-[#2563EB] text-white hover:bg-[#1E88E5]'
+                  : 'w-full justify-start hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
               }
               onClick={() => setActiveTab('월별조회')}
             >
@@ -251,7 +251,7 @@ export default function LedgerPage() {
             <Card>
               <CardHeader className="border-b">
                 <CardTitle className="flex items-center gap-2 text-xl">
-                  <Plus className="h-5 w-5 text-[#2196F3]" />
+                  <Plus className="h-5 w-5 text-[#2563EB]" />
                   지출 정보 입력
                 </CardTitle>
               </CardHeader>
@@ -268,7 +268,7 @@ export default function LedgerPage() {
                       type="date"
                       value={formData.spentAt}
                       onChange={handleInputChange}
-                      className="focus-visible:ring-[#2196F3]"
+                      className="focus-visible:ring-[#2563EB]"
                     />
                   </div>
 
@@ -281,7 +281,7 @@ export default function LedgerPage() {
                       value={formData.amount}
                       onChange={handleInputChange}
                       placeholder="예: 0"
-                      className="focus-visible:ring-[#2196F3]"
+                      className="focus-visible:ring-[#2563EB]"
                     />
                   </div>
 
@@ -291,7 +291,7 @@ export default function LedgerPage() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2196F3] focus-visible:ring-offset-2"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
                     >
                       <option value="">선택</option>
                       {CATEGORIES.filter((category) => category !== '전체').map(
@@ -310,7 +310,7 @@ export default function LedgerPage() {
                       name="method"
                       value={formData.method}
                       onChange={handleInputChange}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2196F3] focus-visible:ring-offset-2"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
                     >
                       {METHODS.map((method) => (
                         <option key={method} value={method}>
@@ -327,14 +327,14 @@ export default function LedgerPage() {
                       value={formData.memo}
                       onChange={handleInputChange}
                       placeholder="예: 점심 식사 / 적금"
-                      className="focus-visible:ring-[#2196F3]"
+                      className="focus-visible:ring-[#2563EB]"
                     />
                   </div>
 
                   <div className="md:col-span-2">
                     <Button
                       type="submit"
-                      className="w-full bg-[#2196F3] text-white hover:bg-[#1E88E5]"
+                      className="w-full bg-[#2563EB] text-white hover:bg-[#1E88E5]"
                     >
                       저장하기
                     </Button>
@@ -348,7 +348,7 @@ export default function LedgerPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between border-b">
                 <CardTitle className="flex items-center gap-2 text-xl">
-                  <FileText className="h-5 w-5 text-[#2196F3]" />
+                  <FileText className="h-5 w-5 text-[#2563EB]" />
                   상세 내역
                 </CardTitle>
 
@@ -356,7 +356,7 @@ export default function LedgerPage() {
                   type="month"
                   value={viewMonth}
                   onChange={(event) => setViewMonth(event.target.value)}
-                  className="w-[170px] focus-visible:ring-[#2196F3]"
+                  className="w-[170px] focus-visible:ring-[#2563EB]"
                 />
               </CardHeader>
 
@@ -393,14 +393,14 @@ export default function LedgerPage() {
                           return (
                             <tr
                               key={transaction.expenditureId ?? index}
-                              className="border-b transition hover:bg-[#2196F3]/5"
+                              className="border-b transition hover:bg-[#2563EB]/5"
                             >
                               <td className="px-6 py-4">
                                 {transaction.spentAt}
                               </td>
 
                               <td className="px-6 py-4">
-                                <Badge className="bg-[#2196F3]/10 text-[#2196F3] hover:bg-[#2196F3]/10">
+                                <Badge className="bg-[#2563EB]/10 text-[#2563EB] hover:bg-[#2563EB]/10">
                                   {transaction.category}
                                 </Badge>
                               </td>
@@ -438,7 +438,7 @@ export default function LedgerPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between border-b">
                   <CardTitle className="flex items-center gap-2 text-xl">
-                    <CalendarDays className="h-5 w-5 text-[#2196F3]" />
+                    <CalendarDays className="h-5 w-5 text-[#2563EB]" />
                     {viewMonth} 통계 리포트
                   </CardTitle>
 
@@ -446,13 +446,13 @@ export default function LedgerPage() {
                     type="month"
                     value={viewMonth}
                     onChange={(event) => setViewMonth(event.target.value)}
-                    className="w-[170px] focus-visible:ring-[#2196F3]"
+                    className="w-[170px] focus-visible:ring-[#2563EB]"
                   />
                 </CardHeader>
 
                 <CardContent className="space-y-6 pt-6">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Card className="border-[#2196F3]/20 bg-[#2196F3] text-white">
+                    <Card className="border-[#2563EB]/20 bg-[#2563EB] text-white">
                       <CardContent className="p-6">
                         <Badge className="mb-4 bg-white/20 text-white hover:bg-white/20">
                           {selectedCategory} 합계
@@ -464,7 +464,7 @@ export default function LedgerPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-[#2196F3]/20 bg-[#2196F3] text-white">
+                    <Card className="border-[#2563EB]/20 bg-[#2563EB] text-white">
                       <CardContent className="p-6">
                         <Badge className="mb-4 bg-white/20 text-white hover:bg-white/20">
                           {selectedCategory} 건수
@@ -494,8 +494,8 @@ export default function LedgerPage() {
                             variant={isActive ? 'default' : 'outline'}
                             className={
                               isActive
-                                ? 'bg-[#2196F3] text-white hover:bg-[#1E88E5]'
-                                : 'border-[#2196F3]/30 text-[#2196F3] hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                                ? 'bg-[#2563EB] text-white hover:bg-[#1E88E5]'
+                                : 'border-[#2563EB]/30 text-[#2563EB] hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
                             }
                             onClick={() => setSelectedCategory(category)}
                           >
@@ -510,7 +510,7 @@ export default function LedgerPage() {
 
               <Card>
                 <CardHeader className="border-b">
-                  <CardTitle className="text-lg text-[#2196F3]">
+                  <CardTitle className="text-lg text-[#2563EB]">
                     {selectedCategory === '전체'
                       ? '전체 월별 합계'
                       : `${selectedCategory} 월별 합계`}
@@ -550,7 +550,7 @@ export default function LedgerPage() {
                               return (
                                 <tr
                                   key={month}
-                                  className="border-b transition hover:bg-[#2196F3]/5"
+                                  className="border-b transition hover:bg-[#2563EB]/5"
                                 >
                                   <td className="px-6 py-4">{month}</td>
                                   <td

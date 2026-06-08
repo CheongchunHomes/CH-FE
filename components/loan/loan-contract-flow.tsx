@@ -686,42 +686,6 @@ export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContract
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900">
       <div className="mx-auto max-w-[1440px] space-y-8 px-4 lg:px-6">
-        <section className="rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-          <div className="mx-auto max-w-4xl">
-            <div className="flex items-center justify-between gap-2">
-              {[
-                { step: "1", label: "내 조건 진단" },
-                { step: "2", label: "제도 추천" },
-                { step: "3", label: "대출 계산" },
-                { step: "4", label: "집공고 확인" },
-                { step: "5", label: "계약" },
-              ].map((item, index, array) => {
-                const active = index === 2;
-                return (
-                  <div key={item.step} className="flex flex-1 items-center">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black ${
-                          active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
-                        }`}
-                      >
-                        {item.step}
-                      </div>
-                      <div className="mt-3 text-xs font-semibold text-slate-400">Step {item.step}</div>
-                      <div className={`mt-1 text-sm font-bold ${active ? "text-blue-600" : "text-slate-500"}`}>
-                        {item.label}
-                      </div>
-                    </div>
-                    {index < array.length - 1 ? (
-                      <div className="mx-4 h-px flex-1 bg-slate-200" />
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-sm font-semibold tracking-[0.32em] text-blue-600">LOAN CONTRACT</p>

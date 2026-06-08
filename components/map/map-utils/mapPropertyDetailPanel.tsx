@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MapListing } from "@/lib/map/map-types";
 import { resolveMapImageUrl } from "@/lib/map/map-image";
@@ -28,8 +28,13 @@ export default function MapPropertyDetailPanel({
   const router = useRouter();
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isContractRequesting, setIsContractRequesting] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [contractFeedback, setContractFeedback] =
     useState<ContractFeedback | null>(null);
+
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, [listing?.id, listing?.thumbnailUrl]);
 
   if (!listing) {
     return null;
@@ -42,6 +47,7 @@ export default function MapPropertyDetailPanel({
     ? listing.securityFacilities
     : [];
   const thumbnailUrl = resolveMapImageUrl(listing.thumbnailUrl);
+  const imageUrl = imageLoadFailed ? null : thumbnailUrl;
 
   const handleConfirmContractRequest = async () => {
     try {
@@ -93,10 +99,11 @@ export default function MapPropertyDetailPanel({
 
         {/* 대표 이미지 영역입니다. */}
         <div className="h-64 bg-slate-200">
-          {thumbnailUrl ? (
+          {imageUrl ? (
             <img
-              src={thumbnailUrl}
+              src={imageUrl}
               alt={listing.title}
+              onError={() => setImageLoadFailed(true)}
               className="h-full w-full object-cover"
             />
           ) : (

@@ -18,9 +18,9 @@ import BannerModal from "@/components/banner/banner-modal"
 const quickMenus = [
   { icon: House, label: "조건 진단", href: "/site/step/condition-check" },
   { icon: Ticket, label: "제도 추천", href: "/site/step/recommend" },
-  { icon: Coins, label: "대출신청", href: "/site/loan-contract?product=newborn" },
+  { icon: Coins, label: "대출신청", href: "/site/step/loan-contract?product=newborn" },
   { icon: MapPin, label: "지도 확인", href: "/site/map" },
-  { icon: Building2, label: "계약", href: "/site/contract" },
+  { icon: Building2, label: "계약", href: "/site/my-page/activity" },
 ]
 
 const serviceLinks = [

@@ -27,7 +27,6 @@ export default function SiteLayout({
   return (
     <>
       <Navbar />
-      {status === "reauthRequired" && <ReauthDialog />}
       {children}
     </>
   )

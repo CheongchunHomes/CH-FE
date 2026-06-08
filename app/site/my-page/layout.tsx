@@ -9,10 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
 const menuItems = [
-  { label: "내 정보", href: "/site/my-page/info" },
-  { label: "결제 서류", href: "/site/my-page/sign" },
-  { label: "내 스크랩", href: "/site/my-page/info/scraps"},
-  { label: "일정 캘린더" },
+  { label: "회원 정보", href: "/site/my-page/info" },
+  { label: "내 활동", href: "/site/my-page/activity" },
+  { label: "내 스크랩", href: "/site/my-page/scraps" },
 ]
 
 export default function MyPageLayout({
@@ -32,7 +31,7 @@ export default function MyPageLayout({
             <Card className="border-slate-200/80 bg-white shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base text-slate-900">
-                  <UserRound size={18} className="text-sky-600" />
+                  <UserRound size={18} className="text-[#2563EB]" />
                   메뉴 리스트
                 </CardTitle>
               </CardHeader>
@@ -40,7 +39,9 @@ export default function MyPageLayout({
                 <Separator />
 
                 {menuItems.map((item) => {
-                  const isActive = item.href === pathname
+                  const isActive = item.href
+                    ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+                    : false
 
                   return item.href ? (
                     <Button
@@ -48,8 +49,8 @@ export default function MyPageLayout({
                       asChild
                       className={`h-12 w-full justify-start rounded-lg ${
                         isActive
-                        ? "bg-sky-600 text-white hover:bg-sky-700"
-                        : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+                          ? "bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+                          : "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
                       }`}
                     >
                       <Link href={item.href}>{item.label}</Link>

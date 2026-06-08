@@ -154,6 +154,7 @@ export default function DiagnosisResultPage() {
    * - 프로필 없으면 진단 폼으로 리다이렉트
    */
   useEffect(() => {
+    window.scrollTo(0, 0)
     const load = async () => {
       try {
         // 저장된 프로필 조회
@@ -279,6 +280,7 @@ export default function DiagnosisResultPage() {
     { label: "현금성 자산", value: form?.cashAsset ? formatAsset(form.cashAsset) : "" },
     { label: "연소득",      value: form?.annualIncome ? formatAsset(form.annualIncome) : "" },
     { label: "무주택",      value: form?.houseless ? "무주택" : "" },
+    { label: "무주택 기간", value: form.houseless === true && form.houselessYears > 0 ? `${form.houselessYears}년` : "" },
     { label: "세대 분리",   value: form?.householdSep ? "분리됨" : "" },
     { label: "생년월일",    value: form?.birthDate || "" },
     { label: "혼인 여부",   value: form?.married ? "기혼" : "" },

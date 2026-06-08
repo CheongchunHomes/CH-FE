@@ -1,1 +1,1 @@
-export { POST } from "@/lib/api/server"
+export { GET, POST, PUT } from "@/lib/api/server"

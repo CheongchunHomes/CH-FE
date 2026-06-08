@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { get, post, request, ApiError } from '@/lib/api';
@@ -345,7 +345,7 @@ interface CommunityPost {
   title: string;
   content: string;
   viewCount: number;
-  createdAt: string;
+  createdAt?: string;
 }
 
 interface CommunityPageResponse {
@@ -368,12 +368,12 @@ interface CommunityNotice {
   createdAt?: string;
 }
 
-export default function CommunityPage() {
+function CommunityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdminMode = searchParams.get('admin') === '1';
 
-  const MAIN_COLOR = '#2196F3';
+  const MAIN_COLOR = '#2563EB';
 
   const theme = {
     color: MAIN_COLOR,
@@ -399,9 +399,28 @@ export default function CommunityPage() {
   const [communityNotices, setCommunityNotices] = useState<CommunityNotice[]>(
     []
   );
+
   const POSTS_PER_PAGE = 10;
   const PAGES_PER_BLOCK = 10;
   const latestCommunityNotices = communityNotices.slice(0, 3);
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return '-';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   const getSelectedRegion = () => {
     if (!city) return '';
@@ -810,7 +829,7 @@ export default function CommunityPage() {
                 width: '100%',
                 borderCollapse: 'collapse',
                 marginBottom: '20px',
-                minWidth: '600px',
+                minWidth: '760px',
               }}
             >
               <thead>
@@ -826,6 +845,7 @@ export default function CommunityPage() {
                   </th>
                   <th style={{ width: '150px' }}>지역</th>
                   <th>제목</th>
+                  <th style={{ width: '160px' }}>등록일</th>
                   <th style={{ width: '80px' }}>조회수</th>
                   {isAdminMode && <th style={{ width: '130px' }}>관리</th>}
                 </tr>
@@ -835,7 +855,9 @@ export default function CommunityPage() {
                 {latestCommunityNotices.map((notice) => (
                   <tr
                     key={`notice-${notice.noticeId}`}
-                    onClick={() => router.push(`/site/notice/${notice.noticeId}`)}
+                    onClick={() =>
+                      router.push(`/site/community/notice/${notice.noticeId}`)
+                    }
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = '#eff6ff';
                     }}
@@ -917,6 +939,16 @@ export default function CommunityPage() {
                       )}
                     </td>
 
+                    <td
+                      style={{
+                        color: '#64748b',
+                        fontSize: '13px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {formatDateTime(notice.createdAt)}
+                    </td>
+
                     <td>{Number(notice.viewCount ?? 0).toLocaleString()}</td>
 
                     {isAdminMode && <td />}
@@ -926,7 +958,7 @@ export default function CommunityPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={isAdminMode ? 5 : 4}
+                      colSpan={isAdminMode ? 6 : 5}
                       style={{
                         padding: '40px',
                         textAlign: 'center',
@@ -975,6 +1007,16 @@ export default function CommunityPage() {
                         >
                           {post.title}
                         </Link>
+                      </td>
+
+                      <td
+                        style={{
+                          color: '#64748b',
+                          fontSize: '13px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatDateTime(post.createdAt)}
                       </td>
 
                       <td>{Number(post.viewCount ?? 0).toLocaleString()}</td>
@@ -1027,7 +1069,7 @@ export default function CommunityPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={isAdminMode ? 5 : 4}
+                      colSpan={isAdminMode ? 6 : 5}
                       style={{
                         padding: '40px',
                         textAlign: 'center',
@@ -1241,4 +1283,12 @@ export default function CommunityPage() {
       )}
     </div>
   );
+}
+
+export default function CommunityPage() {
+  return (
+  <Suspense fallback={null}>
+    <CommunityPageContent />
+  </Suspense>
+  )
 }
