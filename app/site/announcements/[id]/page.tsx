@@ -42,7 +42,7 @@ function AnnouncementDetailContent() {
 
   const handleClose = () => {
     if (from === "scraps") {
-      router.push("/site/my-page/scraps")
+      router.push("/site/my-page/info/scraps")
       return
     }
 
