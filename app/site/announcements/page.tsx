@@ -87,7 +87,7 @@ const statusOptions: { label: string; value?: string }[] = [
   { label: "전체", value: undefined },
   { label: "접수중", value: "접수중" },
   { label: "접수예정", value: "접수예정" },
-  { label: "마감", value: "접수마감" },
+  { label: "마감", value: "마감" },
 ];
 
 type UserLocation = {
@@ -139,12 +139,12 @@ function AnnouncementsPageContent() {
 
   useEffect(() => {
     const fetchScrapIds = async () => {
-    try {
-      const ids = await getMyAnnouncementScrapIds();
-      setLikedIds(new Set(ids));
-    } catch (e) {
-      setLikedIds(new Set());
-    }
+      try {
+        const ids = await getMyAnnouncementScrapIds();
+        setLikedIds(new Set(ids));
+      } catch (e) {
+        setLikedIds(new Set());
+      }
     };
 
     fetchScrapIds();
@@ -264,9 +264,14 @@ function AnnouncementsPageContent() {
       const useLocation = location && isLocationFilterActive(locationFilter);
       const useAreaFilter = !!areaType && areaType !== "전체";
 
+      // 전용면적 필터 쪽은 "접수마감"을 기대하고,
+      // 일반/위치 기반 공고 쪽은 "마감"을 기대해서 여기서만 변환
+      const requestStatus =
+        useAreaFilter && status === "마감" ? "접수마감" : status;
+
       const data = await getAnnouncements({
         region,
-        status,
+        status: requestStatus,
         keyword,
         deadlineSoon,
         areaType,
