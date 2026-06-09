@@ -84,6 +84,16 @@ export interface AssetPlanSummary {
 // 통화 포맷
 // ─────────────────────────────────────────
 
+/** 만원 단위 숫자 → 원 단위 숫자 */
+export function manwonToWon(value: number): number {
+  return value * 10_000
+}
+
+/** 원 단위 숫자 → 만원 단위 숫자 */
+export function wonToManwon(value: number): number {
+  return Math.round(value / 10_000)
+}
+
 /**
  * 원 단위 숫자 → "N억 N만 N천원"
  * AssetPlan, FinanceFeel 등 원 단위 표시용
