@@ -110,7 +110,7 @@ const DonutChart = ({ score, label, comment, color }: { score: number; label: st
         </div>
       </div>
       <span className={`text-xs font-bold px-3 py-1 rounded-full ${grade.bg} ${grade.color}`}>{grade.label}</span>
-      <p className="text-xs text-gray-500 text-center leading-relaxed">{comment}</p>
+      <p className="text-xs text-gray-600 font-medium text-center leading-relaxed">{comment}</p>
     </div>
   );
 };
@@ -209,26 +209,34 @@ export default function DiagnosisResultPage() {
     </div>
   );
 
-  const getScoreComment = (label: string, score: number): string => {
+  const getScoreComment = (label: string, score: number, form: DiagnosisForm): string => {
     if (label === "청약 준비도") {
-      if (score >= 70) return "청약통장 조건이 잘 갖춰져 있어요"
-      if (score >= 40) return "청약통장 가입기간을 늘려보세요"
-      return "청약통장 개설이 필요해요"
+      if (!form.hasSubscription) return "청약통장 개설이 필요해요"
+      if (form.subscriptionMonths < 24) return `청약통장 ${24 - form.subscriptionMonths}개월 더 납입하면 1순위예요`
+      if (score >= 70) return form.subscriptionMonths < 40
+        ? `청약 1순위 조건 충족, ${40 - form.subscriptionMonths}개월 더 납입하면 만점이에요`
+        : "청약통장 조건이 완벽하게 갖춰져 있어요"
+      return "무주택 조건을 함께 갖추면 점수가 올라요"
     }
     if (label === "공공임대 적합도") {
       if (score >= 70) return "공공임대 신청 조건을 잘 충족해요"
-      if (score >= 40) return "일부 조건 보완이 필요해요"
-      return "소득·무주택 조건을 확인해보세요"
+      if (score >= 40) return "소득·자산 조건 중 일부 보완이 필요해요"
+      return "소득·무주택 조건을 먼저 확인해보세요"
     }
     if (label === "전세대출 가능성") {
-      if (score >= 70) return "전세대출 가능성이 높아요"
-      if (score >= 40) return "소득 대비 부채 비율을 확인해보세요"
-      return "전세대출 조건이 부족해요"
+      if (score >= 70) return "소득·자산 조건 충족, 청년버팀목 전세대출 신청 가능해요"
+      if (score >= 40) return "소득 조건을 보완하면 가능성이 높아져요"
+      return "소득·무주택 조건을 먼저 점검해보세요"
     }
     if (label === "분양형 당첨 가능성") {
+      const hasSubscription = form.hasSubscription && form.subscriptionMonths >= 24
+      const hasDependent = (form.dependentCount ?? 0) > 0
+      const hasHouselessYears = (form.houselessYears ?? 0) > 0
       if (score >= 70) return "청약 가점이 잘 쌓여있어요"
-      if (score >= 40) return "가점 항목을 더 채워보세요"
-      return "청약통장과 가점 준비가 필요해요"
+      if (!hasSubscription) return "청약통장 24개월 납입이 우선이에요"
+      if (!hasDependent && !hasHouselessYears) return "부양가족·무주택기간 가점이 부족해요"
+      if (!hasDependent) return `부양가족 ${form.dependentCount ?? 0}명으로 가점이 낮아요. 공공임대·전세대출 위주 전략을 추천해요`
+      return "무주택기간을 늘리면 가점이 올라요"
     }
     return ""
   }
@@ -247,10 +255,10 @@ export default function DiagnosisResultPage() {
   ];
 
   const scores = [
-    { label: "청약 준비도",       score: result.subscriptionScore, color: "#3b82f6", comment: getScoreComment("청약 준비도",       result.subscriptionScore) },
-    { label: "공공임대 적합도",   score: result.publicRentalScore,  color: "#22c55e", comment: getScoreComment("공공임대 적합도",   result.publicRentalScore)  },
-    { label: "전세대출 가능성",   score: result.jeonseScore,        color: "#06b6d4", comment: getScoreComment("전세대출 가능성",   result.jeonseScore)        },
-    { label: "분양형 당첨 가능성", score: result.saleScore,         color: "#a855f7", comment: getScoreComment("분양형 당첨 가능성", result.saleScore)          },
+    { label: "청약 준비도",       score: result.subscriptionScore, color: "#3b82f6", comment: getScoreComment("청약 준비도", result.subscriptionScore, form)      },
+    { label: "공공임대 적합도",   score: result.publicRentalScore,  color: "#22c55e", comment: getScoreComment("공공임대 적합도",   result.publicRentalScore, form)},
+    { label: "전세대출 가능성",   score: result.jeonseScore,        color: "#06b6d4", comment: getScoreComment("전세대출 가능성",   result.jeonseScore, form)      },
+    { label: "분양형 당첨 가능성", score: result.saleScore,         color: "#a855f7", comment: getScoreComment("분양형 당첨 가능성", result.saleScore, form)        },
   ]
 
   const dday = form?.birthDate ? calcDday(form.birthDate) : null;
@@ -358,7 +366,7 @@ export default function DiagnosisResultPage() {
                                   <span className="flex items-center justify-center w-2 h-2 rounded-sm bg-blue-200 shrink-0 mx-auto" />
                                 </td>
                                 <td className="px-2 py-3 font-medium text-gray-800">{item.label}</td>
-                                <td className="px-2 py-3 text-xs hidden sm:table-cell text-gray-500">{item.desc}</td>
+                                <td className="px-2 py-3 text-xs hidden sm:table-cell text-gray-600 font-medium">{item.desc}</td>
                                 <td className="px-4 py-4 text-right">{getStatusIcon(item.status)}</td>
                               </tr>
                             );
@@ -421,7 +429,12 @@ export default function DiagnosisResultPage() {
                           <div className="p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
                             <p className="text-xs text-gray-400">청년 혜택 종료까지</p>
                             <p className="text-lg font-bold text-blue-600 mt-0.5">
-                              {dday.years > 0 ? `${dday.years}년 ` : ""}{dday.months}개월 남음
+                              {dday.years > 0 && dday.months === 0
+                                ? `${dday.years}년 남음`
+                                : dday.years > 0
+                                  ? `${dday.years}년 ${dday.months}개월 남음`
+                                  : `${dday.months}개월 남음`
+                              }
                             </p>
                           </div>
                         )}
@@ -454,9 +467,9 @@ export default function DiagnosisResultPage() {
                       <p className="text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
                         <MapPin className="w-4 h-4 text-blue-500" /> 나의 맞춤 전략
                       </p>
-                      <p className="text-sm text-gray-600 leading-relaxed">{strategyText}</p>
+                      <p className="text-sm text-gray-700 font-medium leading-relaxed">{strategyText}</p>
                       {result.improveComment && (
-                        <p className="text-xs text-gray-500 mt-2 leading-relaxed flex items-start gap-1.5">
+                        <p className="text-xs text-gray-600 font-medium mt-2 leading-relaxed flex items-start gap-1.5">
                           <Lightbulb className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
                           {result.improveComment}
                         </p>
