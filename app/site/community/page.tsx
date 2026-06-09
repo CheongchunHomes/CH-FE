@@ -376,6 +376,21 @@ function CommunityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdminMode = searchParams.get('admin') === '1';
+  const noticeIdParam = searchParams.get('noticeId');
+
+  const buildCommunityUrl = (noticeId?: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (noticeId) {
+      params.set('noticeId', String(noticeId));
+    } else {
+      params.delete('noticeId');
+    }
+
+    const queryString = params.toString();
+
+    return queryString ? `/site/community?${queryString}` : '/site/community';
+  };
 
   const MAIN_COLOR = '#2563EB';
 
@@ -405,7 +420,9 @@ function CommunityPageContent() {
   );
   const [selectedNotice, setSelectedNotice] =
     useState<CommunityNoticeDetail | null>(null);
-  const [noticeDetailLoading, setNoticeDetailLoading] = useState(false);
+  const [noticeDetailLoading, setNoticeDetailLoading] = useState(
+    Boolean(noticeIdParam)
+  );
   const [noticeDetailError, setNoticeDetailError] = useState('');
 
   const POSTS_PER_PAGE = 10;
@@ -500,7 +517,7 @@ function CommunityPageContent() {
     }
   };
 
-  const handleOpenCommunityNotice = async (noticeId: number) => {
+  const fetchCommunityNoticeDetail = async (noticeId: number) => {
     try {
       setSelectedNotice(null);
       setNoticeDetailError('');
@@ -530,15 +547,41 @@ function CommunityPageContent() {
     }
   };
 
+  const handleOpenCommunityNotice = (noticeId: number) => {
+    setNoticeDetailLoading(true);
+    router.push(buildCommunityUrl(noticeId));
+  };
+
   const handleCloseCommunityNotice = () => {
     setSelectedNotice(null);
     setNoticeDetailError('');
     setNoticeDetailLoading(false);
+    router.push(buildCommunityUrl());
   };
 
   useEffect(() => {
     fetchCommunityNotices();
   }, []);
+
+  useEffect(() => {
+    if (!noticeIdParam) {
+      setSelectedNotice(null);
+      setNoticeDetailError('');
+      setNoticeDetailLoading(false);
+      return;
+    }
+
+    const noticeId = Number(noticeIdParam);
+
+    if (!Number.isFinite(noticeId) || noticeId <= 0) {
+      setSelectedNotice(null);
+      setNoticeDetailError('잘못된 커뮤니티 공지사항 주소입니다.');
+      setNoticeDetailLoading(false);
+      return;
+    }
+
+    fetchCommunityNoticeDetail(noticeId);
+  }, [noticeIdParam]);
 
   useEffect(() => {
     fetchPosts();
