@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -472,7 +471,7 @@ export default function SubscriptionQuizPage() {
       <main className="min-h-screen bg-[#f4f7fb] px-4 py-8">
         <section className="mx-auto max-w-5xl">
           <div className="mb-8">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2563EB]">
               <Trophy className="h-4 w-4" />
               청약 기준 학습 결과
             </div>
@@ -488,7 +487,7 @@ export default function SubscriptionQuizPage() {
 
           <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
             <CardContent className="p-8">
-              <div className="mb-8 rounded-3xl bg-[#2196F3] p-8 text-white">
+              <div className="mb-8 rounded-3xl bg-[#2563EB] p-8 text-white">
                 <p className="text-sm font-semibold text-white/80">나의 점수</p>
 
                 <div className="mt-3 flex items-end gap-2">
@@ -515,7 +514,7 @@ export default function SubscriptionQuizPage() {
                     >
                       <CardContent className="p-5">
                         <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge className="gap-1 bg-[#E3F2FD] text-[#2196F3] hover:bg-[#E3F2FD]">
+                          <Badge className="gap-1 bg-[#E3F2FD] text-[#2563EB] hover:bg-[#E3F2FD]">
                             {getCategoryIcon(question.category)}
                             {question.category}
                           </Badge>
@@ -544,7 +543,7 @@ export default function SubscriptionQuizPage() {
 
                         <p className="mt-1 text-sm text-slate-600">
                           정답:{' '}
-                          <span className="font-semibold text-[#2196F3]">
+                          <span className="font-semibold text-[#2563EB]">
                             {question.options[question.answerIndex]}
                           </span>
                         </p>
@@ -561,7 +560,7 @@ export default function SubscriptionQuizPage() {
               <div className="mt-8 flex justify-center">
                 <Button
                   type="button"
-                  className="gap-2 bg-[#2196F3] text-white hover:bg-[#1E88E5]"
+                  className="gap-2 bg-[#2563EB] text-white hover:bg-[#1E88E5]"
                   onClick={handleReset}
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -579,7 +578,7 @@ export default function SubscriptionQuizPage() {
     <main className="min-h-screen bg-[#f4f7fb] px-4 py-8">
       <section className="mx-auto max-w-5xl">
         <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2563EB]">
             <CircleHelp className="h-4 w-4" />
             청약 기준 학습
           </div>
@@ -597,7 +596,7 @@ export default function SubscriptionQuizPage() {
           <CardHeader className="border-b">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge className="gap-1 bg-[#E3F2FD] text-[#2196F3] hover:bg-[#E3F2FD]">
+                <Badge className="gap-1 bg-[#E3F2FD] text-[#2563EB] hover:bg-[#E3F2FD]">
                   {getCategoryIcon(currentQuestion.category)}
                   {currentQuestion.category}
                 </Badge>
@@ -614,7 +613,7 @@ export default function SubscriptionQuizPage() {
 
             <div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#2196F3] transition-all"
+                className="h-full rounded-full bg-[#2563EB] transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -632,7 +631,7 @@ export default function SubscriptionQuizPage() {
                     onClick={() => handleSelectAnswer(index)}
                     className={`flex w-full items-center justify-between rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition ${
                       isSelected
-                        ? 'border-[#2196F3] bg-[#E3F2FD] text-[#2196F3]'
+                        ? 'border-[#2563EB] bg-[#E3F2FD] text-[#2563EB]'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
@@ -662,7 +661,7 @@ export default function SubscriptionQuizPage() {
               <Button
                 type="button"
                 disabled={selectedAnswer === undefined}
-                className="bg-[#2196F3] text-white hover:bg-[#1E88E5]"
+                className="bg-[#2563EB] text-white hover:bg-[#1E88E5]"
                 onClick={handleNext}
               >
                 {currentIndex === activeQuestions.length - 1

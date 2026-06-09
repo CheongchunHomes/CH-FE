@@ -68,6 +68,31 @@ export default function LedgerPage() {
   });
 
   useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+
+    window.history.scrollRestoration = 'manual';
+
+    const scrollTop = () => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'auto',
+      });
+    };
+
+    scrollTop();
+
+    const animationFrameId = requestAnimationFrame(scrollTop);
+    const timeoutId = window.setTimeout(scrollTop, 100);
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+      cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
     fetchLedgers();
   }, []);
 
@@ -186,13 +211,14 @@ export default function LedgerPage() {
   }, [transactions, selectedCategory]);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-slate-50 px-4 pb-8 pt-28">
       <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[220px_1fr]">
         <aside className="h-fit rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-6 flex items-center gap-2">
             <div className="rounded-md bg-[#2563EB]/10 p-2 text-[#2563EB]">
               <Wallet className="h-5 w-5" />
             </div>
+
             <div>
               <h1 className="text-xl font-bold tracking-tight">가계부</h1>
               <p className="text-xs text-muted-foreground">
@@ -553,6 +579,7 @@ export default function LedgerPage() {
                                   className="border-b transition hover:bg-[#2563EB]/5"
                                 >
                                   <td className="px-6 py-4">{month}</td>
+
                                   <td
                                     className={
                                       isPositive

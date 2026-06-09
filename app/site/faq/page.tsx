@@ -30,7 +30,7 @@ interface FaqItem {
 
 function FaqPageContent() {
   const searchParams = useSearchParams();
-  const MAIN_COLOR = '#2196F3';
+  const MAIN_COLOR = '#2563EB';
 
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') ?? '');
   const [selectedCategory, setSelectedCategory] = useState('전체');
@@ -105,7 +105,15 @@ function FaqPageContent() {
     },
   ];
 
-  const categories = ['전체', '주거지원', '가계부', '커뮤니티', '계정', '공지', '기타'];
+  const categories = [
+    '전체',
+    '주거지원',
+    '가계부',
+    '커뮤니티',
+    '계정',
+    '공지',
+    '기타',
+  ];
 
   const filteredFaqs = faqList.filter((faq) => {
     const keyword = searchTerm.toLowerCase();
@@ -132,7 +140,7 @@ function FaqPageContent() {
     <div className="min-h-screen bg-[#f4f7fb] p-6 font-sans">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2563EB]">
             <HelpCircle size={16} />
             청춘홈즈 도움말
           </div>
@@ -156,7 +164,7 @@ function FaqPageContent() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="질문, 답변, 카테고리로 검색하세요"
-            className="h-14 rounded-2xl border-slate-200 bg-white pl-12 shadow-sm focus-visible:ring-[#2196F3]"
+            className="h-14 rounded-2xl border-slate-200 bg-white pl-12 shadow-sm focus-visible:ring-[#2563EB]"
           />
         </div>
 
@@ -167,8 +175,8 @@ function FaqPageContent() {
               onClick={() => setSelectedCategory(category)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 selectedCategory === category
-                  ? 'bg-[#2196F3] text-white shadow-sm'
-                  : 'bg-[#E3F2FD] text-[#2196F3] hover:bg-[#BBDEFB]'
+                  ? 'bg-[#2563EB] text-white shadow-sm'
+                  : 'bg-[#E3F2FD] text-[#2563EB] hover:bg-[#BBDEFB]'
               }`}
             >
               {category}
@@ -185,9 +193,9 @@ function FaqPageContent() {
                   value={`item-${faq.id}`}
                   className="border-b border-slate-100 last:border-b-0"
                 >
-                  <AccordionTrigger className="py-5 text-left text-slate-700 hover:text-[#2196F3]">
+                  <AccordionTrigger className="py-5 text-left text-slate-700 hover:text-[#2563EB]">
                     <div className="flex items-center gap-3">
-                      <Badge className="bg-[#E3F2FD] text-[#2196F3] hover:bg-[#E3F2FD]">
+                      <Badge className="bg-[#E3F2FD] text-[#2563EB] hover:bg-[#E3F2FD]">
                         <span className="mr-1 flex items-center">
                           {getCategoryIcon(faq.category)}
                         </span>
@@ -215,7 +223,7 @@ function FaqPageContent() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-[#E3F2FD] bg-white p-5 text-sm text-slate-500">
-          <strong className="text-[#2196F3]">안내</strong>
+          <strong className="text-[#2563EB]">안내</strong>
           <p className="mt-1">
             주거 제도와 대출 조건은 공고 시기, 지역, 기관에 따라 달라질 수
             있으므로 실제 신청 전 공식 공고문을 꼭 확인하세요.
@@ -231,5 +239,5 @@ export default function FaqPage() {
     <Suspense fallback={null}>
       <FaqPageContent />
     </Suspense>
-  )
+  );
 }

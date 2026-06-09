@@ -72,7 +72,7 @@ export default function CommunityWritePage() {
     <div className="min-h-screen bg-[#f4f7fb] p-6 font-sans">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2563EB]">
             <PenSquare size={16} />
             동네 커뮤니티 글쓰기
           </div>
@@ -132,7 +132,7 @@ export default function CommunityWritePage() {
               placeholder="내용을 입력하세요"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[250px] w-full rounded-2xl border border-slate-200 p-4 outline-none focus:border-[#2196F3]"
+              className="min-h-[250px] w-full rounded-2xl border border-slate-200 p-4 outline-none focus:border-[#2563EB]"
             />
 
             <div className="flex justify-end gap-3">
@@ -147,7 +147,7 @@ export default function CommunityWritePage() {
               <Button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="rounded-xl bg-[#2196F3] hover:bg-[#1976D2]"
+                className="rounded-xl bg-[#2563EB] hover:bg-[#1976D2]"
               >
                 <MapPin size={16} className="mr-2" />
                 {loading ? '등록 중...' : '등록하기'}
