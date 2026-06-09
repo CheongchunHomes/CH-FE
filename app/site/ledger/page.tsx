@@ -186,17 +186,18 @@ export default function LedgerPage() {
   }, [transactions, selectedCategory]);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="bg-slate-50 px-4 pb-8 pt-0">
       <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[220px_1fr]">
         <aside className="h-fit rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-6 flex items-center gap-2">
             <div className="rounded-md bg-[#2563EB]/10 p-2 text-[#2563EB]">
               <Wallet className="h-5 w-5" />
             </div>
+
             <div>
               <h1 className="text-xl font-bold tracking-tight">가계부</h1>
               <p className="text-xs text-muted-foreground">
-                청년홈즈 지출 관리
+                청춘홈즈 지출 관리
               </p>
             </div>
           </div>
@@ -553,6 +554,7 @@ export default function LedgerPage() {
                                   className="border-b transition hover:bg-[#2563EB]/5"
                                 >
                                   <td className="px-6 py-4">{month}</td>
+
                                   <td
                                     className={
                                       isPositive

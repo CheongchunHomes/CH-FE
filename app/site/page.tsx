@@ -50,13 +50,13 @@ const serviceLinks = [
     href: "/site/community",
   },
   {
-    title: "용어 설명",
+    title: "주거 청약 용어 설명",
     description: "헷갈리는 주거·청약 용어를 쉽게 정리",
     href: "/site/terminology",
   },
   {
-    title: "청약 가능 여부 퀴즈",
-    description: "청약 가능성을 간단한 질문으로 점검",
+    title: "청약 가점 퀴즈",
+    description: "무주택 기간, 부양가족, 청약통장 등 청약 가점 산정 기준을 퀴즈로 학습",
     href: "/site/subscription-quiz",
   },
 ]
