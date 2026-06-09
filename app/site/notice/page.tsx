@@ -151,31 +151,6 @@ export default function NoticePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const previousScrollRestoration = window.history.scrollRestoration;
-
-    window.history.scrollRestoration = 'manual';
-
-    const scrollTop = () => {
-      window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: 'auto',
-      });
-    };
-
-    scrollTop();
-
-    const animationFrameId = requestAnimationFrame(scrollTop);
-    const timeoutId = window.setTimeout(scrollTop, 100);
-
-    return () => {
-      window.history.scrollRestoration = previousScrollRestoration;
-      cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
-
-  useEffect(() => {
     const fetchNotices = async () => {
       try {
         const data = await get<ApiNoticeItem[]>('/api/notice', {
@@ -243,7 +218,7 @@ export default function NoticePage() {
   }, [totalPages]);
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-6 pb-12 pt-28">
+    <main className="bg-[#f8fafc] px-6 py-8">
       <section className="mx-auto max-w-5xl">
         <header className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>

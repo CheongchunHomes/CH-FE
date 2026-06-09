@@ -68,31 +68,6 @@ export default function LedgerPage() {
   });
 
   useEffect(() => {
-    const previousScrollRestoration = window.history.scrollRestoration;
-
-    window.history.scrollRestoration = 'manual';
-
-    const scrollTop = () => {
-      window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: 'auto',
-      });
-    };
-
-    scrollTop();
-
-    const animationFrameId = requestAnimationFrame(scrollTop);
-    const timeoutId = window.setTimeout(scrollTop, 100);
-
-    return () => {
-      window.history.scrollRestoration = previousScrollRestoration;
-      cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
-
-  useEffect(() => {
     fetchLedgers();
   }, []);
 
@@ -211,7 +186,7 @@ export default function LedgerPage() {
   }, [transactions, selectedCategory]);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 pb-8 pt-28">
+    <main className="bg-slate-50 px-4 pb-8 pt-0">
       <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[220px_1fr]">
         <aside className="h-fit rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-6 flex items-center gap-2">
