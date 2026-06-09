@@ -219,7 +219,7 @@ export default function PolicyGuidePage() {
         <div className="mb-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
             <Home size={16} />
-            청년홈즈 주거 제도 가이드
+            청춘홈즈 주거 제도 가이드
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">

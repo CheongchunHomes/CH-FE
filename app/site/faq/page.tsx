@@ -134,7 +134,7 @@ function FaqPageContent() {
         <div className="mb-8">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
             <HelpCircle size={16} />
-            청년홈즈 도움말
+            청춘홈즈 도움말
           </div>
 
           <h1 className="text-3xl font-bold text-slate-900">
@@ -142,7 +142,7 @@ function FaqPageContent() {
           </h1>
 
           <p className="mt-2 text-slate-500">
-            청년홈즈 이용 중 자주 묻는 질문을 한눈에 확인하세요.
+            청춘홈즈 이용 중 자주 묻는 질문을 한눈에 확인하세요.
           </p>
         </div>
 

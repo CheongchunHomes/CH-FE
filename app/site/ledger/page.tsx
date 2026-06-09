@@ -196,7 +196,7 @@ export default function LedgerPage() {
             <div>
               <h1 className="text-xl font-bold tracking-tight">가계부</h1>
               <p className="text-xs text-muted-foreground">
-                청년홈즈 지출 관리
+                청춘홈즈 지출 관리
               </p>
             </div>
           </div>

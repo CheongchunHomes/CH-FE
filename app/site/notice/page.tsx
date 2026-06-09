@@ -222,13 +222,13 @@ export default function NoticePage() {
         <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
             <span className="inline-flex rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
-              청년홈즈 소식
+              청춘홈즈 소식
             </span>
             <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
               공지사항
             </h1>
             <p className="mt-4 text-base text-slate-500">
-              청년홈즈의 새로운 소식과 중요한 안내를 확인하세요.
+              청춘홈즈의 새로운 소식과 중요한 안내를 확인하세요.
             </p>
           </div>
 
