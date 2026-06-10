@@ -162,23 +162,13 @@ export default function PoliciesPage() {
   // 로그인 안 했거나 토큰이 만료된 경우에는 요청하지 않고 빈 Set으로 처리
   useEffect(() => {
     const fetchScrapIds = async () => {
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("jwt")
-
-      if (!token) {
-        setLikedIds(new Set())
-        return
-      }
-
       try {
-        const ids = await getMyPolicyScrapIds()
-        setLikedIds(new Set(ids))
-      } catch {
-        setLikedIds(new Set())
+        const ids = await getMyPolicyScrapIds();
+        setLikedIds(new Set(ids));
+      } catch (e) {
+        setLikedIds(new Set());
       }
-    }
+    };
 
     fetchScrapIds()
   }, [])
@@ -212,38 +202,28 @@ export default function PoliciesPage() {
   }
 
 const handleLike = async (id: number) => {
-  const token =
-    localStorage.getItem("accessToken") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("jwt")
-
-  if (!token) {
-    setLoginDialogOpen(true)
-    return
-  }
-
-  const isLiked = likedIds.has(id)
+  const isLiked = likedIds.has(id);
 
   try {
     if (isLiked) {
-      await removePolicyScrap(id)
+      await removePolicyScrap(id);
     } else {
-      await addPolicyScrap(id)
+      await addPolicyScrap(id);
     }
 
     setLikedIds((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
 
       if (isLiked) {
-        next.delete(id)
+        next.delete(id);
       } else {
-        next.add(id)
+        next.add(id);
       }
 
-      return next
-    })
-  } catch {
-    setLoginDialogOpen(true)
+      return next;
+    });
+  } catch (e) {
+    setLoginDialogOpen(true);
   }
 }
 

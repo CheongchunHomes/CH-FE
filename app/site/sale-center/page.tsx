@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,14 +82,9 @@ type UserLocation = {
   longitude: number;
 };
 
-const isLocationFilterActive = (filter?: string) => {
-  return !!filter && filter !== "전체";
-};
-
 function SaleCenterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const resetParam = searchParams.get("reset");
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [searchSuggestions, setSearchSuggestions] = useState<Announcement[]>([]);
@@ -129,26 +124,20 @@ function SaleCenterPageContent() {
 
   useEffect(() => {
     const fetchScrapIds = async () => {
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("jwt");
-
-      if (!token) {
-        setLikedIds(new Set());
-        return;
-      }
-
       try {
         const ids = await getMyAnnouncementScrapIds();
         setLikedIds(new Set(ids));
-      } catch {
+      } catch (e) {
         setLikedIds(new Set());
       }
     };
 
     fetchScrapIds();
   }, []);
+
+  const isLocationFilterActive = (filter?: string) => {
+    return !!filter && filter !== "전체";
+  };
 
   const getLocationFilterGuideText = (filter?: string) => {
     if (filter === "거리 순") {
@@ -222,57 +211,54 @@ function SaleCenterPageContent() {
     return nextLocation;
   };
 
-  const fetchData = useCallback(
-    async (
-      page: number,
-      region?: string,
-      status?: string,
-      keyword?: string,
-      deadlineSoon?: boolean,
-      location?: UserLocation | null,
-      locationFilter?: string
-    ) => {
-      try {
-        const useLocation = !!location && isLocationFilterActive(locationFilter);
+  const fetchData = async (
+    page: number,
+    region?: string,
+    status?: string,
+    keyword?: string,
+    deadlineSoon?: boolean,
+    location?: UserLocation | null,
+    locationFilter?: string
+  ) => {
+    try {
+      const useLocation = !!location && isLocationFilterActive(locationFilter);
 
-        console.log("[sale-center search params]", {
-          region,
-          status,
-          keyword,
-          deadlineSoon,
-          targetType: "공공분양주택",
-          latitude: useLocation ? location.latitude : undefined,
-          longitude: useLocation ? location.longitude : undefined,
-          locationFilter: useLocation ? locationFilter : undefined,
-          page,
-          size: 10,
-        });
+      console.log("[sale-center search params]", {
+        region,
+        status,
+        keyword,
+        deadlineSoon,
+        targetType: "공공분양주택",
+        latitude: useLocation ? location.latitude : undefined,
+        longitude: useLocation ? location.longitude : undefined,
+        locationFilter: useLocation ? locationFilter : undefined,
+        page,
+        size: 10,
+      });
 
-        const data = await getAnnouncements({
-          region,
-          status,
-          keyword,
-          deadlineSoon,
-          targetType: "공공분양주택",
-          latitude: useLocation ? location.latitude : undefined,
-          longitude: useLocation ? location.longitude : undefined,
-          locationFilter: useLocation ? locationFilter : undefined,
-          page,
-          size: 10,
-        });
+      const data = await getAnnouncements({
+        region,
+        status,
+        keyword,
+        deadlineSoon,
+        targetType: "공공분양주택",
+        latitude: useLocation ? location.latitude : undefined,
+        longitude: useLocation ? location.longitude : undefined,
+        locationFilter: useLocation ? locationFilter : undefined,
+        page,
+        size: 10,
+      });
 
-        setAnnouncements(data.content);
-        setTotalElements(data.totalElements);
-        setTotalPages(data.totalPages);
-        setCurrentPage(data.number);
-      } catch (e) {
-        console.error(e);
-      }
-    },
-    []
-  );
+      setAnnouncements(data.content);
+      setTotalElements(data.totalElements);
+      setTotalPages(data.totalPages);
+      setCurrentPage(data.number);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-  const resetAll = useCallback(() => {
+  const resetAll = () => {
     setRegion(undefined);
     setStatus(undefined);
     setKeyword("");
@@ -298,11 +284,11 @@ function SaleCenterPageContent() {
     setIsSearchOpen(false);
 
     fetchData(0);
-  }, [fetchData]);
+  };
 
   useEffect(() => {
     resetAll();
-  }, [resetParam, resetAll]);
+  }, [searchParams.get("reset")]);
 
   useEffect(() => {
     const trimmedKeyword = keyword.trim();
@@ -397,48 +383,38 @@ function SaleCenterPageContent() {
   };
 
    const handleLike = async (id: number) => {
-    const token =
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("jwt")
-
-    if (!token) {
-      setLoginDialogOpen(true)
-      return
-    }
-
-    const isLiked = likedIds.has(id)
+    const isLiked = likedIds.has(id);
 
     try {
       if (isLiked) {
-        await removeAnnouncementScrap(id)
+        await removeAnnouncementScrap(id);
       } else {
-        await addAnnouncementScrap(id)
+        await addAnnouncementScrap(id);
       }
 
       setLikedIds((prev) => {
-        const next = new Set(prev)
+        const next = new Set(prev);
 
         if (isLiked) {
-          next.delete(id)
+          next.delete(id);
         } else {
-          next.add(id)
+          next.add(id);
         }
 
-        return next
-      })
-    } catch {
-      setLoginDialogOpen(true)
+        return next;
+      });
+    } catch (e) {
+      setLoginDialogOpen(true);
     }
-  }
+  };
 
-  const uniqueSearchSuggetions = Array.from(
-    new Map(
-      searchSuggestions.map((a) => [
-        `${a.title}-${a.address}-${a.applyEndDate}`,
-        a,
-      ])
-    ).values()
+    const uniqueSearchSuggetions = Array.from(
+      new Map(
+        searchSuggestions.map((a) => [
+          `${a.title}-${a.address}-${a.applyEndDate}`,
+          a,
+        ])
+      ).values()
   );
 
   const filteredCommandItems = uniqueSearchSuggetions.map((a) => ({

@@ -7,7 +7,7 @@ import { DiagnosisForm } from "@/lib/diagnosisUtils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { MapPin, Home, Target, Lightbulb, TrendingDown, ArrowLeftRight } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
-import { formatManwon, HousingSnapshot } from "@/lib/simulatorUtils"
+import { formatManwon, HousingSnapshot, manwonToWon } from "@/lib/simulatorUtils"
 import { Badge } from "@/components/ui/badge"
 
 interface PolicyListDTO {
@@ -51,8 +51,10 @@ interface HousingCompareProps {
 }
 
 export default function HousingCompare({ userProfile }: HousingCompareProps) {
+  // 이전 탭 입력값을 복원하되, SSR에서는 브라우저 저장소에 접근하지 않는다.
   const saved = (() => {
-    try { return JSON.parse(sessionStorage.getItem("housingSnapshot") ?? "null") as HousingSnapshot | null }
+    if (typeof window === "undefined") return null
+    try { return JSON.parse(window.sessionStorage.getItem("housingSnapshot") ?? "null") as HousingSnapshot | null }
     catch { return null }
   })()
 
@@ -67,7 +69,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
   const [tipPolicies, setTipPolicies] = useState<PolicyListDTO[]>([])
   const [loanAmount, setLoanAmount]   = useState(saved?.loanAmount ?? 0)
   const [savingAmount, setSavingAmount] = useState(
-    saved?.savingAmount ?? MONTHLY_RENT_BY_REGION["서울"][20]
+    saved?.savingAmount ?? 50
   )
 
   const router = useRouter()
@@ -75,14 +77,12 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
   function handleCurrentSizeChange(size: number) {
     setCurrentSize(size)
     setCurrentRentInput(String(MONTHLY_RENT_BY_REGION[region][size]))
-    setSavingAmount(MONTHLY_RENT_BY_REGION[region][size])
   }
 
-  // [FIX] 지역 변경 시 currentRent·savingAmount도 해당 지역 기준으로 갱신
+  // 월 저축액은 월세와 별개 입력값이므로 지역 변경 시 월세만 갱신한다.
   function handleRegionChange(r: Region) {
     setRegion(r)
     setCurrentRentInput(String(MONTHLY_RENT_BY_REGION[r][currentSize]))
-    setSavingAmount(MONTHLY_RENT_BY_REGION[r][currentSize])
   }
 
   function handleTargetSizeChange(size: number) {
@@ -108,32 +108,52 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
       .catch(() => {})
   }, [userProfile])
 
-  // 계산
+  // 월세 체감 영역: 현재 월세가 장기적으로 누적되는 금액만 계산한다.
   const targetDeposit  = JEONSE_DEPOSIT_BY_REGION[region][targetSize]
   const targetRent     = MONTHLY_RENT_BY_REGION[region][targetSize]
+  const oneYearRent    = currentRent * 12
   const tenYearWaste   = currentRent * 12 * 10
   const monthlyGap     = targetRent - currentRent
-  // [FIX] 데드코드였던 savingSwitch10 — 기존 JSX에서 실제로 사용하므로 유지
-  const savingSwitch10 = currentRent * 12 * 10
-
-  // [FIX] savingAmount 음수 방어
-  const safeSaving    = Math.max(savingAmount, 0)
-  const yearsToGoal   = safeSaving > 0 ? Math.ceil(targetDeposit / (safeSaving * 12)) : 0
-  const yearsWithLoan = safeSaving > 0
-    ? Math.ceil(Math.max(targetDeposit - loanAmount, 0) / (safeSaving * 12))
+  const monthlyGapLabel = monthlyGap >= 0
+    ? `월 ${monthlyGap}만원 gap`
+    : `월 ${Math.abs(monthlyGap)}만원 감소`
+  const rentToDepositPercent = targetDeposit > 0
+    ? Math.min(Math.round((tenYearWaste / targetDeposit) * 100), 100)
     : 0
-  const loanCoversAll = targetDeposit <= loanAmount
-  const yearsSaved    = yearsToGoal - yearsWithLoan
 
-  // housingSnapshot → sessionStorage 저장 (탭4 AI 프롬프트용)
+  // 보증금 준비 영역: 목표 보증금에서 대출을 뺀 금액을 월 저축액으로 나눠 개월 수를 구한다.
+  const safeSaving         = Math.max(savingAmount, 0)
+  const cashNeededNoLoan   = targetDeposit
+  const cashNeededWithLoan = Math.max(targetDeposit - loanAmount, 0)
+  const monthsToGoal       = safeSaving > 0 ? Math.ceil(cashNeededNoLoan / safeSaving) : 0
+  const monthsWithLoan     = safeSaving > 0 ? Math.ceil(cashNeededWithLoan / safeSaving) : 0
+  const monthsSaved        = Math.max(monthsToGoal - monthsWithLoan, 0)
+  const loanCoversAll      = cashNeededWithLoan === 0
+  // 청춘플랜/기존 HousingSnapshot 호환을 위해 연 단위 값도 계속 저장한다.
+  const yearsToGoal        = monthsToGoal > 0 ? Math.ceil(monthsToGoal / 12) : 0
+  const yearsWithLoan      = monthsWithLoan > 0 ? Math.ceil(monthsWithLoan / 12) : 0
+  const yearsSaved         = monthsSaved > 0 ? Math.ceil(monthsSaved / 12) : 0
+
+  function formatPeriod(months: number, canCalculate = safeSaving > 0) {
+    if (!canCalculate) return "–"
+    if (months <= 0) return "바로 가능"
+    const years = Math.floor(months / 12)
+    const restMonths = months % 12
+    if (years === 0) return `${restMonths}개월`
+    if (restMonths === 0) return `${years}년`
+    return `${years}년 ${restMonths}개월`
+  }
+
+  // 청춘플랜 탭에서 재사용할 주거 시뮬레이션 스냅샷을 저장한다.
   useEffect(() => {
+    if (typeof window === "undefined") return
     const snapshot: HousingSnapshot = {
       region, currentSize, currentRent, targetSize,
       targetDeposit, targetRent, tenYearWaste, monthlyGap,
       savingAmount: safeSaving, loanAmount,
       yearsToGoal, yearsWithLoan, yearsSaved, loanCoversAll,
     }
-    sessionStorage.setItem("housingSnapshot", JSON.stringify(snapshot))
+    window.sessionStorage.setItem("housingSnapshot", JSON.stringify(snapshot))
   }, [region, currentSize, currentRent, targetSize, targetDeposit, targetRent,
     tenYearWaste, monthlyGap, safeSaving, loanAmount, yearsToGoal, yearsWithLoan,
     yearsSaved, loanCoversAll])
@@ -211,12 +231,12 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
               {/* 현재 상태 요약 */}
               <div className="bg-gray-50 rounded-xl px-4 py-3">
                 <div className="flex justify-between items-baseline pb-2 border-b border-gray-200 mb-2">
-                  <p className="text-xs font-medium text-gray-500">매달 나가는 돈</p>
+                  <p className="text-xs font-medium text-gray-500">월세는 얼마나 쌓일까?</p>
                   <p className="text-xl font-bold text-gray-900">{currentRent}만원</p>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <p className="text-xs font-medium text-gray-500">1년이면</p>
-                  <p className="text-base font-bold text-red-500">{formatManwon(currentRent * 12)}</p>
+                  <p className="text-base font-bold text-red-500">{formatManwon(oneYearRent)}</p>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <p className="text-xs font-medium text-gray-500">10년이면</p>
@@ -224,7 +244,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-gray-100">
                   <p className="text-xs font-medium text-gray-500">하루로 나누면</p>
-                  <p className="text-xs font-bold text-gray-900">{Math.round((currentRent * 10000) / 30).toLocaleString()}원</p>
+                  <p className="text-xs font-bold text-gray-900">{Math.round(manwonToWon(currentRent) / 30).toLocaleString()}원</p>
                 </div>
 
               </div>
@@ -232,10 +252,10 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
               {/* 전환 제안 */}
               <div className="flex items-center gap-1.5">
                 <TrendingDown size={14} className="text-blue-500" />
-                <p className="text-sm font-bold text-gray-900">지금 새고 있는 돈</p>
+                <p className="text-sm font-bold text-gray-900">월세는 얼마나 쌓일까?</p>
               </div>
               <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium text-gray-500">이 돈을 저축으로 돌린다면?</p>
+                <p className="text-xs font-medium text-gray-500">매달 나가는 월세를 장기 금액으로 환산해봐요</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-gray-50 rounded-xl px-3 py-3 text-center">
                     <p className="text-[10px] font-medium text-gray-400">지금처럼 월세로</p>
@@ -243,10 +263,10 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                     <p className="text-[10px] text-gray-400 mt-0.5">전부 소멸</p>
                   </div>
                   <div className="bg-blue-50 rounded-xl px-3 py-3 text-center">
-                    <p className="text-[10px] font-medium text-gray-400">저축으로 전환하면</p>
-                    <p className="text-sm font-bold text-blue-600 mt-1">{formatManwon(savingSwitch10)}</p>
+                    <p className="text-[10px] font-medium text-gray-400">10년 월세 총액</p>
+                    <p className="text-sm font-bold text-blue-600 mt-1">{formatManwon(tenYearWaste)}</p>
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      목표 보증금의 {Math.min(Math.round((savingSwitch10 / targetDeposit) * 100), 100)}%
+                      목표 보증금의 {rentToDepositPercent}%
                     </p>
                   </div>
                 </div>
@@ -269,7 +289,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                   </div>
                   <p className="text-xs font-medium text-gray-500 mt-0.5">지역 기준으로 시세 차이가 있어요</p>
                 </div>
-                {/* [FIX] 지역 선택 — 우측 상단 배치 유지, 변경 시 currentRent·savingAmount 갱신 */}
+                {/* [FIX] 지역 선택 — 우측 상단 배치 유지, 변경 시 currentRent 갱신 */}
                 <div className="flex items-center gap-1">
                   {(["서울", "경기", "광역시", "기타"] as const).map((r) => (
                     <button
@@ -366,7 +386,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                       <span className="text-xs font-medium text-gray-500">목표 월세</span>
                       <span className="text-sm font-bold text-blue-600">{targetRent}만원</span>
                     </div>
-                    <Badge variant="destructive">월 {monthlyGap}만원 gap</Badge>
+                    <Badge variant="destructive">{monthlyGapLabel}</Badge>
                   </div>
                 )}
               </div>
@@ -378,42 +398,40 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center gap-1.5 mb-0.5">
             <Target size={14} className="text-blue-500" />
-            <p className="text-sm font-bold text-gray-900">대출 끼면 얼마나 달라져?</p>
+            <p className="text-sm font-bold text-gray-900">대출을 활용하면 얼마나 빨라질까?</p>
           </div>
-          <p className="text-xs font-medium text-gray-500 mb-5">저축 금액과 전세대출을 조정해봐요</p>
+          <p className="text-xs font-medium text-gray-500 mb-5">목표 보증금에서 대출 가능 금액을 제외하고, 내가 모아야 할 금액과 기간을 계산해요</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 좌: 시나리오 2-카드 */}
             <div className="flex flex-col gap-3">
+              <div className="bg-gray-50 rounded-xl px-4 py-3">
+                <p className="text-xs font-medium text-gray-500">
+                  목표 {formatManwon(targetDeposit)} 중 대출 {formatManwon(loanAmount)}을 제외하면
+                </p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  내가 모아야 할 돈은 {formatManwon(cashNeededWithLoan)}이에요
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-0.5 h-full">
-                  <p className="text-xs font-medium text-gray-400">매년 {(safeSaving * 12).toLocaleString()}만원씩
-                  </p>
+                  <p className="text-xs font-medium text-gray-400">대출 없이 준비하면</p>
+                  <p className="text-xs font-medium text-gray-400">내가 모아야 할 돈 {formatManwon(targetDeposit)}</p>
                   <p className="text-2xl font-bold text-gray-900 my-0.5">
-                    {safeSaving > 0 ? `${yearsToGoal}년` : "–"}
+                    {formatPeriod(monthsToGoal)}
                   </p>
-                  <p className="text-xs font-medium text-gray-400">을 모아야 해요</p>
+                  <p className="text-xs font-medium text-gray-400">월 {safeSaving}만원씩 기준</p>
                 </div>
                 <div className="bg-blue-50 rounded-xl p-4 text-center flex flex-col items-center justify-center gap-0.5 h-full">
-                  <p className="text-xs font-medium text-gray-400">
-                    대출 {loanAmount > 0 ? formatManwon(loanAmount) : "0원"} 끼면
+                  <p className="text-xs font-medium text-gray-400">대출 활용 시</p>
+                  <p className="text-xs font-medium text-gray-400">내가 모아야 할 돈 {formatManwon(cashNeededWithLoan)}</p>
+                  <p className="text-2xl font-bold text-blue-600 my-0.5">
+                    {formatPeriod(monthsWithLoan, safeSaving > 0 || loanCoversAll)}
                   </p>
-                  <div className="flex items-baseline justify-center gap-1.5 my-0.5">
-                    <p className="text-2xl font-bold text-blue-600">
-                      {loanCoversAll ? "바로 가능" : safeSaving > 0 ? `${yearsWithLoan}년` : "–"}
-                    </p>
-                    {!loanCoversAll && yearsSaved > 0 && (
-                      <p className="text-xs font-bold text-blue-500">↓ {yearsSaved}년 단축</p>
-                    )}
-                    {loanCoversAll && (
-                      <p className="text-xs font-bold text-blue-50000">↓ {yearsToGoal}년 단축</p>
-                    )}
-                  </div>
-                  <p className="text-xs font-medium text-gray-400">
-                    {loanAmount === 0
-                      ? "슬라이더를 움직여봐요"
-                      : `월 ${safeSaving}만원 저축 기준`}
-                  </p>
+                  {monthsSaved > 0 && (
+                    <p className="text-xs font-bold text-blue-500">↓ {formatPeriod(monthsSaved)} 단축</p>
+                  )}
                 </div>
               </div>
 
@@ -421,8 +439,11 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 <p className="text-xs font-medium text-gray-500">대출을 활용하면</p>
                 <p className="text-sm font-bold text-gray-900">
                   {loanAmount === 0 ? "대출 금액을 설정해보세요"
-                    : loanCoversAll ? `${yearsToGoal}년 단축 · 바로 이사 가능`
-                      : yearsSaved > 0 ? `${yearsSaved}년 단축`
+                    : loanCoversAll
+                      ? safeSaving > 0 && monthsSaved > 0
+                        ? `${formatPeriod(monthsSaved)} 단축 · 바로 준비 가능`
+                        : "바로 준비 가능"
+                      : monthsSaved > 0 ? `${formatPeriod(monthsSaved)} 단축`
                         : "대출 효과가 크지 않아요"}
                 </p>
               </div>
@@ -431,7 +452,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 onClick={() => router.push("/site/simulator?tab=financeFeel")}
                 className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all"
               >
-                대출 체감해보기 →
+                이자 부담 확인하기 →
               </button>
             </div>
 
@@ -445,7 +466,7 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-1">
-                    <p className="text-xs font-medium text-gray-500">매달 저축 가능한 금액</p>
+                    <p className="text-xs font-medium text-gray-500">월 실제 저축 가능액</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-gray-300 cursor-default text-xs">ⓘ</span>
@@ -487,18 +508,22 @@ export default function HousingCompare({ userProfile }: HousingCompareProps) {
                 </div>
 
                 {/* 계산식 요약 — 슬라이더 아래 */}
-                {safeSaving > 0 && (
-                  <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
-                    <p className="text-xs text-gray-500">
-                      {!loanCoversAll && (
-                        <>저축 <span className="font-bold text-gray-900">{formatManwon(safeSaving * 12 * yearsWithLoan)}</span> + </>
-                      )}
-                      대출 <span className="font-bold text-gray-900">{formatManwon(loanAmount)}</span>
-                      {" = "}
-                      목표 <span className="font-bold text-blue-600">{formatManwon(targetDeposit)}</span>
-                    </p>
-                  </div>
-                )}
+                <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs text-gray-500">
+                    내 몫 <span className="font-bold text-gray-900">{formatManwon(cashNeededWithLoan)}</span>
+                    {" + "}
+                    대출 <span className="font-bold text-gray-900">{formatManwon(loanAmount)}</span>
+                    {" = "}
+                    목표 <span className="font-bold text-blue-600">{formatManwon(targetDeposit)}</span>
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {loanCoversAll
+                      ? "대출로 목표 보증금을 모두 채워 바로 가능"
+                      : safeSaving > 0
+                        ? `월 ${safeSaving}만원씩 모으면 ${formatPeriod(monthsWithLoan, true)}`
+                        : "월 저축 가능액을 입력하면 기간을 계산해요"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/pagination"
 import {
   calcSchedule, calcInterestOnly, calcDsr,
-  formatCurrency, formatWon,
+  formatCurrency, formatWon, manwonToWon, wonToManwon,
   RepayRow, FinanceSnapshot,
 } from "@/lib/simulatorUtils"
 
@@ -168,13 +168,17 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
 
   // [FIX] null 방어: interestRate → interestRateMin → 기본값 3.5% 순 fallback
   const rate    = loan.interestRate ?? loan.interestRateMin ?? 3.5
-  const balance = loan.maxAmount ?? 0
+  // 추천 대출 상품은 DB 한도 금액을 기준으로 월 납입/이자/DSR을 시뮬레이션한다.
+  const loanLimitWon = manwonToWon(loan.maxAmount ?? 0)
+  const rateLabel = loan.interestRateMin != null && loan.interestRate != null && loan.interestRateMin !== loan.interestRate
+    ? `${loan.interestRateMin}~${loan.interestRate}%`
+    : `${rate}%`
 
-  const schedule       = method === "equal" ? calcSchedule(balance, rate, months) : []
-  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(balance, rate)
+  const schedule       = method === "equal" ? calcSchedule(loanLimitWon, rate, months) : []
+  const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(loanLimitWon, rate)
   const totalInterest  = method === "equal"
     ? schedule.reduce((s, r) => s + r.interest, 0)
-    : calcInterestOnly(balance, rate) * months
+    : calcInterestOnly(loanLimitWon, rate) * months
   const dsrContrib = calcDsr(monthlyPayment, monthlyIncome)
 
   return (
@@ -188,7 +192,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
           <div>
             <p className="text-sm font-bold text-gray-900">{loan.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              최대 {formatWon(loan.maxAmount ?? 0)} · 연 {loan.interestRateMin ?? loan.interestRate}~{loan.interestRate}%
+              최대 {formatCurrency(loanLimitWon)} · 연 {rateLabel}
             </p>
           </div>
         </div>
@@ -232,7 +236,7 @@ function LoanAccordionItem({ loan, monthlyIncome }: { loan: LoanProduct; monthly
             {/* 대출금액 — 기준점 */}
             <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
               <p className="text-xs font-bold text-gray-400">대출금액</p>
-              <p className="text-sm font-bold text-gray-900">{formatWon(balance)}</p>
+              <p className="text-sm font-bold text-gray-900">{formatCurrency(loanLimitWon)}</p>
             </div>
             {method === "equal" ? (
               <>
@@ -284,7 +288,8 @@ interface FinanceFeelProps {
 // 대출 상품 필터링 — 소득·혼인·자녀 조건
 function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | null): LoanProduct[] {
   return loans.filter((loan) => {
-    const incomeOk   = loan.incomeLimit == null || (userProfile?.annualIncome ?? 0) / 10000 <= loan.incomeLimit
+    // 연소득은 원 단위, incomeLimit은 만원 단위라 비교 전 연소득을 만원으로 환산한다.
+    const incomeOk   = loan.incomeLimit == null || wonToManwon(userProfile?.annualIncome ?? 0) <= loan.incomeLimit
     const marriageOk = userProfile?.married      || !loan.name.includes("신혼부부")
     const childOk    = userProfile?.hasYoungChild || !loan.name.includes("신생아")
     return incomeOk && marriageOk && childOk
@@ -294,21 +299,21 @@ function filterLoanProducts(loans: LoanProduct[], userProfile: DiagnosisForm | n
 export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const router = useRouter()
 
-  // [FIX] 단위 버그 수정: annualIncome은 원 단위(DB 기준) → /12로 월소득(원) 변환
-  // 기존: Math.round(annualIncome / 12) * 10000 → 연봉 3600만원이 300억으로 계산되던 버그
-  const defaultMonthlyIncome = userProfile?.annualIncome
-    ? Math.round(userProfile.annualIncome / 12)
-    : 3_000_000
-
+  // savedFinance 먼저 선언
   const savedFinance = (() => {
     try { return JSON.parse(sessionStorage.getItem("financeSnapshot") ?? "null") as FinanceSnapshot | null }
     catch { return null }
   })()
 
-  const [loanAmount,     setLoanAmount]     = useState(savedFinance?.loanAmount    ?? 120_000_000)
-  const [annualRate,     setAnnualRate]     = useState(savedFinance?.annualRate    ?? 3.5)
-  const [monthlyIncome,  setMonthlyIncome]  = useState(savedFinance?.monthlyIncome ?? defaultMonthlyIncome)
-  const [repayMonths,    setRepayMonths]    = useState(savedFinance?.repayMonths   ?? 60)
+  const [loanAmount,    setLoanAmount]    = useState(savedFinance?.loanAmount  ?? 0)
+  const [annualRate,    setAnnualRate]    = useState(savedFinance?.annualRate  ?? 1.0)
+  // annualIncome 있으면 항상 프로필 연봉 기준 재계산 (연봉 변경 시 세션 캐시 무시)
+  const [monthlyIncome, setMonthlyIncome] = useState(
+    userProfile?.annualIncome
+      ? Math.round(userProfile.annualIncome / 12)
+      : savedFinance?.monthlyIncome ?? 2_500_000
+  )
+  const [repayMonths,   setRepayMonths]   = useState(savedFinance?.repayMonths ?? 60)
   const [method, setMethod] = useState<"equal" | "interest">(
     savedFinance?.method === "equal" || savedFinance?.method === "interest"
       ? savedFinance.method : "equal"
@@ -317,7 +322,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
   const [loanLoading,  setLoanLoading] = useState(true)
   const [showDetail,   setShowDetail]  = useState(false)  // 요약 카드 상세보기 토글
 
-  // 슬라이더 실시간 계산 — 프론트 유지 (API 이관 불필요)
+  // 사용자가 조정한 대출 조건으로 월 납입액과 DSR을 즉시 계산한다.
   const schedule       = method === "equal" ? calcSchedule(loanAmount, annualRate, repayMonths) : []
   const monthlyPayment = method === "equal" ? (schedule[0]?.payment ?? 0) : calcInterestOnly(loanAmount, annualRate)
   const dsr            = calcDsr(monthlyPayment, monthlyIncome)
@@ -326,7 +331,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
     ? schedule.reduce((s, r) => s + r.interest, 0)
     : calcInterestOnly(loanAmount, annualRate) * repayMonths
 
-  // financeSnapshot → sessionStorage (탭4 AI 프롬프트용)
+  // 청춘플랜 탭에서 재사용할 금융 체감 스냅샷을 저장한다.
   useEffect(() => {
     const snapshot: FinanceSnapshot = {
       loanAmount, annualRate, monthlyIncome, repayMonths, method,
@@ -365,7 +370,7 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
                 <p className="text-xs text-gray-500">대출금액</p>
                 <p className="text-sm font-bold text-gray-900">{formatCurrency(loanAmount)}</p>
               </div>
-              <Slider min={10_000_000} max={500_000_000} step={5_000_000} value={[loanAmount]} onValueChange={([v]) => setLoanAmount(v)} />
+              <Slider min={0} max={500_000_000} step={5_000_000} value={[loanAmount]} onValueChange={([v]) => setLoanAmount(v)} />
               <div className="flex justify-between">
                 <span className="text-[10px] text-gray-400">1,000만원</span>
                 <span className="text-[10px] text-gray-400">5억원</span>
@@ -389,16 +394,16 @@ export default function FinanceFeel({ userProfile }: FinanceFeelProps) {
               <div className="relative">
                 <input
                   type="number"
-                  value={monthlyIncome === 0 ? "" : Math.round(monthlyIncome / 10000)}
-                  onChange={(e) => setMonthlyIncome(Math.max(0, (Number(e.target.value) || 0) * 10000))}
+                  value={monthlyIncome === 0 ? "" : wonToManwon(monthlyIncome)}
+                  onChange={(e) => setMonthlyIncome(manwonToWon(Math.max(0, Number(e.target.value) || 0)))}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">만원</span>
               </div>
               <p className="text-xs text-gray-400">
                 {userProfile?.annualIncome
-                  ? `연봉 ${(userProfile.annualIncome / 10000).toLocaleString()}만원이에요 · 직접 수정 가능`
-                  : "기본값 300만원 적용 · 직접 수정 가능"}
+                  ? `연봉 ${wonToManwon(userProfile.annualIncome).toLocaleString()}만원이에요 · 직접 수정 가능`
+                  : "기본값 250만원 적용 · 직접 수정 가능"}
               </p>
             </div>
 

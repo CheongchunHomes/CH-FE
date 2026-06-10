@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import type { ElementType } from 'react';
 import {
   Search,
   Eye,
@@ -60,13 +61,13 @@ const categories: NoticeCategory[] = [
 const categoryStyle: Record<
   DisplayNoticeCategory,
   {
-    icon: React.ElementType;
+    icon: ElementType;
     className: string;
   }
 > = {
   '운영자 안내': {
     icon: Megaphone,
-    className: 'bg-sky-50 text-sky-700 border-sky-100',
+    className: 'bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/20',
   },
   '정책 변경': {
     icon: ShieldCheck,
@@ -217,18 +218,20 @@ export default function NoticePage() {
   }, [totalPages]);
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-6 py-12">
+    <main className="bg-[#f8fafc] px-6 py-8">
       <section className="mx-auto max-w-5xl">
-        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <header className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <span className="inline-flex rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
-              청년홈즈 소식
+            <span className="inline-flex rounded-full bg-[#2563EB]/10 px-4 py-2 text-sm font-semibold text-[#2563EB]">
+              청춘홈즈 소식
             </span>
+
             <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
               공지사항
             </h1>
+
             <p className="mt-4 text-base text-slate-500">
-              청년홈즈의 새로운 소식과 중요한 안내를 확인하세요.
+              청춘홈즈의 새로운 소식과 중요한 안내를 확인하세요.
             </p>
           </div>
 
@@ -254,7 +257,7 @@ export default function NoticePage() {
               />
             </div>
           </div>
-        </div>
+        </header>
 
         <div className="mb-7 flex flex-wrap gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           {categories.map((category) => {
@@ -267,8 +270,8 @@ export default function NoticePage() {
                 onClick={() => setSelectedCategory(category)}
                 className={`rounded-2xl px-6 py-3 text-sm font-bold transition ${
                   isActive
-                    ? 'bg-sky-600 text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-sky-50 hover:text-sky-700'
+                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    : 'bg-slate-50 text-slate-600 hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
                 }`}
               >
                 {category}
@@ -281,7 +284,7 @@ export default function NoticePage() {
           <div className="border-b border-slate-100 bg-slate-50 px-6 py-4">
             <p className="text-sm font-medium text-slate-500">
               총{' '}
-              <span className="font-bold text-sky-700">
+              <span className="font-bold text-[#2563EB]">
                 {filteredNotices.length}
               </span>
               개의 공지사항이 있습니다.
@@ -305,7 +308,7 @@ export default function NoticePage() {
                     <Link
                       key={notice.noticeId}
                       href={`/site/notice/${notice.noticeId}`}
-                      className="group block px-6 py-5 transition hover:bg-sky-50/60"
+                      className="group block px-6 py-5 transition hover:bg-[#2563EB]/10"
                     >
                       <div className="flex items-start justify-between gap-5">
                         <div className="min-w-0 flex-1">
@@ -330,7 +333,7 @@ export default function NoticePage() {
                             )}
                           </div>
 
-                          <h2 className="truncate text-lg font-semibold text-slate-900 group-hover:text-sky-700">
+                          <h2 className="truncate text-lg font-semibold text-slate-900 group-hover:text-[#2563EB]">
                             {notice.title}
                           </h2>
 
@@ -347,7 +350,7 @@ export default function NoticePage() {
                           </div>
                         </div>
 
-                        <ChevronRight className="mt-9 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-sky-600" />
+                        <ChevronRight className="mt-9 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2563EB]" />
                       </div>
                     </Link>
                   );
@@ -378,8 +381,8 @@ export default function NoticePage() {
                   onClick={() => setCurrentPage(page)}
                   className={`h-10 w-10 rounded-full text-sm font-bold transition ${
                     isActive
-                      ? 'bg-sky-600 text-white shadow-sm'
-                      : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-sky-50 hover:text-sky-700'
+                      ? 'bg-[#2563EB] text-white shadow-sm'
+                      : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
                   }`}
                 >
                   {page}

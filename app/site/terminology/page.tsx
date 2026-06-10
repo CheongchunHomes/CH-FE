@@ -217,13 +217,13 @@ export default function PolicyGuidePage() {
     <main className="min-h-screen bg-[#f4f7fb] px-4 py-8">
       <section className="mx-auto max-w-6xl">
         <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2196F3]">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#E3F2FD] px-4 py-2 text-sm font-semibold text-[#2563EB]">
             <Home size={16} />
-            청년홈즈 주거 제도 가이드
+            청춘홈즈 주거 제도 가이드
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            특공 · 임대 · 분양 제도 한눈에 보기
+            주거 청약 용어 설명
           </h1>
 
           <p className="mt-2 text-slate-500">
@@ -243,7 +243,7 @@ export default function PolicyGuidePage() {
               className="rounded-2xl border-slate-200 bg-white shadow-sm"
             >
               <CardContent className="p-5">
-                <strong className="text-xl text-[#2196F3]">{title}</strong>
+                <strong className="text-xl text-[#2563EB]">{title}</strong>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">
                   {desc}
                 </p>
@@ -263,7 +263,7 @@ export default function PolicyGuidePage() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="제도명, 대상, 설명으로 검색하세요"
-              className="h-12 rounded-2xl border-slate-200 pl-11 text-sm focus-visible:ring-[#2196F3]"
+              className="h-12 rounded-2xl border-slate-200 pl-11 text-sm focus-visible:ring-[#2563EB]"
             />
           </div>
 
@@ -279,8 +279,8 @@ export default function PolicyGuidePage() {
                   variant={isActive ? 'default' : 'outline'}
                   className={
                     isActive
-                      ? 'bg-[#2196F3] text-white hover:bg-[#1E88E5]'
-                      : 'border-[#2196F3]/30 text-[#2196F3] hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                      ? 'bg-[#2563EB] text-white hover:bg-[#1E88E5]'
+                      : 'border-[#2563EB]/30 text-[#2563EB] hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
                   }
                   onClick={() => setSelectedCategory(category)}
                 >
@@ -293,7 +293,7 @@ export default function PolicyGuidePage() {
 
         <div className="mb-4 text-sm font-medium text-slate-500">
           총{' '}
-          <span className="font-bold text-[#2196F3]">
+          <span className="font-bold text-[#2563EB]">
             {filteredGuides.length}
           </span>
           개의 제도가 있습니다.
@@ -308,7 +308,7 @@ export default function PolicyGuidePage() {
               >
                 <CardContent className="p-6">
                   <div className="mb-4 flex items-start justify-between gap-4">
-                    <Badge className="gap-1 bg-[#E3F2FD] text-[#2196F3] hover:bg-[#E3F2FD]">
+                    <Badge className="gap-1 bg-[#E3F2FD] text-[#2563EB] hover:bg-[#E3F2FD]">
                       {getCategoryIcon(guide.category)}
                       {guide.category}
                     </Badge>
@@ -345,7 +345,7 @@ export default function PolicyGuidePage() {
 
                   <div className="mt-5">
                     <p className="mb-2 flex items-center gap-1 text-sm font-bold text-slate-800">
-                      <CheckCircle2 className="h-4 w-4 text-[#2196F3]" />
+                      <CheckCircle2 className="h-4 w-4 text-[#2563EB]" />
                       확인할 조건
                     </p>
 
@@ -353,7 +353,7 @@ export default function PolicyGuidePage() {
                       {guide.checklist.map((item) => (
                         <span
                           key={item}
-                          className="rounded-full bg-[#E3F2FD] px-3 py-1 text-xs font-semibold text-[#2196F3]"
+                          className="rounded-full bg-[#E3F2FD] px-3 py-1 text-xs font-semibold text-[#2563EB]"
                         >
                           {item}
                         </span>
@@ -406,8 +406,8 @@ export default function PolicyGuidePage() {
                   variant={isActive ? 'default' : 'outline'}
                   className={
                     isActive
-                      ? 'h-10 w-10 bg-[#2196F3] p-0 text-white hover:bg-[#1E88E5]'
-                      : 'h-10 w-10 border-slate-200 p-0 text-slate-600 hover:bg-[#2196F3]/10 hover:text-[#2196F3]'
+                      ? 'h-10 w-10 bg-[#2563EB] p-0 text-white hover:bg-[#1E88E5]'
+                      : 'h-10 w-10 border-slate-200 p-0 text-slate-600 hover:bg-[#2563EB]/10 hover:text-[#2563EB]'
                   }
                   onClick={() => setCurrentPage(pageNumber)}
                 >

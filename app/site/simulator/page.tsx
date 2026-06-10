@@ -189,12 +189,12 @@ function SimulatorPageContent() {
           </TabsContent>
 
           {/* 탭02 주거 비교 */}
-          <TabsContent value="housingCompare">
+          <TabsContent value="housingCompare" forceMount className={activeTab !== "housingCompare" ? "hidden" : ""}>
             <HousingCompare userProfile={userProfile} />
           </TabsContent>
 
           {/* 탭03 금융 체감 */}
-          <TabsContent value="financeFeel">
+          <TabsContent value="financeFeel" forceMount className={activeTab !== "financeFeel" ? "hidden" : ""}>
             <FinanceFeel userProfile={userProfile} />
           </TabsContent>
 

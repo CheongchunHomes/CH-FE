@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,22 +83,21 @@ const LOCATION_FILTERS = [
 
 type AdvancedFilterType = "area" | "location" | null;
 
-const STATUSES = ["전체", "접수중", "접수예정", "마감"];
+const statusOptions: { label: string; value?: string }[] = [
+  { label: "전체", value: undefined },
+  { label: "접수중", value: "접수중" },
+  { label: "접수예정", value: "접수예정" },
+  { label: "마감", value: "마감" },
+];
 
 type UserLocation = {
   latitude: number;
   longitude: number;
 };
 
-const isLocationFilterActive = (filter?: string) => {
-  return !!filter && filter !== "전체";
-};
-
 function AnnouncementsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const resetParam = searchParams.get("reset");
-  const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [searchSuggestions, setSearchSuggestions] = useState<Announcement[]>([]);
@@ -140,26 +139,20 @@ function AnnouncementsPageContent() {
 
   useEffect(() => {
     const fetchScrapIds = async () => {
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("jwt");
-
-      if (!token) {
-        setLikedIds(new Set());
-        return;
-      }
-
       try {
         const ids = await getMyAnnouncementScrapIds();
         setLikedIds(new Set(ids));
-      } catch {
+      } catch (e) {
         setLikedIds(new Set());
       }
     };
 
     fetchScrapIds();
   }, []);
+
+  const isLocationFilterActive = (filter?: string) => {
+    return !!filter && filter !== "전체";
+  };
 
   const getLocationFilterGuideText = (filter?: string) => {
     if (filter === "거리 순") {
@@ -175,6 +168,30 @@ function AnnouncementsPageContent() {
     }
 
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
+  };
+
+  const getStatusLabel = (status?: string) => {
+    if (status === "접수마감" || status === "마감") {
+      return "마감";
+    }
+
+    return status ?? "";
+  };
+
+  const getStatusBadgeClass = (status?: string) => {
+    if (status === "접수마감" || status === "마감") {
+      return "bg-red-500 text-white hover:bg-red-500";
+    }
+
+    if (status === "접수중") {
+      return "bg-blue-600 text-white hover:bg-blue-600";
+    }
+
+    if (status === "접수예정") {
+      return "bg-gray-500 text-white hover:bg-gray-500";
+    }
+
+    return "bg-gray-300 text-gray-700 hover:bg-gray-300";
   };
 
   const requestUserLocation = (): Promise<UserLocation | null> => {
@@ -233,47 +250,49 @@ function AnnouncementsPageContent() {
     return nextLocation;
   };
 
-  const fetchData = useCallback(
-    async (
-      page: number,
-      region?: string,
-      status?: string,
-      keyword?: string,
-      deadlineSoon?: boolean,
-      areaType?: string,
-      location?: UserLocation | null,
-      locationFilter?: string
-    ) => {
-      try {
-        const useLocation = location && isLocationFilterActive(locationFilter);
-        const useAreaFilter = !!areaType && areaType !== "전체";
+  const fetchData = async (
+    page: number,
+    region?: string,
+    status?: string,
+    keyword?: string,
+    deadlineSoon?: boolean,
+    areaType?: string,
+    location?: UserLocation | null,
+    locationFilter?: string
+  ) => {
+    try {
+      const useLocation = location && isLocationFilterActive(locationFilter);
+      const useAreaFilter = !!areaType && areaType !== "전체";
 
-        const data = await getAnnouncements({
-          region,
-          status,
-          keyword,
-          deadlineSoon,
-          areaType,
-          targetType: useAreaFilter ? undefined : "공공임대주택",
-          latitude: useLocation ? location.latitude : undefined,
-          longitude: useLocation ? location.longitude : undefined,
-          locationFilter: useLocation ? locationFilter : undefined,
-          page,
-          size: 10,
-        });
+      // 전용면적 필터 쪽은 "접수마감"을 기대하고,
+      // 일반/위치 기반 공고 쪽은 "마감"을 기대해서 여기서만 변환
+      const requestStatus =
+        useAreaFilter && status === "마감" ? "접수마감" : status;
 
-        setAnnouncements(data.content);
-        setTotalElements(data.totalElements);
-        setTotalPages(data.totalPages);
-        setCurrentPage(data.number);
-      } catch (e) {
-        console.error(e);
-      }
-    },
-    []
-  );
+      const data = await getAnnouncements({
+        region,
+        status: requestStatus,
+        keyword,
+        deadlineSoon,
+        areaType,
+        targetType: useAreaFilter ? undefined : "공공임대주택",
+        latitude: useLocation ? location.latitude : undefined,
+        longitude: useLocation ? location.longitude : undefined,
+        locationFilter: useLocation ? locationFilter : undefined,
+        page,
+        size: 10,
+      });
 
-  const resetAll = useCallback(() => {
+      setAnnouncements(data.content);
+      setTotalElements(data.totalElements);
+      setTotalPages(data.totalPages);
+      setCurrentPage(data.number);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const resetAll = () => {
     setRegion(undefined);
     setStatus(undefined);
     setKeyword("");
@@ -301,13 +320,15 @@ function AnnouncementsPageContent() {
     setIsSearchOpen(false);
 
     fetchData(0);
-  }, [fetchData]);
+  };
 
   useEffect(() => {
     resetAll();
-  }, [resetParam, resetAll]);
+  }, [searchParams.get("reset")]);
 
   useEffect(() => {
+    const initialKeyword = searchParams.get("keyword")?.trim() ?? "";
+
     if (!initialKeyword) {
       return;
     }
@@ -326,7 +347,7 @@ function AnnouncementsPageContent() {
       null,
       undefined
     );
-  }, [fetchData, initialKeyword]);
+  }, [searchParams]);
 
   useEffect(() => {
     const trimmedKeyword = keyword.trim();
@@ -425,40 +446,30 @@ function AnnouncementsPageContent() {
   };
 
   const handleLike = async (id: number) => {
-    const token =
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("jwt")
-
-    if (!token) {
-      setLoginDialogOpen(true)
-      return
-    }
-
-    const isLiked = likedIds.has(id)
+    const isLiked = likedIds.has(id);
 
     try {
       if (isLiked) {
-        await removeAnnouncementScrap(id)
+        await removeAnnouncementScrap(id);
       } else {
-        await addAnnouncementScrap(id)
+        await addAnnouncementScrap(id);
       }
 
       setLikedIds((prev) => {
-        const next = new Set(prev)
+        const next = new Set(prev);
 
         if (isLiked) {
-          next.delete(id)
+          next.delete(id);
         } else {
-          next.add(id)
+          next.add(id);
         }
 
-        return next
-      })
-    } catch {
-      setLoginDialogOpen(true)
+        return next;
+      });
+    } catch (e) {
+      setLoginDialogOpen(true);
     }
-  }
+  };
 
   const uniqueSearchSuggetions = Array.from(
     new Map(
@@ -803,21 +814,17 @@ function AnnouncementsPageContent() {
               </span>
 
               <div className="flex flex-wrap gap-2">
-                {STATUSES.map((s) => {
-                  const isActive = (s === "전체" && !status) || status === s;
-
-                  return (
-                    <Button
-                      key={s}
-                      variant={isActive ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setStatus(s === "전체" ? undefined : s)}
-                      className={`h-9 px-4 ${isActive ? "shadow-md" : ""}`}
-                    >
-                      {s}
-                    </Button>
-                  );
-                })}
+                {statusOptions.map((option) => (
+                  <Button
+                    key={option.label}
+                    variant={status === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatus(option.value)}
+                    className={status === option.value ? "shadow-md" : ""}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
               </div>
             </div>
 
@@ -853,16 +860,8 @@ function AnnouncementsPageContent() {
               >
                 <div className="flex-1">
                   <div className="mb-1.5 flex items-center gap-2">
-                    <Badge
-                      variant={
-                        a.status === "마감"
-                          ? "destructive"
-                          : a.status === "접수예정"
-                            ? "secondary"
-                            : "default"
-                      }
-                    >
-                      {a.status}
+                    <Badge className={getStatusBadgeClass(a.status)}>
+                      {getStatusLabel(a.status)}
                     </Badge>
 
                     <span className="text-xs text-gray-400">
@@ -996,5 +995,5 @@ export default function AnnouncementsPage() {
     <Suspense fallback={null}>
       <AnnouncementsPageContent />
     </Suspense>
-  )
+  );
 }

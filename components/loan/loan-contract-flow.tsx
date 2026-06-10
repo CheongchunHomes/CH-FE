@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   LOAN_PRODUCT_FALLBACKS,
   findLoanProductByKey,
+  loadLoanProducts,
   type LoanProductKey,
   type LoanProductCard,
 } from "@/lib/loan/loan-product-catalog";
@@ -40,8 +41,6 @@ type Page3ModeContent = {
   intro: string;
   items: Page3Item[];
 };
-
-const PRODUCTS: Product[] = LOAN_PRODUCT_FALLBACKS;
 
 const INTEREST_OPTIONS: Array<{ id: InterestMode; label: string }> = [
   { id: "fixed", label: "만기까지 고정금리" },
@@ -422,6 +421,7 @@ export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContract
   const router = useRouter();
   const { user } = useAuth();
   const [selectedKey, setSelectedKey] = useState<LoanProductKey>(initialProductKey);
+  const [products, setProducts] = useState<Product[]>(LOAN_PRODUCT_FALLBACKS);
   const [page3Mode, setPage3Mode] = useState<Page3Mode>("basic");
   const [signatureTarget, setSignatureTarget] = useState<SignatureTarget | null>(null);
   const [contractOpen, setContractOpen] = useState(false);
@@ -445,13 +445,27 @@ export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContract
   const page3Ref = useRef<HTMLElement | null>(null);
 
   const selected = useMemo(
-    () => findLoanProductByKey(PRODUCTS, selectedKey),
-    [selectedKey],
+    () => findLoanProductByKey(products, selectedKey),
+    [products, selectedKey],
   );
 
   useEffect(() => {
     setSelectedKey(initialProductKey);
   }, [initialProductKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadLoanProducts()
+      .then((loadedProducts) => {
+        if (cancelled) return;
+        setProducts(loadedProducts);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const requestSignature = (target: SignatureTarget) => {
     setSignatureTarget(target);
@@ -714,7 +728,7 @@ export function LoanContractFlow({ initialProductKey = "newborn" }: LoanContract
 
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {PRODUCTS.map((product) => {
+            {products.map((product) => {
               const active = selectedKey === product.key;
               return (
                 <button
