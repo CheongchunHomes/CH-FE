@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MapListing } from "@/lib/map/map-types";
-import { resolveMapImageUrl } from "@/lib/map/map-image";
+import { getMapPropertyThumbnailImageUrl } from "@/lib/map/map-image";
 import { createSign } from "@/lib/sign-api";
 
 type MapPropertyDetailPanelProps = {
@@ -46,7 +46,7 @@ export default function MapPropertyDetailPanel({
   const securityFacilities = Array.isArray(listing.securityFacilities)
     ? listing.securityFacilities
     : [];
-  const thumbnailUrl = resolveMapImageUrl(listing.thumbnailUrl);
+  const thumbnailUrl = getMapPropertyThumbnailImageUrl(listing.id);
   const imageUrl = imageLoadFailed ? null : thumbnailUrl;
 
   const handleConfirmContractRequest = async () => {

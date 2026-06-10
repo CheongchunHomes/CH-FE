@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchBackend } from "@/lib/api/server";
-import { resolveMapImageUrl } from "@/lib/map/map-image";
+import { getMapPropertyThumbnailImageUrl } from "@/lib/map/map-image";
 import type { MapListing } from "@/lib/map/map-types";
 
 type PropertyDetailPageProps = {
@@ -42,7 +42,7 @@ export default async function PropertyDetailPage({
   const securityFacilities = Array.isArray(property.securityFacilities)
     ? property.securityFacilities
     : [];
-  const thumbnailUrl = resolveMapImageUrl(property.thumbnailUrl);
+  const thumbnailUrl = getMapPropertyThumbnailImageUrl(property.id);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-8">

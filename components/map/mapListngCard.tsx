@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { MapListing } from "@/lib/map/map-types";
-import { resolveMapImageUrl } from "@/lib/map/map-image";
+import { getMapPropertyThumbnailImageUrl } from "@/lib/map/map-image";
 
 type MapListingCardProps = {
   item: MapListing;
@@ -11,7 +11,7 @@ type MapListingCardProps = {
 
 export default function MapListingCard({ item, onClick }: MapListingCardProps) {
   const tags = Array.isArray(item.tag) ? item.tag : [];
-  const thumbnailUrl = resolveMapImageUrl(item.thumbnailUrl);
+  const thumbnailUrl = getMapPropertyThumbnailImageUrl(item.id);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   useEffect(() => {
