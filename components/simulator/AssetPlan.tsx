@@ -50,7 +50,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
 }
 
 // 추천 제도 ID (청년주택드림 청약통장, 청년내일저축계좌)
-const WHITELIST_IDS = [515, 20]
+const WHITELIST_IDS = [1643, 746, 643]
 
 const CATEGORY_CONTENT: Record<string, {
   shock: string; sub: string
