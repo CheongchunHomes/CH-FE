@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { MessageCircle, Send, X, Bot, User } from "lucide-react"
 import { getAnnouncement } from "@/lib/announcements-api"
+import { sendAiChat } from "@/lib/api"
 
 
 // 미니채팅 UI 파일은 components/chat/MiniChatWidget.tsx입니다.
@@ -189,25 +190,19 @@ export default function MiniChatWidget() {
         } catch {}
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_AI_BASE_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(({ sender, content }) => ({
-            role: sender === 'USER' ? 'user' : 'assistant',
-            content,
-          })),
-          pageContext: pageContext || undefined,
-          userContext: userContext || undefined,
-        }),
+      const data = await sendAiChat({
+        messages: [...messages, userMessage].map(({ sender, content }) => ({
+          role: sender === "USER" ? "user" : "assistant",
+          content,
+        })),
+        pageContext: pageContext || undefined,
+        userContext: userContext || undefined,
       })
-
-      const data = await response.json()
 
       const aiMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
-        sender: 'AI',
-        content: data.reply ?? '답변을 받아오지 못했습니다.',
+        sender: "AI",
+        content: data.reply ?? "답변을 받아오지 못했습니다.",
       }
 
       setMessages((prev) => [...prev, aiMessage])

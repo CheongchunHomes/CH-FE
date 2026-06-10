@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { DiagnosisForm } from "@/lib/diagnosisUtils"
+import { requestAiChat } from "@/lib/ai/chat-server"
 import { AssetPlanData, formatManwon, wonToManwon } from "@/lib/simulatorUtils"
 
 interface HousingSnapshot {
@@ -263,19 +264,7 @@ timeline: 현재/3개월/1년/3년.
   }]
 
   try {
-    // env URL 끝의 슬래시 유무와 무관하게 동일한 API 경로를 호출한다.
-    const aiBaseUrl = (process.env.NEXT_PUBLIC_AI_BASE_URL ?? "http://localhost:8000").replace(/[\\/]+$/, "")
-    const response = await fetch(`${aiBaseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    })
-
-    if (!response.ok) throw new Error(`AI 서버 요청 실패: ${response.status}`)
-
-    const data = await response.json() as { reply?: string; error?: string }
-    const reply = data.reply?.trim()
-    if (!reply) throw new Error("AI 서버 응답이 비어 있습니다.")
+    const { reply } = await requestAiChat({ messages })
 
     const clean = reply.replace(/```json|```/g, "").trim()
     const parsed = normalizeRoadmap(JSON.parse(clean) as RoadmapParsed)

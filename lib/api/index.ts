@@ -2,6 +2,8 @@
 // 예: import { get, post, ApiError } from "@/lib/api"
 export { API_FEEDBACK_EVENT, AUTH_REFRESH_RETRY_EVENT, ApiError, get, post, request } from "@/lib/api/client"
 export type { ApiFeedbackEventPayload, ApiMethod, ApiRequestOptions, AuthRefreshRetryEventPayload } from "@/lib/api/client"
+export { sendAiChat } from "@/lib/api/ai"
+export type { AiChatMessage, AiChatRequest, AiChatResponse, AiChatRole } from "@/lib/ai/chat-types"
 export {
   completeFileUpload,
   deleteFile,
