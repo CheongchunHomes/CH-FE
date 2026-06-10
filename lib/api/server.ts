@@ -72,6 +72,28 @@ function logProxyError(message: string, context: { method: ProxyMethod; url: str
   console.error("[api/proxy]", { message, method: context.method, url: context.url, status: context.status })
 }
 
+export function requireApiBaseUrl() {
+  if (!API_BASE_URL) {
+    throw new Error("API_BASE_URL is not configured.")
+  }
+
+  return API_BASE_URL
+}
+
+export function buildBackendUrl(path: string) {
+  const apiBaseUrl = requireApiBaseUrl()
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`
+
+  return `${apiBaseUrl}${normalizedPath}`
+}
+
+export async function fetchBackend(path: string, init?: RequestInit) {
+  return fetch(buildBackendUrl(path), {
+    ...init,
+    cache: init?.cache ?? "no-store",
+  })
+}
+
 export function proxyRoute(method: ProxyMethod) {
   return async function handler(request: Request) {
     const backendUrl = getBackendUrl(request)

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { fetchBackend } from "@/lib/api/server";
 import { resolveMapImageUrl } from "@/lib/map/map-image";
 import type { MapListing } from "@/lib/map/map-types";
 
@@ -11,11 +12,8 @@ type PropertyDetailPageProps = {
 };
 
 async function getProperty(id: string): Promise<MapListing | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
-  const response = await fetch(`${baseUrl}/api/properties/${id}`, {
+  const response = await fetchBackend(`/properties/${id}`, {
     method: "GET",
-    cache: "no-store",
   });
 
   if (response.status === 404) {
@@ -26,7 +24,7 @@ async function getProperty(id: string): Promise<MapListing | null> {
     throw new Error("매물 상세 정보를 불러오지 못했습니다.");
   }
 
-  return response.json();
+  return (await response.json()) as MapListing;
 }
 
 export default async function PropertyDetailPage({
