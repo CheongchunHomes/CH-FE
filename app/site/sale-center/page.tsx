@@ -155,6 +155,22 @@ function SaleCenterPageContent() {
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
 
+  const getDisplayStatus = (announcement: Announcement) => {
+    if (announcement.applyEndDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(announcement.applyEndDate);
+      endDate.setHours(0, 0, 0, 0);
+
+      if (endDate < today) {
+        return "마감";
+      }
+    }
+
+    return announcement.status;
+  };
+
   const requestUserLocation = (): Promise<UserLocation | null> => {
     if (!navigator.geolocation) {
       setLocationError("현재 브라우저에서 위치 정보를 사용할 수 없습니다.");
@@ -382,7 +398,7 @@ function SaleCenterPageContent() {
     resetAll();
   };
 
-   const handleLike = async (id: number) => {
+  const handleLike = async (id: number) => {
     const isLiked = likedIds.has(id);
 
     try {
@@ -408,13 +424,13 @@ function SaleCenterPageContent() {
     }
   };
 
-    const uniqueSearchSuggetions = Array.from(
-      new Map(
-        searchSuggestions.map((a) => [
-          `${a.title}-${a.address}-${a.applyEndDate}`,
-          a,
-        ])
-      ).values()
+  const uniqueSearchSuggetions = Array.from(
+    new Map(
+      searchSuggestions.map((a) => [
+        `${a.title}-${a.address}-${a.applyEndDate}`,
+        a,
+      ])
+    ).values()
   );
 
   const filteredCommandItems = uniqueSearchSuggetions.map((a) => ({
@@ -734,59 +750,67 @@ function SaleCenterPageContent() {
           </div>
 
           <div className="flex flex-col gap-2">
-            {announcements.map((a) => (
-              <Card
-                key={a.announcementId}
-                className="flex cursor-pointer items-center gap-4 p-5 transition-all hover:border-gray-400"
-                onClick={() =>
-                  window.open(`/site/sale-center/${a.announcementId}`, "_blank")
-                }
-              >
-                <div className="flex-1">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <Badge
-                      variant={
-                        a.status === "마감"
-                          ? "destructive"
-                          : a.status === "접수예정"
-                            ? "secondary"
-                            : "default"
-                      }
-                    >
-                      {a.status}
-                    </Badge>
+            {announcements.map((a) => {
+              const displayStatus = getDisplayStatus(a);
 
-                    <span className="text-xs text-gray-400">
-                      {a.region} · {a.recuitmentType} · {a.supplyInstitution}
-                    </span>
-                  </div>
-
-                  <div className="mb-1 text-sm font-medium text-gray-900">
-                    {a.title}
-                  </div>
-
-                  <div className="text-xs text-gray-500">
-                    {a.applyStartDate} ~ {a.applyEndDate}
-                  </div>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleLike(a.announcementId);
-                  }}
-                  className={`rounded-full border ${
-                    likedIds.has(a.announcementId)
-                      ? "border-red-400 text-red-400"
-                      : "border-gray-200 text-gray-300"
-                  }`}
+              return (
+                <Card
+                  key={a.announcementId}
+                  className="flex cursor-pointer items-center gap-4 p-5 transition-all hover:border-gray-400"
+                  onClick={() =>
+                    window.open(
+                      `/site/sale-center/${a.announcementId}`,
+                      "_blank"
+                    )
+                  }
                 >
-                  ♥
-                </Button>
-              </Card>
-            ))}
+                  <div className="flex-1">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Badge
+                        variant={
+                          displayStatus === "마감" ||
+                          displayStatus === "접수마감"
+                            ? "destructive"
+                            : displayStatus === "접수예정"
+                              ? "secondary"
+                              : "default"
+                        }
+                      >
+                        {displayStatus}
+                      </Badge>
+
+                      <span className="text-xs text-gray-400">
+                        {a.region} · {a.recuitmentType} · {a.supplyInstitution}
+                      </span>
+                    </div>
+
+                    <div className="mb-1 text-sm font-medium text-gray-900">
+                      {a.title}
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      {a.applyStartDate} ~ {a.applyEndDate}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLike(a.announcementId);
+                    }}
+                    className={`rounded-full border ${
+                      likedIds.has(a.announcementId)
+                        ? "border-red-400 text-red-400"
+                        : "border-gray-200 text-gray-300"
+                    }`}
+                  >
+                    ♥
+                  </Button>
+                </Card>
+              );
+            })}
 
             {announcements.length === 0 && (
               <div className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400">
@@ -882,7 +906,7 @@ function SaleCenterPageContent() {
 export default function SaleCenterPage() {
   return (
     <Suspense fallback={null}>
-      <SaleCenterPageContent/>
+      <SaleCenterPageContent />
     </Suspense>
-  )
+  );
 }
