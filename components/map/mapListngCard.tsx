@@ -32,6 +32,8 @@ export default function MapListingCard({ item, onClick }: MapListingCardProps) {
           <img
             src={imageUrl}
             alt={item.title}
+            loading="lazy"
+            decoding="async"
             onError={() => setImageLoadFailed(true)}
             className="h-24 w-24 shrink-0 rounded-xl object-cover"
           />
