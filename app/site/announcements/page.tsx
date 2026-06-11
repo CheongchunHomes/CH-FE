@@ -170,6 +170,7 @@ function AnnouncementsPageContent() {
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
 
+  // 수정추가된 부분
   const getDisplayStatus = (announcement: Announcement) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

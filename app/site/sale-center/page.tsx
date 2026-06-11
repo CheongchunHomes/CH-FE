@@ -155,6 +155,7 @@ function SaleCenterPageContent() {
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
 
+  //수정 추가
   const getDisplayStatus = (announcement: Announcement) => {
     if (announcement.applyEndDate) {
       const today = new Date();
