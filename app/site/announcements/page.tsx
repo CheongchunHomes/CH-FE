@@ -66,22 +66,9 @@ const EXTRA_REGIONS = [
   "충북",
 ];
 
-const AREA_FILTERS = [
-  "전체",
-  "39㎡ 이하",
-  "40~59㎡",
-  "60~84㎡",
-  "85㎡ 이상",
-];
+const LOCATION_FILTERS = ["전체", "거리 순", "5km 이내", "10km 이내"];
 
-const LOCATION_FILTERS = [
-  "전체",
-  "거리 순",
-  "5km 이내",
-  "10km 이내",
-];
-
-type AdvancedFilterType = "area" | "location" | null;
+type AdvancedFilterType = "location" | null;
 
 const statusOptions: { label: string; value?: string }[] = [
   { label: "전체", value: undefined },
@@ -116,7 +103,6 @@ function AnnouncementsPageContent() {
 
   const [activeAdvancedFilter, setActiveAdvancedFilter] =
     useState<AdvancedFilterType>(null);
-  const [areaType, setAreaType] = useState<string | undefined>();
   const [locationFilter, setLocationFilter] = useState<string | undefined>();
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -132,7 +118,6 @@ function AnnouncementsPageContent() {
   const [appliedLocation, setAppliedLocation] = useState<UserLocation | null>(
     null
   );
-  const [appliedAreaType, setAppliedAreaType] = useState<string | undefined>();
 
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -170,7 +155,6 @@ function AnnouncementsPageContent() {
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
 
-  // 수정추가된 부분
   const getDisplayStatus = (announcement: Announcement) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -278,21 +262,18 @@ function AnnouncementsPageContent() {
     status?: string,
     keyword?: string,
     deadlineSoon?: boolean,
-    areaType?: string,
     location?: UserLocation | null,
     locationFilter?: string
   ) => {
     try {
-      const useLocation = location && isLocationFilterActive(locationFilter);
-      const useAreaFilter = !!areaType && areaType !== "전체";
+      const useLocation = !!location && isLocationFilterActive(locationFilter);
 
       const data = await getAnnouncements({
         region,
         status,
         keyword,
         deadlineSoon,
-        areaType,
-        targetType: useAreaFilter ? undefined : "공공임대주택",
+        targetType: "공공임대주택",
         latitude: useLocation ? location.latitude : undefined,
         longitude: useLocation ? location.longitude : undefined,
         locationFilter: useLocation ? locationFilter : undefined,
@@ -317,7 +298,6 @@ function AnnouncementsPageContent() {
     setShowMoreRegions(false);
 
     setActiveAdvancedFilter(null);
-    setAreaType(undefined);
     setLocationFilter(undefined);
 
     setUserLocation(null);
@@ -330,7 +310,6 @@ function AnnouncementsPageContent() {
     setAppliedDeadlineSoon(false);
     setAppliedLocationFilter(undefined);
     setAppliedLocation(null);
-    setAppliedAreaType(undefined);
 
     setSearchSuggestions([]);
     setIsSuggestionLoading(false);
@@ -360,7 +339,6 @@ function AnnouncementsPageContent() {
       undefined,
       initialKeyword,
       false,
-      undefined,
       null,
       undefined
     );
@@ -412,7 +390,6 @@ function AnnouncementsPageContent() {
     setAppliedDeadlineSoon(deadlineSoon);
     setAppliedLocationFilter(locationFilter);
     setAppliedLocation(searchLocation);
-    setAppliedAreaType(areaType);
 
     await fetchData(
       0,
@@ -420,7 +397,6 @@ function AnnouncementsPageContent() {
       status,
       trimmedKeyword,
       deadlineSoon,
-      areaType,
       searchLocation,
       locationFilter
     );
@@ -442,7 +418,6 @@ function AnnouncementsPageContent() {
     setAppliedDeadlineSoon(deadlineSoon);
     setAppliedLocationFilter(locationFilter);
     setAppliedLocation(searchLocation);
-    setAppliedAreaType(areaType);
 
     await fetchData(
       0,
@@ -450,7 +425,6 @@ function AnnouncementsPageContent() {
       status,
       trimmedKeyword,
       deadlineSoon,
-      areaType,
       searchLocation,
       locationFilter
     );
@@ -488,7 +462,7 @@ function AnnouncementsPageContent() {
     }
   };
 
-  const uniqueSearchSuggetions = Array.from(
+  const uniqueSearchSuggestions = Array.from(
     new Map(
       searchSuggestions.map((a) => [
         `${a.title}-${a.address}-${a.applyEndDate}`,
@@ -497,7 +471,7 @@ function AnnouncementsPageContent() {
     ).values()
   );
 
-  const filteredCommandItems = uniqueSearchSuggetions.map((a) => ({
+  const filteredCommandItems = uniqueSearchSuggestions.map((a) => ({
     id: a.announcementId,
     type: a.recuitmentType || "공고",
     label: a.title,
@@ -582,7 +556,6 @@ function AnnouncementsPageContent() {
                           setAppliedRegion(region);
                           setAppliedStatus(status);
                           setAppliedDeadlineSoon(deadlineSoon);
-                          setAppliedAreaType(areaType);
                           setAppliedLocationFilter(undefined);
                           setAppliedLocation(null);
 
@@ -592,7 +565,8 @@ function AnnouncementsPageContent() {
                             status,
                             selectedKeyword,
                             deadlineSoon,
-                            areaType
+                            null,
+                            undefined
                           );
 
                           setIsSearchOpen(false);
@@ -691,21 +665,6 @@ function AnnouncementsPageContent() {
 
                 <Button
                   variant={
-                    activeAdvancedFilter === "area" ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() =>
-                    setActiveAdvancedFilter((prev) =>
-                      prev === "area" ? null : "area"
-                    )
-                  }
-                  className={activeAdvancedFilter === "area" ? "shadow-md" : ""}
-                >
-                  전용면적
-                </Button>
-
-                <Button
-                  variant={
                     activeAdvancedFilter === "location" ? "default" : "outline"
                   }
                   size="sm"
@@ -726,42 +685,6 @@ function AnnouncementsPageContent() {
                 </Button>
               </div>
             </div>
-
-            {activeAdvancedFilter === "area" && (
-              <div className="flex flex-wrap items-start gap-2 py-2">
-                <span className="min-w-[70px] pt-2 text-sm font-medium text-gray-600">
-                  전용면적
-                </span>
-
-                <div className="flex flex-1 flex-col gap-1">
-                  <div className="flex flex-wrap gap-1.5">
-                    {AREA_FILTERS.map((area) => {
-                      const isActive =
-                        (area === "전체" && !areaType) || areaType === area;
-
-                      return (
-                        <Button
-                          key={area}
-                          variant={isActive ? "default" : "outline"}
-                          size="sm"
-                          onClick={() =>
-                            setAreaType(area === "전체" ? undefined : area)
-                          }
-                          className={isActive ? "shadow-md" : ""}
-                        >
-                          {area}
-                        </Button>
-                      );
-                    })}
-                  </div>
-
-                  <p className="text-xs text-gray-400">
-                    선택한 전용면적 범위에 해당하는 주택형이 포함된 공고만
-                    조회됩니다.
-                  </p>
-                </div>
-              </div>
-            )}
 
             {activeAdvancedFilter === "location" && (
               <div className="flex flex-wrap items-start gap-2 py-2">
@@ -928,7 +851,6 @@ function AnnouncementsPageContent() {
                         appliedStatus,
                         appliedKeyword,
                         appliedDeadlineSoon,
-                        appliedAreaType,
                         appliedLocation,
                         appliedLocationFilter
                       )
@@ -958,7 +880,6 @@ function AnnouncementsPageContent() {
                             appliedStatus,
                             appliedKeyword,
                             appliedDeadlineSoon,
-                            appliedAreaType,
                             appliedLocation,
                             appliedLocationFilter
                           )
@@ -981,7 +902,6 @@ function AnnouncementsPageContent() {
                         appliedStatus,
                         appliedKeyword,
                         appliedDeadlineSoon,
-                        appliedAreaType,
                         appliedLocation,
                         appliedLocationFilter
                       )
