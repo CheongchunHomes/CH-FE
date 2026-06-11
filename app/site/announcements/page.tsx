@@ -170,16 +170,37 @@ function AnnouncementsPageContent() {
     return "위치 기반 필터는 좌표가 있는 공고를 기준으로 적용됩니다.";
   };
 
-  const getStatusLabel = (status?: string) => {
-    if (status === "접수마감" || status === "마감") {
+  const getDisplayStatus = (announcement: Announcement) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (announcement.applyEndDate) {
+      const endDate = new Date(announcement.applyEndDate);
+      endDate.setHours(0, 0, 0, 0);
+
+      if (endDate < today) {
+        return "마감";
+      }
+    }
+
+    if (announcement.applyStartDate) {
+      const startDate = new Date(announcement.applyStartDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      if (startDate > today) {
+        return "접수예정";
+      }
+    }
+
+    if (announcement.status === "접수마감" || announcement.status === "마감") {
       return "마감";
     }
 
-    return status ?? "";
+    return announcement.status ?? "접수중";
   };
 
   const getStatusBadgeClass = (status?: string) => {
-    if (status === "접수마감" || status === "마감") {
+    if (status === "마감") {
       return "bg-red-500 text-white hover:bg-red-500";
     }
 
@@ -264,14 +285,9 @@ function AnnouncementsPageContent() {
       const useLocation = location && isLocationFilterActive(locationFilter);
       const useAreaFilter = !!areaType && areaType !== "전체";
 
-      // 전용면적 필터 쪽은 "접수마감"을 기대하고,
-      // 일반/위치 기반 공고 쪽은 "마감"을 기대해서 여기서만 변환
-      const requestStatus =
-        useAreaFilter && status === "마감" ? "접수마감" : status;
-
       const data = await getAnnouncements({
         region,
-        status: requestStatus,
+        status,
         keyword,
         deadlineSoon,
         areaType,
@@ -523,7 +539,6 @@ function AnnouncementsPageContent() {
 
       <main className="flex-1 px-8 py-8">
         <div className="mx-auto max-w-4xl">
-          {/* 검색바 */}
           <div className="mb-4 flex gap-2">
             <Command className="relative flex-1 overflow-visible rounded-lg border border-gray-200 bg-white">
               <CommandInput
@@ -604,11 +619,9 @@ function AnnouncementsPageContent() {
             </Button>
           </div>
 
-          {/* 필터 */}
           <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div className="mb-2 text-xs text-gray-400">기본 조건</div>
 
-            {/* 지역 */}
             <div className="flex flex-wrap items-center gap-2 py-2">
               <span className="min-w-[70px] text-sm font-medium text-gray-600">
                 지역
@@ -660,7 +673,6 @@ function AnnouncementsPageContent() {
               </div>
             </div>
 
-            {/* 추가 필터 */}
             <div className="flex flex-wrap items-center gap-4 py-2">
               <span className="min-w-[60px] text-sm font-medium text-gray-600">
                 추가 필터
@@ -714,7 +726,6 @@ function AnnouncementsPageContent() {
               </div>
             </div>
 
-            {/* 전용면적 세부 필터 */}
             {activeAdvancedFilter === "area" && (
               <div className="flex flex-wrap items-start gap-2 py-2">
                 <span className="min-w-[70px] pt-2 text-sm font-medium text-gray-600">
@@ -751,7 +762,6 @@ function AnnouncementsPageContent() {
               </div>
             )}
 
-            {/* 내 위치 기반 세부 필터 */}
             {activeAdvancedFilter === "location" && (
               <div className="flex flex-wrap items-start gap-2 py-2">
                 <span className="min-w-[70px] pt-2 text-sm font-medium text-gray-600">
@@ -807,7 +817,6 @@ function AnnouncementsPageContent() {
               </div>
             )}
 
-            {/* 공고 상태 */}
             <div className="flex flex-wrap items-center gap-4 py-2">
               <span className="min-w-[60px] text-sm font-medium text-gray-600">
                 공고 상태
@@ -840,61 +849,64 @@ function AnnouncementsPageContent() {
             </div>
           </div>
 
-          {/* 리스트 */}
           <div className="mb-2 text-sm text-gray-500">
             공고 리스트 ·{" "}
             <span className="text-gray-400">{totalElements}건</span>
           </div>
 
           <div className="flex flex-col gap-2">
-            {announcements.map((a) => (
-              <Card
-                key={a.announcementId}
-                className="flex cursor-pointer items-center gap-4 p-5 transition-all hover:border-gray-400"
-                onClick={() =>
-                  window.open(
-                    `/site/announcements/${a.announcementId}`,
-                    "_blank"
-                  )
-                }
-              >
-                <div className="flex-1">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <Badge className={getStatusBadgeClass(a.status)}>
-                      {getStatusLabel(a.status)}
-                    </Badge>
+            {announcements.map((a) => {
+              const displayStatus = getDisplayStatus(a);
 
-                    <span className="text-xs text-gray-400">
-                      {a.region} · {a.recuitmentType} · {a.supplyInstitution}
-                    </span>
-                  </div>
-
-                  <div className="mb-1 text-sm font-medium text-gray-900">
-                    {a.title}
-                  </div>
-
-                  <div className="text-xs text-gray-500">
-                    {a.applyStartDate} ~ {a.applyEndDate}
-                  </div>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleLike(a.announcementId);
-                  }}
-                  className={`rounded-full border ${
-                    likedIds.has(a.announcementId)
-                      ? "border-red-400 text-red-400"
-                      : "border-gray-200 text-gray-300"
-                  }`}
+              return (
+                <Card
+                  key={a.announcementId}
+                  className="flex cursor-pointer items-center gap-4 p-5 transition-all hover:border-gray-400"
+                  onClick={() =>
+                    window.open(
+                      `/site/announcements/${a.announcementId}`,
+                      "_blank"
+                    )
+                  }
                 >
-                  ♥
-                </Button>
-              </Card>
-            ))}
+                  <div className="flex-1">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Badge className={getStatusBadgeClass(displayStatus)}>
+                        {displayStatus}
+                      </Badge>
+
+                      <span className="text-xs text-gray-400">
+                        {a.region} · {a.recuitmentType} · {a.supplyInstitution}
+                      </span>
+                    </div>
+
+                    <div className="mb-1 text-sm font-medium text-gray-900">
+                      {a.title}
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      {a.applyStartDate} ~ {a.applyEndDate}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLike(a.announcementId);
+                    }}
+                    className={`rounded-full border ${
+                      likedIds.has(a.announcementId)
+                        ? "border-red-400 text-red-400"
+                        : "border-gray-200 text-gray-300"
+                    }`}
+                  >
+                    ♥
+                  </Button>
+                </Card>
+              );
+            })}
 
             {announcements.length === 0 && (
               <div className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400">
@@ -903,7 +915,6 @@ function AnnouncementsPageContent() {
             )}
           </div>
 
-          {/* 페이지네이션 */}
           {totalPages > 1 && (
             <Pagination className="mt-6">
               <PaginationContent>

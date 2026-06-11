@@ -73,7 +73,7 @@ export default function SitePage() {
                 <div className="space-y-5">
                   <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-[#2563EB]">
                     <Sparkles size={14} />
-                    청년 주거 원스톱
+                    청년 주거 원스탭
                   </div>
 
                   <div className="space-y-3">
@@ -125,7 +125,7 @@ export default function SitePage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-lg text-slate-900">청년 주거 원스톱</CardTitle>
+                  <CardTitle className="text-lg text-slate-900">청년 주거 원스탭</CardTitle>
                   <span className="rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-[#2563EB]">
                     빠른 실행
                   </span>
