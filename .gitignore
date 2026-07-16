@@ -17,7 +17,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+.env
+.env.local
 
 # local-only Live2D SDK files
 app/live2d/
@@ -27,6 +28,7 @@ lib/live2d-sdk/
 public/live2d/
 config/openai.json
 config/typecast.json
+storage/
 
 # vercel
 .vercel
@@ -37,3 +39,9 @@ next-env.d.ts
 
 # WebStorm
 .idea
+
+# vscode
+.vscode
+
+# test
+app/test/

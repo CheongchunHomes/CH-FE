@@ -1,36 +1,59 @@
 import { NextResponse } from "next/server"
 
-import { createChatReply, type ChatMessage } from "@/lib/openai"
+import { requestAiChat } from "@/lib/ai/chat-server"
+import type { AiChatMessage, AiChatRequest, AiChatRole } from "@/lib/ai/chat-types"
+
+export const runtime = "nodejs"
 
 type ChatRequestBody = {
-  message?: unknown
   messages?: unknown
+  pageContext?: unknown
+  userContext?: unknown
 }
 
-function normalizeMessages(input: unknown): ChatMessage[] {
-  if (!Array.isArray(input)) {
-    return []
+function isAiChatRole(role: unknown): role is AiChatRole {
+  return role === "user" || role === "assistant"
+}
+
+function parseMessages(messages: unknown) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return null
   }
 
-  return input
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return null
-      }
+  const parsedMessages: AiChatMessage[] = []
 
-      const role = "role" in item ? String((item as { role?: unknown }).role) : ""
-      const content = "content" in item ? String((item as { content?: unknown }).content) : ""
+  for (const message of messages) {
+    if (!message || typeof message !== "object") {
+      return null
+    }
 
-      if ((role !== "user" && role !== "assistant") || !content.trim()) {
-        return null
-      }
+    const role = (message as { role?: unknown }).role
+    const content = (message as { content?: unknown }).content
 
-      return {
-        role,
-        content: content.trim(),
-      } satisfies ChatMessage
+    if (!isAiChatRole(role) || typeof content !== "string") {
+      return null
+    }
+
+    const trimmedContent = content.trim()
+    if (!trimmedContent) {
+      return null
+    }
+
+    parsedMessages.push({
+      role,
+      content: trimmedContent,
     })
-    .filter((item): item is ChatMessage => item != null)
+  }
+
+  return parsedMessages
+}
+
+function parseOptionalString(value: unknown) {
+  if (value === undefined) {
+    return undefined
+  }
+
+  return typeof value === "string" ? value : null
 }
 
 export async function POST(request: Request) {
@@ -42,22 +65,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "요청 본문을 읽을 수 없습니다." }, { status: 400 })
   }
 
-  const messages = normalizeMessages(body.messages)
-  const message = typeof body.message === "string" ? body.message.trim() : ""
-
-  if (message) {
-    messages.push({ role: "user", content: message })
+  const messages = parseMessages(body.messages)
+  if (!messages) {
+    return NextResponse.json({ error: "messages 형식이 올바르지 않습니다." }, { status: 400 })
   }
 
-  if (messages.length === 0) {
-    return NextResponse.json({ error: "메시지를 하나 이상 보내주세요." }, { status: 400 })
+  const pageContext = parseOptionalString(body.pageContext)
+  if (pageContext === null) {
+    return NextResponse.json({ error: "pageContext 형식이 올바르지 않습니다." }, { status: 400 })
+  }
+
+  const userContext = parseOptionalString(body.userContext)
+  if (userContext === null) {
+    return NextResponse.json({ error: "userContext 형식이 올바르지 않습니다." }, { status: 400 })
+  }
+
+  const aiRequest: AiChatRequest = {
+    messages,
+    ...(pageContext !== undefined ? { pageContext } : {}),
+    ...(userContext !== undefined ? { userContext } : {}),
   }
 
   try {
-    const reply = await createChatReply(messages)
-    return NextResponse.json({ reply })
+    const response = await requestAiChat(aiRequest)
+    return NextResponse.json({ reply: response.reply })
   } catch (error) {
-    const messageText = error instanceof Error ? error.message : "알 수 없는 오류가 발생했어요."
-    return NextResponse.json({ error: messageText }, { status: 500 })
+    const message = error instanceof Error ? error.message : "AI 서버 요청 실패"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

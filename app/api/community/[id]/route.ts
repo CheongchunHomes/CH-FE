@@ -1,0 +1,1 @@
+export { GET, DELETE } from '@/lib/api/server';

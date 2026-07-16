@@ -1,12 +1,5 @@
-import { PageSampleView } from "@/components/page-sample-view"
-import { getPageSample } from "@/lib/page-samples"
+import LoanCalculatorDb from "@/components/loan/loan-calculator-db"
 
 export default function LoanPage() {
-  const sample = getPageSample("loan")
-
-  if (!sample) {
-    return null
-  }
-
-  return <PageSampleView image={sample.image} label={sample.label} />
+  return <LoanCalculatorDb />
 }
